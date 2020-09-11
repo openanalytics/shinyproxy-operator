@@ -13,6 +13,7 @@ spec:
   validation:
     openAPIV3Schema:
       description: ShinyProxy
+      type: object
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -26,21 +27,96 @@ spec:
           type: string
         metadata:
           type: object
+          properties:
+            name:
+              type: string
+          required:
+           - name
         spec:
-          description: ShinyProxySpec defines the desired state of ShinyProxy
+          description: Specification of the ShinyProxy (i.e. application.yml)
           type: object
           properties:
-            application.yml:
-              type:  object
+            proxy:
+              type: object
+              properties:
+                title:
+                  type: string
+                logoUrl:
+                  type: string
+                landingPage:
+                  type: string
+                heartbeatRate:
+                  type: integer
+                heartbeatTimeout:
+                  type: integer
+                port:
+                  type: integer
+                bindAddress:
+                  type: string
+                templatePath:
+                  type: string
+                adminGroups:
+                  type: array
+                authentication:
+                  type: string
+                  enum:
+                   - ldap
+                   - kerberos
+                   - keycloak
+                   - openid
+                   - saml
+                   - social
+                   - simple
+                   - none
+                containerWaitTime:
+                  type: integer
+                hideNavbar:
+                  type: boolean
+                containerBackend:
+                  type: string
+                  enum:
+                   - docker
+                   - docker-swarm
+                   - kubernetes
+                specs:
+                  type: array
+                  properties:
+                    id:
+                      type: string
+                    displayName:
+                      type: string
+                    containerCmd:
+                      type: array
+                    containerImage:
+                      type: string
+                    containerPrivileged:
+                      type: boolean
+                    containerMemoryRequest:
+                      type: string
+                    containerMemoryLimit:
+                      type: string
+                    containerCpuRequest:
+                      type: string
+                    containerCpuLimit:
+                      type: string
+                    accessGroups:
+                      type: array
+                    containerDns:
+                      type: string
+                    containerEnv:
+                      type: object
+                    containerMemory:
+                      type: string
+                    containerNetwork:
+                      type: string
+                    containerVolumes:
+                      type: array
+                  required:
+                    - id
           required:
-           - application.yml
+           - proxy
         status:
           description: ShinyProxyStatus defines the observed state of ShinyProxy
           type: object
           properties:
-            #backendImage:
-              #type: string
-            #frontendImage:
-              #type: string
-      type: object
 

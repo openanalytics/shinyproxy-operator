@@ -28,7 +28,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                         .withNewUid(shinyProxy.metadata.uid)
                     .endOwnerReference()
                 .endMetadata()
-                .addToData("application-in.yml", mapper.writeValueAsString(shinyProxy.spec.applicationYaml))
+                .addToData("application-in.yml", mapper.writeValueAsString(shinyProxy.spec))
                 .build()
 
         val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).create(configMapDefinition)
