@@ -72,12 +72,6 @@ spec:
                   type: integer
                 hideNavbar:
                   type: boolean
-                containerBackend:
-                  type: string
-                  enum:
-                   - docker
-                   - docker-swarm
-                   - kubernetes
                 specs:
                   type: array
                   properties:
@@ -111,6 +105,8 @@ spec:
                       type: string
                     containerVolumes:
                       type: array
+                    kubernetesPodPatches:
+                      type: string
                   required:
                     - id
           required:
