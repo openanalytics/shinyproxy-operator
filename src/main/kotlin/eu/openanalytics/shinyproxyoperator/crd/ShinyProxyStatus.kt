@@ -7,9 +7,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource
 
 @JsonDeserialize(using = JsonDeserializer.None::class)
 class ShinyProxyStatus : KubernetesResource {
-    override fun toString(): String {
-        return "PodSetStatus{ availableReplicas=$availableReplicas}"
-    }
 
-    var availableReplicas = 0
+    // TODO
+
 }

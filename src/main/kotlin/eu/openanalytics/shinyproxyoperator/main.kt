@@ -1,6 +1,6 @@
 package eu.openanalytics.shinyproxyoperator
 
-import ShinyProxyList
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -17,7 +17,7 @@ import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import mu.KotlinLogging
 
-fun main() {
+suspend fun main() {
     val logger = KotlinLogging.logger {}
     try {
         DefaultKubernetesClient().use { client ->
@@ -49,14 +49,12 @@ fun main() {
             val shinyProxyIndexInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000)
 
             val shinyProxyController = ShinyProxyController(client,
-                    podSetClient,
                     replicaSetIndexInformer,
                     serviceIndexInformer,
                     configMapIndexInformer,
                     shinyProxyIndexInformer,
                     namespace)
 
-            shinyProxyController.create()
             informerFactory.startAllRegisteredInformers()
 
             informerFactory.addSharedInformerEventListener {

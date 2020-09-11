@@ -9,5 +9,5 @@ import io.fabric8.kubernetes.api.model.KubernetesResource
 class ShinyProxySpec : KubernetesResource {
 
     @JsonProperty("application.yml")
-    var applicationYaml: String? = null
+    lateinit var applicationYaml: String
 }
