@@ -2,6 +2,7 @@ package eu.openanalytics.shinyproxyoperator.crd
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.JsonDeserializer
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import io.fabric8.kubernetes.api.model.KubernetesResource
 
@@ -9,5 +10,5 @@ import io.fabric8.kubernetes.api.model.KubernetesResource
 class ShinyProxySpec : KubernetesResource {
 
     @JsonProperty("application.yml")
-    lateinit var applicationYaml: String
+    lateinit var applicationYaml: JsonNode
 }

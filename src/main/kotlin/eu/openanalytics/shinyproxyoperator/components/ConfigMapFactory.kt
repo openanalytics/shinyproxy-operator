@@ -1,5 +1,7 @@
 package eu.openanalytics.shinyproxyoperator.components
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import io.fabric8.kubernetes.api.model.ConfigMap
@@ -7,9 +9,11 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import mu.KotlinLogging
 
+
 class ConfigMapFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
+    private val mapper = ObjectMapper(YAMLFactory())
 
     fun create(shinyProxy: ShinyProxy): ConfigMap {
         val configMapDefinition: ConfigMap = ConfigMapBuilder()
@@ -24,7 +28,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                         .withNewUid(shinyProxy.metadata.uid)
                     .endOwnerReference()
                 .endMetadata()
-                .addToData("application-in.yml", shinyProxy.spec.applicationYaml)
+                .addToData("application-in.yml", mapper.writeValueAsString(shinyProxy.spec.applicationYaml))
                 .build()
 
         val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).create(configMapDefinition)

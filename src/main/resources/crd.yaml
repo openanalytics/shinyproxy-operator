@@ -31,7 +31,7 @@ spec:
           type: object
           properties:
             application.yml:
-              type:  string
+              type:  object
           required:
            - application.yml
         status:
