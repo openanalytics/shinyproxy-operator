@@ -1,0 +1,48 @@
+apiVersion: openanalytics.eu/v1alpha1
+kind: ShinyProxy
+metadata:
+  name: example-shinyproxy
+spec:
+  application.yml: |
+    proxy:
+      title: Open Analytics Shiny Proxy
+      logo-url: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
+      landing-page: /
+      heartbeat-rate: 10000
+      heartbeat-timeout: 60000
+      port: 8080
+      authentication: simple
+      #admin-groups: scientists
+      container-backend: kubernetes
+      #kubernetes:
+         #url: https://172.17.0.2:8443
+      # Example: 'simple' authentication configuration
+      users:
+      - name: jack
+        password: password
+        groups: scientists
+      - name: jeff
+        password: password
+        groups: mathematicians
+      # Example: 'ldap' authentication configuration
+      specs:
+      - id: 01_hello
+        display-name: Hello Application
+        description: Application which demonstrates the basics of a Shiny app
+        container-cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+        container-image: openanalytics/shinyproxy-demo
+        #kubernetes-pod-patches: |
+         #- op: replace
+           #path: /metadata/namespace
+           #value: my-namespace
+         #- op: add
+           #path: /spec/containers/0/resources
+           #value:
+             #requests:
+               #cpu: "1"
+             #limits:
+               #cpu: "1"
+      - id: 06_tabsets
+        container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
+        container-image: openanalytics/shinyproxy-demo
+
