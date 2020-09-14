@@ -21,12 +21,12 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
                            private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>,
                            namespace: String) {
 
-    private val workqueue = Channel<String>()
+    private val workqueue = Channel<ShinyProxyEvent>()
     private val shinyProxyLister = Lister(shinyProxyInformer.indexer, namespace)
     private val replicaSetLister = Lister(replicaSetInformer.indexer, namespace)
     private val configMapLister = Lister(configMapInformer.indexer, namespace)
     private val serviceLister = Lister(serviceInformer.indexer, namespace)
-    private val shinyProxyListener = ResourceListener(workqueue, shinyProxyInformer, shinyProxyLister)
+    private val shinyProxyListener = ShinyProxyListener(workqueue, shinyProxyInformer, shinyProxyLister)
     private val replicaSetListener = ResourceListener(workqueue, replicaSetInformer, shinyProxyLister)
     private val serviceListener = ResourceListener(workqueue, serviceInformer, shinyProxyLister)
     private val configMapListener = ResourceListener(workqueue, configMapInformer, shinyProxyLister)
@@ -44,24 +44,40 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
         }
         while (true) {
             try {
-                val key = workqueue.receive()
-                if (key.isEmpty() || !key.contains("/")) {
-                    logger.warn { "invalid resource key: $key" }
+                val event = workqueue.receive()
+
+                when (event.eventType) {
+                    ShinyProxyEventType.ADD -> {
+                        reconcileSingleShinyProxy(event.shinyProxy)
+                    }
+                    ShinyProxyEventType.UPDATE -> {
+                        // TODO calculate hash -> reconcile
+                    }
+                    ShinyProxyEventType.DELETE -> {
+                        deleteSingleShinyProxy(event.shinyProxy)
+                    }
+                    ShinyProxyEventType.UPDATE_DEPENDENCY -> {
+                        reconcileSingleShinyProxy(event.shinyProxy)
+                    }
                 }
 
-                val name = key.split("/").toTypedArray()[1]
-                val shinyProxy: ShinyProxy? = shinyProxyLister[key.split("/").toTypedArray()[1]]
-
-                if (shinyProxy == null) {
-                    logger.warn { "ShinyProxy $name in workqueue no longer exists" }
-                    return
-                }
-
-                reconcileSingleShinyProxy(shinyProxy)
             } catch (interruptedException: InterruptedException) {
                 Thread.currentThread().interrupt()
                 logger.warn { "controller interrupted.." }
             }
+        }
+    }
+
+    private fun deleteSingleShinyProxy(shinyProxy: ShinyProxy) {
+        logger.info { "DeleteSingleShinyProxy: ${shinyProxy.metadata.name}" }
+        for (service in resourceRetriever.getServiceByLabel(APP_LABEL, shinyProxy.metadata.name)) {
+            kubernetesClient.resource(service).delete()
+        }
+        for (replicaSet in resourceRetriever.getReplicaSetByLabel(APP_LABEL, shinyProxy.metadata.name)) {
+            kubernetesClient.resource(replicaSet).delete()
+        }
+        for (configMap in resourceRetriever.getConfigMapByLabel(APP_LABEL, shinyProxy.metadata.name)) {
+            kubernetesClient.resource(configMap).delete()
         }
     }
 

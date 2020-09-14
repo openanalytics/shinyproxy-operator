@@ -5,13 +5,12 @@ import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.OwnerReference
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
-import io.fabric8.kubernetes.client.informers.cache.Cache
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 
-class ResourceListener<T : HasMetadata>(private val channel: SendChannel<String>,
+class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyProxyEvent>,
                                         informer: SharedIndexInformer<T>,
                                         private val shinyProxyLister: Lister<ShinyProxy>) {
 
@@ -37,19 +36,12 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<String>
     }
 
     private suspend fun enqueuResource(resource: T) {
-        val shinyProxy = if (resource is ShinyProxy) {
-            resource
-        } else {
-            val ownerReference = getControllerOf(resource) ?: return
-            if (ownerReference.kind.toLowerCase() != "shinyproxy") {
-                return
-            }
-            shinyProxyLister[ownerReference.name] ?: return
+        val ownerReference = getControllerOf(resource) ?: return
+        if (ownerReference.kind.toLowerCase() != "shinyproxy") {
+            return
         }
-        val key = Cache.metaNamespaceKeyFunc(shinyProxy)
-        if (key != null && key.isNotEmpty()) {
-            channel.send(key)
-        }
+        val shinyProxy = shinyProxyLister[ownerReference.name] ?: return
+        channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE_DEPENDENCY, shinyProxy))
     }
 
 
