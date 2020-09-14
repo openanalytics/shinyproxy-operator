@@ -13,13 +13,12 @@ import mu.KotlinLogging
 class ConfigMapFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
-    private val mapper = ObjectMapper(YAMLFactory())
 
     fun create(shinyProxy: ShinyProxy): ConfigMap {
         val configMapDefinition: ConfigMap = ConfigMapBuilder()
                 .withNewMetadata()
-                    .withGenerateName(shinyProxy.metadata.name.toString() + "-configmap-")
-                    .withLabels(mapOf(ShinyProxyController.APP_LABEL to shinyProxy.metadata.name))
+                    .withName(ResourceNameFactory.createNameForConfigMap(shinyProxy))
+                    .withLabels(LabelFactory.labelsForCurrentShinyProxyInstance(shinyProxy))
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
@@ -28,7 +27,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                         .withNewUid(shinyProxy.metadata.uid)
                     .endOwnerReference()
                 .endMetadata()
-                .addToData("application-in.yml", mapper.writeValueAsString(shinyProxy.spec))
+                .addToData("application-in.yml", shinyProxy.specAsYaml)
                 .build()
 
         val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).create(configMapDefinition)

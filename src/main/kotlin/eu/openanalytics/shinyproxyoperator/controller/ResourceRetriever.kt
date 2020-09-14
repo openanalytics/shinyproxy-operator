@@ -25,6 +25,18 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         return configMaps
     }
 
+    fun getConfigMapByLabels(labels: Map<String, String>): List<ConfigMap> {
+        val configMaps = arrayListOf<ConfigMap>()
+        for (configmap in configMapLister.list()) {
+            if (configmap?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
+                configMaps.add(configmap)
+                logger.debug { "Found ConfigMap ${configmap.metadata.name}" }
+            }
+        }
+        logger.info { "ConfigMapCount: ${configMaps.size}, ${configMaps.map { it.metadata.name }}" }
+        return configMaps
+    }
+
     fun getReplicaSetByLabel(label: String, shinyProxyName: String): ArrayList<ReplicaSet> {
         val replicaSets = arrayListOf<ReplicaSet>()
         for (replicaSet in replicaSetLister.list()) {
@@ -37,10 +49,34 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         return replicaSets
     }
 
+    fun getReplicaSetByLabels(labels: Map<String, String>): ArrayList<ReplicaSet> {
+        val replicaSets = arrayListOf<ReplicaSet>()
+        for (replicaSet in replicaSetLister.list()) {
+            if (replicaSet?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
+                replicaSets.add(replicaSet)
+                logger.debug { "Found ReplicaSet ${replicaSet.metadata.name} phase => ${replicaSet.status}" }
+            }
+        }
+        logger.info { "ReplicaSetCount: ${replicaSets.size}, ${replicaSets.map { it.metadata.name }}" }
+        return replicaSets
+    }
+
     fun getServiceByLabel(label: String, shinyProxyName: String): List<Service> {
         val services = arrayListOf<Service>()
         for (service in serviceLister.list()) {
             if (service?.metadata?.labels?.entries?.contains(AbstractMap.SimpleEntry(label, shinyProxyName)) == true) {
+                services.add(service)
+                logger.debug { "Found ReplicaSet ${service.metadata.name} phase => ${service.status}" }
+            }
+        }
+        logger.info { "ServiceCount: ${services.size}, ${services.map { it.metadata.name }}" }
+        return services
+    }
+
+    fun getServiceByLabels(labels: Map<String, String>): List<Service> {
+        val services = arrayListOf<Service>()
+        for (service in serviceLister.list()) {
+            if (service?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 services.add(service)
                 logger.debug { "Found ReplicaSet ${service.metadata.name} phase => ${service.status}" }
             }

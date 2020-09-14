@@ -1,5 +1,6 @@
 package eu.openanalytics.shinyproxyoperator.controller
 
+import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.OwnerReference
@@ -40,8 +41,12 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
         if (ownerReference.kind.toLowerCase() != "shinyproxy") {
             return
         }
+
         val shinyProxy = shinyProxyLister[ownerReference.name] ?: return
-        channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE_DEPENDENCY, shinyProxy))
+        val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL] ?: TODO("Should not happen")
+        val shinyProxyInstance = shinyProxy.status.getInstanceByHash(hashOfInstance) ?: TODO("Should not happen")
+
+        channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE_DEPENDENCY, shinyProxy, shinyProxyInstance))
     }
 
 
@@ -52,6 +57,7 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
                 return ownerReference
             }
         }
+
         return null
     }
 

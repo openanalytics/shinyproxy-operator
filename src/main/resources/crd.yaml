@@ -10,6 +10,8 @@ spec:
     plural: "shinyproxies"
   scope: "Namespaced"
   version: "v1alpha1"
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: ShinyProxy
@@ -115,4 +117,12 @@ spec:
           description: ShinyProxyStatus defines the observed state of ShinyProxy
           type: object
           properties:
+            instances:
+              type: array
+              items:
+                type: object
+                properties:
+                  hashOfSpec:
+                    type: string
+                    isLatestInstance: boolean
 

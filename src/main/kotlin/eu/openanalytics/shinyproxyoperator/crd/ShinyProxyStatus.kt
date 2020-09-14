@@ -8,6 +8,10 @@ import io.fabric8.kubernetes.api.model.KubernetesResource
 @JsonDeserialize(using = JsonDeserializer.None::class)
 class ShinyProxyStatus : KubernetesResource {
 
-    // TODO
+    var instances = ArrayList<ShinyProxyInstance>()
+
+    fun getInstanceByHash(hash: String): ShinyProxyInstance? {
+        return instances.find { it.hashOfSpec ==  hash}
+    }
 
 }
