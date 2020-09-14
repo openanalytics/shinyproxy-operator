@@ -27,17 +27,12 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>,
                 println("Old hash: ${shinyProxy.calculateHashOfCurrentSpec()}")
                 println("New hash: ${newShinyProxy.calculateHashOfCurrentSpec()}")
 
-                val shinyProxyInstance = if (shinyProxy.calculateHashOfCurrentSpec() == newShinyProxy.calculateHashOfCurrentSpec()) {
-                    shinyProxy.status.getInstanceByHash(shinyProxy.calculateHashOfCurrentSpec())
+                if (shinyProxy.calculateHashOfCurrentSpec() == newShinyProxy.calculateHashOfCurrentSpec()) {
+                    val shinyProxyInstance = shinyProxy.status.getInstanceByHash(shinyProxy.calculateHashOfCurrentSpec()) ?: TODO("This should not happen")
+                    runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance)) }
                 } else {
-                    TODO("New SP instance should be created")
+                    runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE_SPEC, newShinyProxy, null)) }
                 }
-
-                if (shinyProxyInstance == null) {
-                    TODO("This should not happen")
-                }
-
-                runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE, shinyProxy, shinyProxyInstance)) }
             }
 
             override fun onDelete(shinyProxy: ShinyProxy, b: Boolean) {

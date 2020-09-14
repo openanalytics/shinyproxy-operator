@@ -55,18 +55,18 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
 
                 when (event.eventType) {
                     ShinyProxyEventType.ADD -> {
-                        reconcileSingleShinyProxy(event.shinyProxy, event.shinyProxyInstance)
+                        val newInstance = createNewInstance(event.shinyProxy)
+                        reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
                     }
-                    ShinyProxyEventType.UPDATE -> {
-                        // TODO calculate hash -> reconcile
-                        reconcileSingleShinyProxy(event.shinyProxy, event.shinyProxyInstance)
+                    ShinyProxyEventType.UPDATE_SPEC -> {
+                        val newInstance = createNewInstance(event.shinyProxy)
+                        reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
                     }
                     ShinyProxyEventType.DELETE -> {
                         // DELETE is not needed
-//                        deleteSingleShinyProxy(event.shinyProxy)
                     }
-                    ShinyProxyEventType.UPDATE_DEPENDENCY -> {
-                        reconcileSingleShinyProxy(event.shinyProxy, event.shinyProxyInstance)
+                    ShinyProxyEventType.RECONCILE -> {
+                        reconcileSingleShinyProxyInstance(event.shinyProxy, event.shinyProxyInstance)
                     }
                 }
 
@@ -90,24 +90,37 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
 //        }
 //    }
 
-    private suspend fun reconcileSingleShinyProxy(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance?) {
-        logger.info { "ReconcileSingleShinyProxy: ${shinyProxy.metadata.name}" }
+    private fun createNewInstance(shinyProxy: ShinyProxy): ShinyProxyInstance {
+        val existingInstance = shinyProxy.status.getInstanceByHash(shinyProxy.calculateHashOfCurrentSpec())
 
-        if (shinyProxy.status.instances.isEmpty()) {
-            val instance = ShinyProxyInstance()
-            instance.hashOfSpec = shinyProxy.calculateHashOfCurrentSpec()
-            instance.isLatestInstance = true
-            shinyProxy.status.instances.add(instance)
+        if (existingInstance != null && existingInstance.isLatestInstance == true) {
+            logger.warn { "Trying to create new instance which already exists and is the latest instance" }
+            return existingInstance
+        } else if (existingInstance != null && existingInstance.isLatestInstance == false) {
+            shinyProxy.status.instances.forEach { it.isLatestInstance = false }
+            existingInstance.isLatestInstance = true
             shinyProxyClient.updateStatus(shinyProxy)
-            return
+            return existingInstance
         }
 
+        val newInstance = ShinyProxyInstance()
+        newInstance.hashOfSpec = shinyProxy.calculateHashOfCurrentSpec()
+        newInstance.isLatestInstance = true
+        shinyProxy.status.instances.forEach { it.isLatestInstance = false }
+        shinyProxy.status.instances.add(newInstance)
+        shinyProxyClient.updateStatus(shinyProxy)
+        return newInstance
+    }
+
+    private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance?) {
+        logger.info { "ReconcileSingleShinyProxy: ${shinyProxy.metadata.name}" }
+
         if (shinyProxyInstance == null) {
-            TODO("Should not happend")
+            TODO("Should not happen")
         }
 
         if (shinyProxyInstance.hashOfSpec == null) {
-            TODO("Should not happend")
+            TODO("Should not happen")
         }
 
         val configMaps = resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))

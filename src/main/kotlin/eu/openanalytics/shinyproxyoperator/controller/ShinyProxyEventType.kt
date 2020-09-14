@@ -2,7 +2,7 @@ package eu.openanalytics.shinyproxyoperator.controller
 
 enum class ShinyProxyEventType {
     ADD,
-    UPDATE,
+    UPDATE_SPEC,
     DELETE,
-    UPDATE_DEPENDENCY
+    RECONCILE
 }
