@@ -4,5 +4,6 @@ enum class ShinyProxyEventType {
     ADD,
     UPDATE_SPEC,
     DELETE,
-    RECONCILE
+    RECONCILE,
+    CHECK_OBSOLETE_INSTANCES
 }

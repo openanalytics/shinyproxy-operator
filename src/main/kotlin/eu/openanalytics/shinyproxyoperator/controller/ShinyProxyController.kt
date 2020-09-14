@@ -9,6 +9,7 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import io.fabric8.kubernetes.api.model.ConfigMap
+import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.client.KubernetesClient
@@ -16,7 +17,10 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
 
 
@@ -25,6 +29,7 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
                            private val replicaSetInformer: SharedIndexInformer<ReplicaSet>,
                            serviceInformer: SharedIndexInformer<Service>,
                            configMapInformer: SharedIndexInformer<ConfigMap>,
+                           podInformer: SharedIndexInformer<Pod>,
                            private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>,
                            namespace: String) {
 
@@ -37,7 +42,8 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
     private val replicaSetListener = ResourceListener(workqueue, replicaSetInformer, shinyProxyLister)
     private val serviceListener = ResourceListener(workqueue, serviceInformer, shinyProxyLister)
     private val configMapListener = ResourceListener(workqueue, configMapInformer, shinyProxyLister)
-    private val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister)
+    private val podLister = Lister(podInformer.indexer)
+    private val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, podLister)
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val serviceFactory = ServiceFactory(kubernetesClient)
     private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
@@ -49,16 +55,25 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
         while (!replicaSetInformer.hasSynced() || !shinyProxyInformer.hasSynced()) {
             // Wait till Informer syncs
         }
+        GlobalScope.launch { scheduleAdditionalEvents() }
         while (true) {
             try {
                 val event = workqueue.receive()
 
                 when (event.eventType) {
                     ShinyProxyEventType.ADD -> {
+                        if (event.shinyProxy == null) {
+                            logger.warn { "Event of type ADD should have shinyproxy attached to it." }
+                            continue
+                        }
                         val newInstance = createNewInstance(event.shinyProxy)
                         reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
                     }
                     ShinyProxyEventType.UPDATE_SPEC -> {
+                        if (event.shinyProxy == null) {
+                            logger.warn { "Event of type UPDATE_SPEC should have shinyproxy attached to it." }
+                            continue
+                        }
                         val newInstance = createNewInstance(event.shinyProxy)
                         reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
                     }
@@ -66,7 +81,14 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
                         // DELETE is not needed
                     }
                     ShinyProxyEventType.RECONCILE -> {
+                        if (event.shinyProxy == null) {
+                            logger.warn { "Event of type RECONCILE should have shinyproxy attached to it." }
+                            continue
+                        }
                         reconcileSingleShinyProxyInstance(event.shinyProxy, event.shinyProxyInstance)
+                    }
+                    ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES -> {
+                        checkForObsoleteInstances()
                     }
                 }
 
@@ -76,19 +98,6 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
             }
         }
     }
-
-//    private fun deleteSingleShinyProxy(shinyProxy: ShinyProxy) {
-//        logger.info { "DeleteSingleShinyProxy: ${shinyProxy.metadata.name}" }
-//        for (service in resourceRetriever.getServiceByLabel(APP_LABEL, shinyProxy.metadata.name)) {
-//            kubernetesClient.resource(service).delete()
-//        }
-//        for (replicaSet in resourceRetriever.getReplicaSetByLabel(APP_LABEL, shinyProxy.metadata.name)) {
-//            kubernetesClient.resource(replicaSet).delete()
-//        }
-//        for (configMap in resourceRetriever.getConfigMapByLabel(APP_LABEL, shinyProxy.metadata.name)) {
-//            kubernetesClient.resource(configMap).delete()
-//        }
-//    }
 
     private fun createNewInstance(shinyProxy: ShinyProxy): ShinyProxyInstance {
         val existingInstance = shinyProxy.status.getInstanceByHash(shinyProxy.calculateHashOfCurrentSpec())
@@ -113,7 +122,8 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
     }
 
     private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance?) {
-        logger.info { "ReconcileSingleShinyProxy: ${shinyProxy.metadata.name}" }
+        logger.info { "ReconcileSingleShinyProxy: ${shinyProxy.metadata.name} ${shinyProxyInstance?.hashOfSpec}" }
+
 
         if (shinyProxyInstance == null) {
             TODO("Should not happen")
@@ -123,24 +133,77 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
             TODO("Should not happen")
         }
 
+        if (!shinyProxy.status.instances.contains(shinyProxyInstance)) {
+            logger.info { "Not going to reconcile deleted instance!" }
+            return
+        }
+
         val configMaps = resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
         if (configMaps.isEmpty()) {
-            logger.debug { "0 ConfigMaps found -> creating ConfigmMap" }
-            configMapFactory.create(shinyProxy)
+            logger.debug { "0 ConfigMaps found -> creating ConfigMap" }
+            configMapFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
 
         val replicaSets = resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
         if (replicaSets.isEmpty()) {
             logger.debug { "0 ReplicaSets found -> creating ReplicaSet" }
-            replicaSetFactory.create(shinyProxy)
+            replicaSetFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
+
         val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
         if (services.isEmpty()) {
             logger.debug { "0 Services found -> creating Service" }
-            serviceFactory.create(shinyProxy)
+            serviceFactory.create(shinyProxy, shinyProxyInstance)
             return
+        }
+    }
+
+    private fun checkForObsoleteInstances() {
+        for (shinyProxy in shinyProxyLister.list()) {
+            if (shinyProxy.status.instances.size > 1) {
+                // this SP has more than one instance -> check if some of them are obsolete
+                // take a copy of the list to check to prevent concurrent modification
+                val instancesToCheck = shinyProxy.status.instances.toList()
+                for (shinyProxyInstance in instancesToCheck) {
+                    if (shinyProxyInstance.isLatestInstance == true) continue
+                    val hashOfSpec: String = shinyProxyInstance.hashOfSpec ?: continue
+                    val pods = resourceRetriever.getPodByLabels(
+                            mapOf(
+                                    LabelFactory.PROXIED_APP to "true",
+                                    LabelFactory.INSTANCE_LABEL to hashOfSpec
+                            )
+                    )
+
+                    if (pods.isEmpty()) {
+                        logger.info { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has no running apps and is not the latest version => removing this instance" }
+                        deleteSingleShinyProxyInstance(shinyProxy, shinyProxyInstance)
+                        shinyProxy.status.instances.remove(shinyProxyInstance)
+                        shinyProxyClient.updateStatus(shinyProxy)
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun scheduleAdditionalEvents() {
+        while (true) {
+            workqueue.send(ShinyProxyEvent(ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES, null, null))
+            delay(3000)
+        }
+    }
+
+    private fun deleteSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        logger.info { "DeleteSingleShinyProxyInstance: ${shinyProxy.metadata.name} ${shinyProxyInstance.hashOfSpec}" }
+        for (service in resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))) {
+            kubernetesClient.resource(service).delete()
+        }
+        for (replicaSet in resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))) {
+            kubernetesClient.resource(replicaSet).delete()
+        }
+        for (configMap in resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))) {
+            kubernetesClient.resource(configMap).delete()
         }
     }
 

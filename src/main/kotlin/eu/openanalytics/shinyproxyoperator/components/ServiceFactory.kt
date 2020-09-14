@@ -2,6 +2,7 @@ package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.ServiceBuilder
@@ -12,12 +13,12 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
-    suspend fun create(shinyProxy: ShinyProxy): Service? {
+    suspend fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Service? {
         val serviceDefinition: Service = ServiceBuilder()
                 .withNewMetadata()
                     .withName(ResourceNameFactory.createNameForService(shinyProxy))
                     .withNamespace(shinyProxy.metadata.namespace)
-                    .withLabels(LabelFactory.labelsForCurrentShinyProxyInstance(shinyProxy))
+                    .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
@@ -32,7 +33,7 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
                         .withPort(80)
                         .withTargetPort(IntOrString(8080))
                     .endPort()
-                    .withSelector(LabelFactory.labelsForCurrentShinyProxyInstance(shinyProxy))
+                    .withSelector(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                 .endSpec()
                 .build()
 

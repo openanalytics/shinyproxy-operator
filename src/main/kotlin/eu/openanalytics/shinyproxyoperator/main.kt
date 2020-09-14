@@ -4,10 +4,7 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import io.fabric8.kubernetes.api.model.ConfigMap
-import io.fabric8.kubernetes.api.model.ConfigMapList
-import io.fabric8.kubernetes.api.model.Service
-import io.fabric8.kubernetes.api.model.ServiceList
+import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
@@ -47,12 +44,14 @@ suspend fun main() {
         val serviceIndexInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, 10 * 60 * 1000.toLong())
         val configMapIndexInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
         val shinyProxyIndexInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000)
+        val podInformer = informerFactory.sharedIndexInformerFor(Pod::class.java, PodList::class.java, 10 * 60 * 1000.toLong())
 
         val shinyProxyController = ShinyProxyController(client,
                 shinyProxyClient,
                 replicaSetIndexInformer,
                 serviceIndexInformer,
                 configMapIndexInformer,
+                podInformer,
                 shinyProxyIndexInformer,
                 namespace)
 

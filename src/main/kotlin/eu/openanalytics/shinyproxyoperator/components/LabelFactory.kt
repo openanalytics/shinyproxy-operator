@@ -27,7 +27,8 @@ object LabelFactory {
 
     const val APP_LABEL = "app"
     const val APP_LABEL_VALUE = "shinyproxy"
-    const val NAME_LABEL = "sp-name"
-    const val INSTANCE_LABEL = "sp-instance"
+    const val NAME_LABEL = "openanalytics.eu/sp-resource-name"
+    const val INSTANCE_LABEL = "openanalytics.eu/sp-instance"
+    const val PROXIED_APP =  "openanalytics.eu/containerproxy-proxied-app"
 
 }

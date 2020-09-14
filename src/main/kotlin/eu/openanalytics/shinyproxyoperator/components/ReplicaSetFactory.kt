@@ -2,6 +2,7 @@ package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import eu.openanalytics.shinyproxyoperator.retry
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder
@@ -18,12 +19,12 @@ class ReplicaSetFactory(private val kubeClient: KubernetesClient ) {
 
     private val logger = KotlinLogging.logger {}
 
-    suspend fun create(shinyProxy: ShinyProxy): ReplicaSet {
+    suspend fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ReplicaSet {
        val replicaSetDefinition: ReplicaSet = ReplicaSetBuilder()
                 .withNewMetadata()
                    .withName(ResourceNameFactory.createNameForReplicaSet(shinyProxy))
                    .withNamespace(shinyProxy.metadata.namespace)
-                   .withLabels(LabelFactory.labelsForCurrentShinyProxyInstance(shinyProxy))
+                   .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                    .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
@@ -35,13 +36,13 @@ class ReplicaSetFactory(private val kubeClient: KubernetesClient ) {
                 .withNewSpec()
                     .withReplicas(1)
                     .withNewSelector()
-                       .withMatchLabels(LabelFactory.labelsForCurrentShinyProxyInstance(shinyProxy))
+                       .withMatchLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                     .endSelector()
                     .withNewTemplate()
                         .withNewMetadata()
                         .withGenerateName(ResourceNameFactory.createNameForPod(shinyProxy))
                         .withNamespace(shinyProxy.metadata.namespace)
-                        .withLabels(LabelFactory.labelsForCurrentShinyProxyInstance(shinyProxy))
+                        .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                     .endMetadata()
                     .withNewSpec()
                         .addNewContainer()

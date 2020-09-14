@@ -1,6 +1,7 @@
 package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import mu.KotlinLogging
 
 object ResourceNameFactory {

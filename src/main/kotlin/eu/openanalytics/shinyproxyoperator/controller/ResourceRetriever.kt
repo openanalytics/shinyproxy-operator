@@ -1,88 +1,74 @@
 package eu.openanalytics.shinyproxyoperator.controller
 
 import io.fabric8.kubernetes.api.model.ConfigMap
+import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import mu.KotlinLogging
-import java.util.AbstractMap
 
 class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
                         private val configMapLister: Lister<ConfigMap>,
-                        private val serviceLister: Lister<Service>) {
+                        private val serviceLister: Lister<Service>,
+                        private val podLister: Lister<Pod>) {
 
     private val logger = KotlinLogging.logger {}
 
-    fun getConfigMapByLabel(label: String, shinyProxyName: String): List<ConfigMap> {
-        val configMaps = arrayListOf<ConfigMap>()
-        for (configmap in configMapLister.list()) {
-            if (configmap?.metadata?.labels?.entries?.contains(AbstractMap.SimpleEntry(label, shinyProxyName)) == true) {
-                configMaps.add(configmap)
-                logger.debug { "Found ConfigMap ${configmap.metadata.name}" }
-            }
-        }
-        logger.info { "ConfigMapCount: ${configMaps.size}, ${configMaps.map { it.metadata.name }}" }
-        return configMaps
-    }
-
     fun getConfigMapByLabels(labels: Map<String, String>): List<ConfigMap> {
         val configMaps = arrayListOf<ConfigMap>()
+        logger.debug { "Looking for configmap with labels: $labels" }
         for (configmap in configMapLister.list()) {
+            logger.debug { "Found ConfigMap ${configmap.metadata.name}" }
             if (configmap?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 configMaps.add(configmap)
-                logger.debug { "Found ConfigMap ${configmap.metadata.name}" }
+            } else {
+                logger.debug { "Not what we are looking for..." }
             }
         }
         logger.info { "ConfigMapCount: ${configMaps.size}, ${configMaps.map { it.metadata.name }}" }
         return configMaps
-    }
-
-    fun getReplicaSetByLabel(label: String, shinyProxyName: String): ArrayList<ReplicaSet> {
-        val replicaSets = arrayListOf<ReplicaSet>()
-        for (replicaSet in replicaSetLister.list()) {
-            if (replicaSet?.metadata?.labels?.entries?.contains(AbstractMap.SimpleEntry(label, shinyProxyName)) == true) {
-                replicaSets.add(replicaSet)
-                logger.debug { "Found ReplicaSet ${replicaSet.metadata.name} phase => ${replicaSet.status}" }
-            }
-        }
-        logger.info { "ReplicaSetCount: ${replicaSets.size}, ${replicaSets.map { it.metadata.name }}" }
-        return replicaSets
     }
 
     fun getReplicaSetByLabels(labels: Map<String, String>): ArrayList<ReplicaSet> {
         val replicaSets = arrayListOf<ReplicaSet>()
+        logger.debug { "Looking for Repliacas with labels: $labels" }
         for (replicaSet in replicaSetLister.list()) {
             if (replicaSet?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 replicaSets.add(replicaSet)
-                logger.debug { "Found ReplicaSet ${replicaSet.metadata.name} phase => ${replicaSet.status}" }
+            } else {
+                logger.debug { "Not what we are looking for..." }
             }
         }
         logger.info { "ReplicaSetCount: ${replicaSets.size}, ${replicaSets.map { it.metadata.name }}" }
         return replicaSets
     }
 
-    fun getServiceByLabel(label: String, shinyProxyName: String): List<Service> {
+    fun getServiceByLabels(labels: Map<String, String>): List<Service> {
         val services = arrayListOf<Service>()
+        logger.debug { "Looking for Services with labels: $labels" }
         for (service in serviceLister.list()) {
-            if (service?.metadata?.labels?.entries?.contains(AbstractMap.SimpleEntry(label, shinyProxyName)) == true) {
+            if (service?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 services.add(service)
-                logger.debug { "Found ReplicaSet ${service.metadata.name} phase => ${service.status}" }
+            } else {
+                logger.debug { "Not what we are looking for..." }
             }
         }
         logger.info { "ServiceCount: ${services.size}, ${services.map { it.metadata.name }}" }
         return services
     }
 
-    fun getServiceByLabels(labels: Map<String, String>): List<Service> {
-        val services = arrayListOf<Service>()
-        for (service in serviceLister.list()) {
+    fun getPodByLabels(labels: Map<String, String>): List<Pod> {
+        val pods = arrayListOf<Pod>()
+        logger.debug { "Looking for Pods with labels: $labels" }
+        for (service in podLister.list()) {
             if (service?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
-                services.add(service)
-                logger.debug { "Found ReplicaSet ${service.metadata.name} phase => ${service.status}" }
+                pods.add(service)
+            } else {
+                logger.debug { "Not what we are looking for..." }
             }
         }
-        logger.info { "ServiceCount: ${services.size}, ${services.map { it.metadata.name }}" }
-        return services
+        logger.info { "PodCount: ${pods.size}, ${pods.map { it.metadata.name }}" }
+        return pods
     }
 
 }
