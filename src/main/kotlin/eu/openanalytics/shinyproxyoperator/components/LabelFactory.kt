@@ -1,6 +1,5 @@
 package eu.openanalytics.shinyproxyoperator.components
 
-import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 
@@ -10,7 +9,7 @@ object LabelFactory {
         return mapOf(
                 APP_LABEL to APP_LABEL_VALUE,
                 NAME_LABEL to shinyProxy.metadata.name,
-                INSTANCE_LABEL to shinyProxy.calculateHashOfCurrentSpec()
+                INSTANCE_LABEL to shinyProxy.hashOfCurrentSpec
         )
     }
     

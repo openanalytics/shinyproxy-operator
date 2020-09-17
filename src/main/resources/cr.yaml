@@ -40,12 +40,12 @@ spec:
       container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
       container-image: openanalytics/shinyproxy-demo
 
-kubernetesPodTemplateSpecPatches: |
-  - op: add
-    path: /spec/containers/0/env
-    value:
-      - name: LDAP_PASSWORD
-        valueFrom:
-          secretKeyRef:
-           name: ldap-password
-           key: password
+  kubernetesPodTemplateSpecPatches: |
+    - op: add
+      path: /spec/containers/0/env
+      value:
+        - name: LDAP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+             name: ldap-password
+             key: password

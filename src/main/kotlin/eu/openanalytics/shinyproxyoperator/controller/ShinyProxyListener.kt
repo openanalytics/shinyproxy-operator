@@ -24,11 +24,11 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>,
             override fun onUpdate(shinyProxy: ShinyProxy, newShinyProxy: ShinyProxy) {
                 logger.debug { "ShinyProxy::OnUpdate ${shinyProxy.metadata.name}" }
                 // TODO new shinyProxy
-                println("Old hash: ${shinyProxy.calculateHashOfCurrentSpec()}")
-                println("New hash: ${newShinyProxy.calculateHashOfCurrentSpec()}")
+                println("Old hash (resource): ${shinyProxy.hashOfCurrentSpec}")
+                println("New hash (resource): ${newShinyProxy.hashOfCurrentSpec}")
 
-                if (shinyProxy.calculateHashOfCurrentSpec() == newShinyProxy.calculateHashOfCurrentSpec()) {
-                    val shinyProxyInstance = shinyProxy.status.getInstanceByHash(shinyProxy.calculateHashOfCurrentSpec()) ?: TODO("This should not happen")
+                if (shinyProxy.hashOfCurrentSpec == newShinyProxy.hashOfCurrentSpec) {
+                    val shinyProxyInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec) ?: TODO("This should not happen")
                     runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance)) }
                 } else {
                     runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE_SPEC, newShinyProxy, null)) }

@@ -13,7 +13,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
     private val logger = KotlinLogging.logger {}
 
     fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ConfigMap {
-        if (shinyProxy.calculateHashOfCurrentSpec() != shinyProxyInstance.hashOfSpec) {
+        if (shinyProxy.hashOfCurrentSpec != shinyProxyInstance.hashOfSpec) {
             TODO("Cannot re-create ConfigMap for old instance")
         }
 

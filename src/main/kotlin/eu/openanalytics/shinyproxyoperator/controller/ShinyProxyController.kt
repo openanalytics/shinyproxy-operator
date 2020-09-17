@@ -100,7 +100,7 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
     }
 
     private fun createNewInstance(shinyProxy: ShinyProxy): ShinyProxyInstance {
-        val existingInstance = shinyProxy.status.getInstanceByHash(shinyProxy.calculateHashOfCurrentSpec())
+        val existingInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec)
 
         if (existingInstance != null && existingInstance.isLatestInstance == true) {
             logger.warn { "Trying to create new instance which already exists and is the latest instance" }
@@ -113,7 +113,7 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
         }
 
         val newInstance = ShinyProxyInstance()
-        newInstance.hashOfSpec = shinyProxy.calculateHashOfCurrentSpec()
+        newInstance.hashOfSpec = shinyProxy.hashOfCurrentSpec
         newInstance.isLatestInstance = true
         shinyProxy.status.instances.forEach { it.isLatestInstance = false }
         shinyProxy.status.instances.add(newInstance)
