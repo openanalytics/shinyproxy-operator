@@ -111,6 +111,8 @@ spec:
                       type: string
                   required:
                     - id
+            kubernetesPodTemplateSpecPatches:
+              type: string
           required:
            - proxy
         status:
@@ -124,5 +126,6 @@ spec:
                 properties:
                   hashOfSpec:
                     type: string
-                    isLatestInstance: boolean
+                  isLatestInstance:
+                    type: boolean
 
