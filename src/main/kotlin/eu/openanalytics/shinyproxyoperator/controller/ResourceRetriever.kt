@@ -4,13 +4,15 @@ import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
+import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import mu.KotlinLogging
 
 class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
                         private val configMapLister: Lister<ConfigMap>,
                         private val serviceLister: Lister<Service>,
-                        private val podLister: Lister<Pod>) {
+                        private val podLister: Lister<Pod>,
+                        private val ingressLister: Lister<Ingress>) {
 
     private val logger = KotlinLogging.logger {}
 
@@ -54,13 +56,25 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
     fun getPodByLabels(labels: Map<String, String>): List<Pod> {
         val pods = arrayListOf<Pod>()
         logger.debug { "Looking for Pods with labels: $labels" }
-        for (service in podLister.list()) {
-            if (service?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
-                pods.add(service)
+        for (pod in podLister.list()) {
+            if (pod?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
+                pods.add(pod)
             }
         }
         logger.info { "PodCount: ${pods.size}, ${pods.map { it.metadata.name }}" }
         return pods
+    }
+
+    fun getIngressByLabels(labels: Map<String, String>): List<Ingress> {
+        val ingresses = arrayListOf<Ingress>()
+        logger.debug { "Looking for Pods with labels: $labels" }
+        for (ingress in ingressLister.list()) {
+            if (ingress?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
+                ingresses.add(ingress)
+            }
+        }
+        logger.info { "IngressCount: ${ingresses.size}, ${ingresses.map { it.metadata.name }}" }
+        return ingresses
     }
 
 }

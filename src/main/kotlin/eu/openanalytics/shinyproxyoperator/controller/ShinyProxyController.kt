@@ -1,20 +1,18 @@
 package eu.openanalytics.shinyproxyoperator.controller
 
+import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.ConfigMapFactory
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.components.ReplicaSetFactory
 import eu.openanalytics.shinyproxyoperator.components.ServiceFactory
-import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
+import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.client.KubernetesClient
-import io.fabric8.kubernetes.client.dsl.MixedOperation
-import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.GlobalScope
@@ -25,11 +23,12 @@ import mu.KotlinLogging
 
 
 class ShinyProxyController(private val kubernetesClient: KubernetesClient,
-                           private val shinyProxyClient: MixedOperation<ShinyProxy, ShinyProxyList, DoneableShinyProxy, Resource<ShinyProxy, DoneableShinyProxy>>,
+                           private val shinyProxyClient: ShinyProxyClient,
                            private val replicaSetInformer: SharedIndexInformer<ReplicaSet>,
                            serviceInformer: SharedIndexInformer<Service>,
                            configMapInformer: SharedIndexInformer<ConfigMap>,
                            podInformer: SharedIndexInformer<Pod>,
+                           ingressInformer: SharedIndexInformer<Ingress>,
                            private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>,
                            namespace: String) {
 
@@ -38,15 +37,17 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
     private val replicaSetLister = Lister(replicaSetInformer.indexer, namespace)
     private val configMapLister = Lister(configMapInformer.indexer, namespace)
     private val serviceLister = Lister(serviceInformer.indexer, namespace)
+    private val ingressLister = Lister(ingressInformer.indexer, namespace)
     private val shinyProxyListener = ShinyProxyListener(workqueue, shinyProxyInformer, shinyProxyLister)
     private val replicaSetListener = ResourceListener(workqueue, replicaSetInformer, shinyProxyLister)
     private val serviceListener = ResourceListener(workqueue, serviceInformer, shinyProxyLister)
     private val configMapListener = ResourceListener(workqueue, configMapInformer, shinyProxyLister)
     private val podLister = Lister(podInformer.indexer)
-    private val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, podLister)
+    private val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, podLister, ingressLister)
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val serviceFactory = ServiceFactory(kubernetesClient)
     private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
+    private val ingressController = IngressController(workqueue, ingressInformer, shinyProxyLister, kubernetesClient, shinyProxyClient, resourceRetriever)
 
     private val logger = KotlinLogging.logger {}
 
@@ -110,18 +111,22 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
             logger.warn { "Trying to create new instance which already exists and is the latest instance" }
             return existingInstance
         } else if (existingInstance != null && existingInstance.isLatestInstance == false) {
+            // make the old existing instance again the latest instance
+            // TODO ingressController
             shinyProxy.status.instances.forEach { it.isLatestInstance = false }
             existingInstance.isLatestInstance = true
             shinyProxyClient.updateStatus(shinyProxy)
             return existingInstance
         }
 
+        // create new instance to replace old ones
         val newInstance = ShinyProxyInstance()
         newInstance.hashOfSpec = shinyProxy.hashOfCurrentSpec
         newInstance.isLatestInstance = true
         shinyProxy.status.instances.forEach { it.isLatestInstance = false }
         shinyProxy.status.instances.add(newInstance)
         shinyProxyClient.updateStatus(shinyProxy)
+
         return newInstance
     }
 
@@ -149,6 +154,7 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
         if (replicaSets.isEmpty()) {
             logger.debug { "0 ReplicaSets found -> creating ReplicaSet" }
             replicaSetFactory.create(shinyProxy, shinyProxyInstance)
+            ingressController.onNewInstance(shinyProxy, shinyProxyInstance)
             return
         }
 
@@ -158,6 +164,8 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
             serviceFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
+
+        ingressController.reconcileInstance(shinyProxy, shinyProxyInstance)
     }
 
     private fun checkForObsoleteInstances() {
