@@ -1,4 +1,4 @@
-package eu.openanalytics.shinyproxyoperator.skipper
+package eu.openanalytics.shinyproxyoperator.ingress.skipper
 
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent

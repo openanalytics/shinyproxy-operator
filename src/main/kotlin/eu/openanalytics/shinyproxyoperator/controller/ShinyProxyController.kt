@@ -7,6 +7,9 @@ import eu.openanalytics.shinyproxyoperator.components.ReplicaSetFactory
 import eu.openanalytics.shinyproxyoperator.components.ServiceFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
+import eu.openanalytics.shinyproxyoperator.ingres.IIngressController
+import eu.openanalytics.shinyproxyoperator.ingress.skipper.IngressController
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.Service
@@ -17,37 +20,25 @@ import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 
 
-class ShinyProxyController(private val kubernetesClient: KubernetesClient,
+class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
+                           private val kubernetesClient: KubernetesClient,
                            private val shinyProxyClient: ShinyProxyClient,
                            private val replicaSetInformer: SharedIndexInformer<ReplicaSet>,
-                           serviceInformer: SharedIndexInformer<Service>,
-                           configMapInformer: SharedIndexInformer<ConfigMap>,
-                           podInformer: SharedIndexInformer<Pod>,
-                           ingressInformer: SharedIndexInformer<Ingress>,
                            private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>,
-                           namespace: String) {
+                           private val ingressController: IIngressController,
+                           private val resourceRetriever: ResourceRetriever,
+                           private val shinyProxyLister: Lister<ShinyProxy>) {
 
-    private val workqueue = Channel<ShinyProxyEvent>(10000)
-    private val shinyProxyLister = Lister(shinyProxyInformer.indexer, namespace)
-    private val replicaSetLister = Lister(replicaSetInformer.indexer, namespace)
-    private val configMapLister = Lister(configMapInformer.indexer, namespace)
-    private val serviceLister = Lister(serviceInformer.indexer, namespace)
-    private val ingressLister = Lister(ingressInformer.indexer, namespace)
-    private val shinyProxyListener = ShinyProxyListener(workqueue, shinyProxyInformer, shinyProxyLister)
-    private val replicaSetListener = ResourceListener(workqueue, replicaSetInformer, shinyProxyLister)
-    private val serviceListener = ResourceListener(workqueue, serviceInformer, shinyProxyLister)
-    private val configMapListener = ResourceListener(workqueue, configMapInformer, shinyProxyLister)
-    private val podLister = Lister(podInformer.indexer)
-    private val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, podLister, ingressLister)
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val serviceFactory = ServiceFactory(kubernetesClient)
     private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
-    private val ingressController = IngressController(workqueue, ingressInformer, shinyProxyLister, kubernetesClient, shinyProxyClient, resourceRetriever)
 
     private val logger = KotlinLogging.logger {}
 
@@ -59,7 +50,7 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
         GlobalScope.launch { scheduleAdditionalEvents() }
         while (true) {
             try {
-                val event = workqueue.receive()
+                val event = channel.receive()
 
                 when (event.eventType) {
                     ShinyProxyEventType.ADD -> {
@@ -195,9 +186,10 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
         }
     }
 
+    // TODO timer and extract from this class?
     private suspend fun scheduleAdditionalEvents() {
         while (true) {
-            workqueue.send(ShinyProxyEvent(ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES, null, null))
+            channel.send(ShinyProxyEvent(ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES, null, null))
             delay(3000)
         }
     }
