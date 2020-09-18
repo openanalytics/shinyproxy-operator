@@ -41,18 +41,24 @@ spec:
                secretKeyRef:
                 name: ldap-password
                 key: password
-      #       - op: replace
-      #         path: /metadata/namespace
-      #         value: my-namespace
+           #- op: replace
+               #path: /metadata/namespace
+               #value: my-namespace
     - id: 06_tabsets
       container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
       container-image: openanalytics/shinyproxy-demo
+      description: Some Tabset Description 42
   kubernetesPodTemplateSpecPatches: |
     - op: add
-      path: /spec/containers/0/env
+      path: /spec/containers/0/env/-
       value:
-        - name: LDAP_PASSWORD
-          valueFrom:
-            secretKeyRef:
-             name: ldap-password
-             key: password
+        name: LDAP_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: ldap-password
+            key: password
+    - op: add
+      path: /spec/containers/0/env/-
+      value:
+        name: TEST_VAR
+        value: TEST_VALUE
