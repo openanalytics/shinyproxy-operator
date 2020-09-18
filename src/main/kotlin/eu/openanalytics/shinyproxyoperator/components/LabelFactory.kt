@@ -2,6 +2,7 @@ package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
+import java.lang.RuntimeException
 
 object LabelFactory {
 
@@ -14,9 +15,7 @@ object LabelFactory {
     }
     
     fun labelsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Map<String, String> {
-        val hashOfSpec: String = shinyProxyInstance.hashOfSpec.let {
-            it ?: TODO("Should not happend")
-        }
+        val hashOfSpec = shinyProxyInstance.hashOfSpec ?: throw RuntimeException("Cannot create label for ShinyProxyInstance without hash of spec")
         return mapOf(
                 APP_LABEL to APP_LABEL_VALUE,
                 NAME_LABEL to shinyProxy.metadata.name,

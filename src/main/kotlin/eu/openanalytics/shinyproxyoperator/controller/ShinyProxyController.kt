@@ -82,7 +82,11 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
                     }
                     ShinyProxyEventType.RECONCILE -> {
                         if (event.shinyProxy == null) {
-                            logger.warn { "Event of type RECONCILE should have shinyproxy attached to it." }
+                            logger.warn { "Event of type RECONCILE should have shinyProxy attached to it." }
+                            continue
+                        }
+                        if (event.shinyProxyInstance == null) {
+                            logger.warn { "Event of type RECONCILE should have shinyProxyInstance attached to it." }
                             continue
                         }
                         reconcileSingleShinyProxyInstance(event.shinyProxy, event.shinyProxyInstance)
@@ -121,20 +125,16 @@ class ShinyProxyController(private val kubernetesClient: KubernetesClient,
         return newInstance
     }
 
-    private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance?) {
-        logger.info { "ReconcileSingleShinyProxy: ${shinyProxy.metadata.name} ${shinyProxyInstance?.hashOfSpec}" }
-
-
-        if (shinyProxyInstance == null) {
-            TODO("Should not happen")
-        }
+    private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        logger.info { "ReconcileSingleShinyProxy: ${shinyProxy.metadata.name} ${shinyProxyInstance.hashOfSpec}" }
 
         if (shinyProxyInstance.hashOfSpec == null) {
-            TODO("Should not happen")
+            logger.warn { "Cannot reconcile ShinProxyInstance $shinyProxyInstance because it has no hash." }
+            return
         }
 
         if (!shinyProxy.status.instances.contains(shinyProxyInstance)) {
-            logger.info { "Not going to reconcile deleted instance!" }
+            logger.info { "Cannot reconcile ShinProxyInstance ${shinyProxyInstance.hashOfSpec} because it is begin deleted." }
             return
         }
 

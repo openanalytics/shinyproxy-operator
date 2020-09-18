@@ -43,8 +43,17 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
         }
 
         val shinyProxy = shinyProxyLister[ownerReference.name] ?: return
-        val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL] ?: TODO("Should not happen")
-        val shinyProxyInstance = shinyProxy.status.getInstanceByHash(hashOfInstance) ?: TODO("Should not happen")
+        val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL]
+        if (hashOfInstance == null) {
+            logger.warn { "Cannot find hash of instance for resource ${resource}, probably some labels are wrong." }
+            return
+        }
+
+        val shinyProxyInstance = shinyProxy.status.getInstanceByHash(hashOfInstance)
+        if (shinyProxyInstance == null) {
+            logger.warn { "Cannot find instance based on hash for resource ${resource}, probably some labels are wrong." }
+            return
+        }
 
         channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance))
     }

@@ -21,8 +21,6 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
             logger.debug { "Found ConfigMap ${configmap.metadata.name}" }
             if (configmap?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 configMaps.add(configmap)
-            } else {
-                logger.debug { "Not what we are looking for..." }
             }
         }
         logger.info { "ConfigMapCount: ${configMaps.size}, ${configMaps.map { it.metadata.name }}" }
@@ -35,8 +33,6 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         for (replicaSet in replicaSetLister.list()) {
             if (replicaSet?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 replicaSets.add(replicaSet)
-            } else {
-                logger.debug { "Not what we are looking for..." }
             }
         }
         logger.info { "ReplicaSetCount: ${replicaSets.size}, ${replicaSets.map { it.metadata.name }}" }
@@ -49,8 +45,6 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         for (service in serviceLister.list()) {
             if (service?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 services.add(service)
-            } else {
-                logger.debug { "Not what we are looking for..." }
             }
         }
         logger.info { "ServiceCount: ${services.size}, ${services.map { it.metadata.name }}" }
@@ -63,8 +57,6 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         for (service in podLister.list()) {
             if (service?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 pods.add(service)
-            } else {
-                logger.debug { "Not what we are looking for..." }
             }
         }
         logger.info { "PodCount: ${pods.size}, ${pods.map { it.metadata.name }}" }
