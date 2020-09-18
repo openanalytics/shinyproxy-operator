@@ -33,13 +33,20 @@ spec:
       containerCmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       containerImage: openanalytics/shinyproxy-demo
       kubernetes-pod-patches: |
-       - op: replace
-         path: /metadata/namespace
-         value: my-namespace
+       - op: add
+         path: /spec/containers/0/env
+         value:
+           - name: LDAP_PASSWORD
+             valueFrom:
+               secretKeyRef:
+                name: ldap-password
+                key: password
+      #       - op: replace
+      #         path: /metadata/namespace
+      #         value: my-namespace
     - id: 06_tabsets
       container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
       container-image: openanalytics/shinyproxy-demo
-
   kubernetesPodTemplateSpecPatches: |
     - op: add
       path: /spec/containers/0/env

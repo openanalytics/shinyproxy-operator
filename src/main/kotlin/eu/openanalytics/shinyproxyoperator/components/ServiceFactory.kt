@@ -1,6 +1,5 @@
 package eu.openanalytics.shinyproxyoperator.components
 
-import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.IntOrString
