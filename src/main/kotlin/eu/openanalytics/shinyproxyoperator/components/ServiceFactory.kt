@@ -35,7 +35,7 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
     suspend fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Service? {
         val serviceDefinition: Service = ServiceBuilder()
                 .withNewMetadata()
-                    .withName(ResourceNameFactory.createNameForService(shinyProxy))
+                    .withName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
                     .withNamespace(shinyProxy.metadata.namespace)
                     .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                     .addNewOwnerReference()

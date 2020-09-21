@@ -33,7 +33,7 @@ class PodTemplateSpecFactory {
         //@formatter:off
         val template = PodTemplateSpecBuilder()
                 .withNewMetadata()
-                    .withGenerateName(ResourceNameFactory.createNameForPod(shinyProxy))
+                    .withGenerateName(ResourceNameFactory.createNameForPod(shinyProxy, shinyProxyInstance))
                     .withNamespace(shinyProxy.metadata.namespace)
                     .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                 .endMetadata()
@@ -89,7 +89,7 @@ class PodTemplateSpecFactory {
                     .withVolumes(VolumeBuilder()
                             .withName("config-volume")
                             .withConfigMap(ConfigMapVolumeSourceBuilder()
-                                    .withName(ResourceNameFactory.createNameForConfigMap(shinyProxy))
+                                    .withName(ResourceNameFactory.createNameForConfigMap(shinyProxy, shinyProxyInstance))
                                     .build())
                             .build())
                     .endSpec()

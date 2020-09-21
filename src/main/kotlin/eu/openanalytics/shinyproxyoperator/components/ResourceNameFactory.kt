@@ -29,11 +29,6 @@ object ResourceNameFactory {
 
     private val logger = KotlinLogging.logger {}
 
-    // TODO take shinyProxyInstance into account?
-    fun createNameForService(shinyProxy: ShinyProxy): String {
-        return "sp-${shinyProxy.metadata.name}-svc-${shinyProxy.hashOfCurrentSpec}".substring(0 until 63)
-    }
-
     fun createNameForService(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
         if (shinyProxyInstance.hashOfSpec == null) {
             throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
@@ -41,16 +36,18 @@ object ResourceNameFactory {
         return "sp-${shinyProxy.metadata.name}-svc-${shinyProxyInstance.hashOfSpec}".substring(0 until 63)
     }
 
-    fun createNameForConfigMap(shinyProxy: ShinyProxy): String {
-        return "sp-${shinyProxy.metadata.name}-cm-${shinyProxy.hashOfCurrentSpec}".substring(0 until 63)
+    fun createNameForConfigMap(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
+        if (shinyProxyInstance.hashOfSpec == null) {
+            throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
+        }
+        return "sp-${shinyProxy.metadata.name}-cm-${shinyProxyInstance}".substring(0 until 63)
     }
 
-    fun createNameForPod(shinyProxy: ShinyProxy): String {
-        return "sp-${shinyProxy.metadata.name}-pod-${shinyProxy.hashOfCurrentSpec}".substring(0 until 63)
-    }
-
-    fun createNameForReplicaSet(shinyProxy: ShinyProxy): String {
-        return "sp-${shinyProxy.metadata.name}-rs-${shinyProxy.hashOfCurrentSpec}".substring(0 until 63)
+    fun createNameForPod(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
+        if (shinyProxyInstance.hashOfSpec == null) {
+            throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
+        }
+        return "sp-${shinyProxy.metadata.name}-pod-${shinyProxyInstance}".substring(0 until 63)
     }
 
     fun createNameForReplicaSet(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {

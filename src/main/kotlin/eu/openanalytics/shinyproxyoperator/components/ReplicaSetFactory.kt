@@ -38,7 +38,7 @@ class ReplicaSetFactory(private val kubeClient: KubernetesClient ) {
     suspend fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ReplicaSet {
        val replicaSetDefinition: ReplicaSet = ReplicaSetBuilder()
                 .withNewMetadata()
-                   .withName(ResourceNameFactory.createNameForReplicaSet(shinyProxy))
+                   .withName(ResourceNameFactory.createNameForReplicaSet(shinyProxy, shinyProxyInstance))
                    .withNamespace(shinyProxy.metadata.namespace)
                    .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                    .addNewOwnerReference()
