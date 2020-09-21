@@ -50,10 +50,10 @@ class Operator {
     init {
         val modeEnv = System.getenv("SPO_MODE")
         mode = when {
-            modeEnv.toLowerCase() == "clustered" -> {
+            modeEnv?.toLowerCase() == "clustered" -> {
                 Mode.CLUSTERED
             }
-            modeEnv.toLowerCase() == "namespaced" -> {
+            modeEnv?.toLowerCase() == "namespaced" -> {
                 Mode.NAMESPACED
             }
             else -> {
