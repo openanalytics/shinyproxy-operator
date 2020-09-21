@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shinyproxy-operator
+  namespace: shinyproxy-operator
+  labels:
+    app: shinyproxy-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shinyproxy-operator
+  template:
+    metadata:
+      labels:
+        app: shinyproxy-operator
+    spec:
+      containers:
+        - name: shinyproxy-operator
+          image: localhost:5000/shinyproxy-operator-dev
+          env:
+            - name: SPO_MODE
+              value: clustered
+      serviceAccountName: shinyproxy-operator-sa
+
