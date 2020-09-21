@@ -36,6 +36,7 @@ import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.GlobalScope
@@ -45,6 +46,7 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
+import kotlin.system.exitProcess
 
 
 class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
@@ -108,6 +110,9 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                             checkForObsoleteInstances()
                         }
                     }
+                } catch (e: KubernetesClientException) {
+                    logger.warn(e) { "Caught KubernetesClientException while processing event $event. Exiting process." }
+                    exitProcess(1)
                 } catch (e: Exception) {
                     logger.warn(e) { "Caught an exception while processing event $event. Continuing processing other events." }
                 }

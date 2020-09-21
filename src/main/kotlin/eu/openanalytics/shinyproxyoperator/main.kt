@@ -27,6 +27,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.Resource
 import mu.KotlinLogging
+import kotlin.system.exitProcess
 
 typealias ShinyProxyClient = MixedOperation<ShinyProxy, ShinyProxyList, DoneableShinyProxy, Resource<ShinyProxy, DoneableShinyProxy>>
 
@@ -38,5 +39,6 @@ suspend fun main() {
     } catch (exception: KubernetesClientException) {
         logger.warn { "Kubernetes Client Exception : ${exception.message}" }
         exception.printStackTrace()
+        exitProcess(1)
     }
 }
