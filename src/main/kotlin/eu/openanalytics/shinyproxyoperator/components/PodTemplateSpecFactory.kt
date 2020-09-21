@@ -1,8 +1,13 @@
 package eu.openanalytics.shinyproxyoperator.components
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.*
+import io.fabric8.kubernetes.client.internal.SerializationUtils
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature
+import io.fabric8.kubernetes.client.utils.Serialization
 
 class PodTemplateSpecFactory {
 
@@ -20,7 +25,7 @@ class PodTemplateSpecFactory {
                 .withNewSpec()
                     .addNewContainer()
                         .withName("shinyproxy")
-                        .withImage("localhost:5000/shinyproxy-dev:latest")
+                        .withImage("localhost:5000/shinyproxy-dev:latest") // TODO make configurable
                         .withEnv(listOf(
                             EnvVarBuilder()
                                 .withName("SP_KUBE_POD_NAME")
@@ -43,6 +48,28 @@ class PodTemplateSpecFactory {
                             .withMountPath("/etc/shinyproxy/application.yml")
                             .withSubPath("application.yml")
                         .build())
+                        .withNewLivenessProbe()
+                            .withNewHttpGet()
+                                .withPath("/actuator/health/liveness")
+                                .withPort(IntOrString(8080))
+                            .endHttpGet()
+                            .withPeriodSeconds(1) // TODO
+                        .endLivenessProbe()
+                        .withNewReadinessProbe()
+                            .withNewHttpGet()
+                                .withPath("/actuator/health/readiness")
+                                .withNewPort(8080) // string instead of int because of quirks in the library
+                            .endHttpGet()
+                            .withPeriodSeconds(1) // TODO
+                        .endReadinessProbe()
+                        .withNewStartupProbe()
+                            .withNewHttpGet()
+                                .withPath("/actuator/health/liveness")
+                                .withNewPort(8080) // string instead of int because of quirks in the library
+                                .endHttpGet()
+                            .withFailureThreshold(6) // TODO
+                            .withPeriodSeconds(5) // TODO configurable?
+                        .endStartupProbe()
                     .endContainer()
                     .withVolumes(VolumeBuilder()
                             .withName("config-volume")
