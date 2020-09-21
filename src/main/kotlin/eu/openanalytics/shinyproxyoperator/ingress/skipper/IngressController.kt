@@ -58,7 +58,7 @@ class IngressController(
     }
 
     override fun reconcileInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+        val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (ingresses.isEmpty()) {
             logger.debug { "0 Ingresses found -> creating Ingress" }
             val replicaSet = getReplicaSet(shinyProxy, shinyProxyInstance)
@@ -71,7 +71,7 @@ class IngressController(
     }
 
     private fun getReplicaSet(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ReplicaSet? {
-        val replicaSets = resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+        val replicaSets = resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (replicaSets.isEmpty()) {
             logger.warn { "Cannot reconcile Ingress when there is no replicaset for instance ${shinyProxyInstance.hashOfSpec} (maybe it is already removed?)" }
             return null

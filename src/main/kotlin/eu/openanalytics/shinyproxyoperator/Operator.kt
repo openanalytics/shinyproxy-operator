@@ -31,7 +31,6 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
-import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.Channel
@@ -43,6 +42,7 @@ class Operator {
     private val logger = KotlinLogging.logger {}
     private val client = DefaultKubernetesClient()
     private val namespace: String
+    val mode = Mode.CLUSTERED
 
     /**
      * Initialize client and namespace
@@ -56,7 +56,10 @@ class Operator {
         }
         logger.info { "Using namespace : $namespace " }
 
-        var podSetCustomResourceDefinition = client.customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get()
+        var podSetCustomResourceDefinition = when (mode) {
+            Mode.CLUSTERED -> client.customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get()
+            Mode.NAMESPACED -> client.inNamespace(namespace).customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get()
+        }
         if (podSetCustomResourceDefinition == null) {
             podSetCustomResourceDefinition = client.customResourceDefinitions().load(object : Any() {}.javaClass.getResourceAsStream("/crd.yaml")).get()
             client.customResourceDefinitions().create(podSetCustomResourceDefinition)
@@ -73,14 +76,21 @@ class Operator {
             .withGroup("openanalytics.eu")
             .withPlural("shinyproxies")
             .build()
-    private val shinyProxyClient = client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
+
+    private val shinyProxyClient = when (mode) {
+        Mode.CLUSTERED -> client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
+        Mode.NAMESPACED -> client.inNamespace(namespace).customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
+    }
     private val channel = Channel<ShinyProxyEvent>(10000)
     private val sendChannel: SendChannel<ShinyProxyEvent> = channel
 
     /**
      * Informers
      */
-    private val informerFactory = client.informers()
+    private val informerFactory = when(mode) {
+        Mode.CLUSTERED -> client.inAnyNamespace().informers()
+        Mode.NAMESPACED -> client.inNamespace(namespace).informers()
+    }
     private val replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, 10 * 60 * 1000.toLong())
     private val serviceInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, 10 * 60 * 1000.toLong())
     private val configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
@@ -91,11 +101,11 @@ class Operator {
     /**
      * Listers
      */
-    private val shinyProxyLister = Lister(shinyProxyInformer.indexer, namespace)
-    private val replicaSetLister = Lister(replicaSetInformer.indexer, namespace)
-    private val configMapLister = Lister(configMapInformer.indexer, namespace)
-    private val serviceLister = Lister(serviceInformer.indexer, namespace)
-    private val ingressLister = Lister(ingressInformer.indexer, namespace)
+    private val shinyProxyLister = Lister(shinyProxyInformer.indexer)
+    private val replicaSetLister = Lister(replicaSetInformer.indexer)
+    private val configMapLister = Lister(configMapInformer.indexer)
+    private val serviceLister = Lister(serviceInformer.indexer)
+    private val ingressLister = Lister(ingressInformer.indexer)
     private val podLister = Lister(podInformer.indexer)
 
     /**
@@ -118,6 +128,7 @@ class Operator {
     private val ingressController = IngressController(channel, ingressInformer, shinyProxyLister, client, resourceRetriever)
     private val shinyProxyController = ShinyProxyController(channel, client, shinyProxyClient, replicaSetInformer, shinyProxyInformer, ingressController, resourceRetriever, shinyProxyLister)
 
+
     suspend fun run() {
         informerFactory.startAllRegisteredInformers()
 
@@ -127,4 +138,9 @@ class Operator {
 
         shinyProxyController.run()
     }
+}
+
+enum class Mode {
+    CLUSTERED,
+    NAMESPACED
 }

@@ -47,7 +47,7 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>,
                 if (shinyProxy.hashOfCurrentSpec == newShinyProxy.hashOfCurrentSpec) {
                     val shinyProxyInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec)
                     if (shinyProxyInstance == null) {
-                        logger.warn { "Received update of latest ShinyProxyInstance but did not found such an instance." }
+                        logger.warn { "Received update of latest ShinyProxyInstance but did not found such an instance (looking for ${shinyProxy.hashOfCurrentSpec}, status: ${shinyProxy.status})." }
                         return
                     }
                     runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance)) }

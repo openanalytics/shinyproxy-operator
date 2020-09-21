@@ -36,10 +36,10 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
 
     private val logger = KotlinLogging.logger {}
 
-    fun getConfigMapByLabels(labels: Map<String, String>): List<ConfigMap> {
+    fun getConfigMapByLabels(labels: Map<String, String>, namespace: String): List<ConfigMap> {
         val configMaps = arrayListOf<ConfigMap>()
-        logger.debug { "Looking for configmap with labels: $labels" }
-        for (configmap in configMapLister.list()) {
+        logger.debug { "Looking for configmap with labels: $labels in namespace $namespace" }
+        for (configmap in configMapLister.namespace(namespace).list()) {
             logger.debug { "Found ConfigMap ${configmap.metadata.name}" }
             if (configmap?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 configMaps.add(configmap)
@@ -49,10 +49,10 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         return configMaps
     }
 
-    fun getReplicaSetByLabels(labels: Map<String, String>): ArrayList<ReplicaSet> {
+    fun getReplicaSetByLabels(labels: Map<String, String>, namespace: String): ArrayList<ReplicaSet> {
         val replicaSets = arrayListOf<ReplicaSet>()
         logger.debug { "Looking for Repliacas with labels: $labels" }
-        for (replicaSet in replicaSetLister.list()) {
+        for (replicaSet in replicaSetLister.namespace(namespace).list()) {
             if (replicaSet?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 replicaSets.add(replicaSet)
             }
@@ -61,10 +61,10 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         return replicaSets
     }
 
-    fun getServiceByLabels(labels: Map<String, String>): List<Service> {
+    fun getServiceByLabels(labels: Map<String, String>, namespace: String): List<Service> {
         val services = arrayListOf<Service>()
         logger.debug { "Looking for Services with labels: $labels" }
-        for (service in serviceLister.list()) {
+        for (service in serviceLister.namespace(namespace).list()) {
             if (service?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 services.add(service)
             }
@@ -85,10 +85,10 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         return pods
     }
 
-    fun getIngressByLabels(labels: Map<String, String>): List<Ingress> {
+    fun getIngressByLabels(labels: Map<String, String>, namespace: String): List<Ingress> {
         val ingresses = arrayListOf<Ingress>()
         logger.debug { "Looking for Pods with labels: $labels" }
-        for (ingress in ingressLister.list()) {
+        for (ingress in ingressLister.namespace(namespace).list()) {
             if (ingress?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 ingresses.add(ingress)
             }

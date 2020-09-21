@@ -69,14 +69,14 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
     private suspend fun enqueuResource(resource: Ingress) {
         val replicaSetOwnerReference = getShinyProxyOwnerRefByKind(resource, "ReplicaSet") ?: return
         // TODO namespace
-        val replicaSet = kubernetesClient.apps().replicaSets().inNamespace("default").withName(replicaSetOwnerReference.name).get()
+        val replicaSet = kubernetesClient.apps().replicaSets().inNamespace(resource.metadata.namespace).withName(replicaSetOwnerReference.name).get()
         if (replicaSet == null) {
             logger.warn { "Cannot find ReplicaSet (owner) of resource ${resource.kind}/${resource.metadata.name}, probably the resource is being deleted." }
             return
         }
         val ownerReference = getShinyProxyOwnerRefByKind(replicaSet, "ShinyProxy") ?: return
 
-        val shinyProxy = shinyProxyLister[ownerReference.name] ?: return
+        val shinyProxy = shinyProxyLister.namespace(resource.metadata.namespace)[ownerReference.name] ?: return
         val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL]
         if (hashOfInstance == null) {
             logger.warn { "Cannot find hash of instance for resource ${resource.kind}/${resource.metadata.name}, probably some labels are wrong." }

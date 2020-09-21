@@ -51,7 +51,9 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
 
             override fun onDelete(resource: T, b: Boolean) {
                 logger.debug { "${resource.kind}::OnDelete ${resource.metadata.name}" }
-                runBlocking { enqueuResource(resource) }
+                runBlocking {
+                    enqueuResource(resource)
+                }
             }
         })
     }
@@ -59,7 +61,7 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
     private suspend fun enqueuResource(resource: T) {
         val ownerReference = getShinyProxyOwnerRef(resource) ?: return
 
-        val shinyProxy = shinyProxyLister[ownerReference.name] ?: return
+        val shinyProxy = shinyProxyLister.namespace(resource.metadata.namespace)[ownerReference.name] ?: return
         val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL]
         if (hashOfInstance == null) {
             logger.warn { "Cannot find hash of instance for resource ${resource.kind}/${resource.metadata.name}, probably some labels are wrong." }

@@ -40,14 +40,14 @@ object ResourceNameFactory {
         if (shinyProxyInstance.hashOfSpec == null) {
             throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
         }
-        return "sp-${shinyProxy.metadata.name}-cm-${shinyProxyInstance}".substring(0 until 63)
+        return "sp-${shinyProxy.metadata.name}-cm-${shinyProxyInstance.hashOfSpec}".substring(0 until 63)
     }
 
     fun createNameForPod(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
         if (shinyProxyInstance.hashOfSpec == null) {
             throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
         }
-        return "sp-${shinyProxy.metadata.name}-pod-${shinyProxyInstance}".substring(0 until 63)
+        return "sp-${shinyProxy.metadata.name}-pod-${shinyProxyInstance.hashOfSpec}".substring(0 until 63)
     }
 
     fun createNameForReplicaSet(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {

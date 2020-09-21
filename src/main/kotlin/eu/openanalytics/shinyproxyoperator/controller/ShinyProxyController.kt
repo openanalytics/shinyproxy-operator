@@ -144,7 +144,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         newInstance.isLatestInstance = true
         shinyProxy.status.instances.forEach { it.isLatestInstance = false }
         shinyProxy.status.instances.add(newInstance)
-        shinyProxyClient.updateStatus(shinyProxy)
+        shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
 
         return newInstance
     }
@@ -162,14 +162,14 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
-        val configMaps = resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+        val configMaps = resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (configMaps.isEmpty()) {
             logger.debug { "0 ConfigMaps found -> creating ConfigMap" }
             configMapFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
 
-        val replicaSets = resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+        val replicaSets = resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (replicaSets.isEmpty()) {
             logger.debug { "0 ReplicaSets found -> creating ReplicaSet" }
             replicaSetFactory.create(shinyProxy, shinyProxyInstance)
@@ -177,7 +177,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
-        val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+        val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (services.isEmpty()) {
             logger.debug { "0 Services found -> creating Service" }
             serviceFactory.create(shinyProxy, shinyProxyInstance)
@@ -207,7 +207,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         logger.info { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has no running apps and is not the latest version => removing this instance" }
                         deleteSingleShinyProxyInstance(shinyProxy, shinyProxyInstance)
                         shinyProxy.status.instances.remove(shinyProxyInstance)
-                        shinyProxyClient.updateStatus(shinyProxy)
+                        shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
                     }
                 }
             }
@@ -224,13 +224,13 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
     private fun deleteSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         logger.info { "DeleteSingleShinyProxyInstance: ${shinyProxy.metadata.name} ${shinyProxyInstance.hashOfSpec}" }
-        for (service in resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))) {
+        for (service in resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
             kubernetesClient.resource(service).delete()
         }
-        for (replicaSet in resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))) {
+        for (replicaSet in resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
             kubernetesClient.resource(replicaSet).delete()
         }
-        for (configMap in resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))) {
+        for (configMap in resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
             kubernetesClient.resource(configMap).delete()
         }
     }
