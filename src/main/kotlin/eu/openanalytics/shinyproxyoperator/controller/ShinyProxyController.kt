@@ -52,42 +52,45 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             try {
                 val event = channel.receive()
 
-                when (event.eventType) {
-                    ShinyProxyEventType.ADD -> {
-                        if (event.shinyProxy == null) {
-                            logger.warn { "Event of type ADD should have shinyproxy attached to it." }
-                            continue
+                try {
+                    when (event.eventType) {
+                        ShinyProxyEventType.ADD -> {
+                            if (event.shinyProxy == null) {
+                                logger.warn { "Event of type ADD should have shinyproxy attached to it." }
+                                continue
+                            }
+                            val newInstance = createNewInstance(event.shinyProxy)
+                            reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
                         }
-                        val newInstance = createNewInstance(event.shinyProxy)
-                        reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
-                    }
-                    ShinyProxyEventType.UPDATE_SPEC -> {
-                        if (event.shinyProxy == null) {
-                            logger.warn { "Event of type UPDATE_SPEC should have shinyproxy attached to it." }
-                            continue
+                        ShinyProxyEventType.UPDATE_SPEC -> {
+                            if (event.shinyProxy == null) {
+                                logger.warn { "Event of type UPDATE_SPEC should have shinyproxy attached to it." }
+                                continue
+                            }
+                            val newInstance = createNewInstance(event.shinyProxy)
+                            reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
                         }
-                        val newInstance = createNewInstance(event.shinyProxy)
-                        reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
-                    }
-                    ShinyProxyEventType.DELETE -> {
-                        // DELETE is not needed
-                    }
-                    ShinyProxyEventType.RECONCILE -> {
-                        if (event.shinyProxy == null) {
-                            logger.warn { "Event of type RECONCILE should have shinyProxy attached to it." }
-                            continue
+                        ShinyProxyEventType.DELETE -> {
+                            // DELETE is not needed
                         }
-                        if (event.shinyProxyInstance == null) {
-                            logger.warn { "Event of type RECONCILE should have shinyProxyInstance attached to it." }
-                            continue
+                        ShinyProxyEventType.RECONCILE -> {
+                            if (event.shinyProxy == null) {
+                                logger.warn { "Event of type RECONCILE should have shinyProxy attached to it." }
+                                continue
+                            }
+                            if (event.shinyProxyInstance == null) {
+                                logger.warn { "Event of type RECONCILE should have shinyProxyInstance attached to it." }
+                                continue
+                            }
+                            reconcileSingleShinyProxyInstance(event.shinyProxy, event.shinyProxyInstance)
                         }
-                        reconcileSingleShinyProxyInstance(event.shinyProxy, event.shinyProxyInstance)
+                        ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES -> {
+                            checkForObsoleteInstances()
+                        }
                     }
-                    ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES -> {
-                        checkForObsoleteInstances()
-                    }
+                } catch (e: Exception) {
+                    logger.warn(e) { "Caught an exception while processing event $event. Continuing processing other events." }
                 }
-
             } catch (interruptedException: InterruptedException) {
                 Thread.currentThread().interrupt()
                 logger.warn { "controller interrupted.." }

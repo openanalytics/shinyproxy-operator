@@ -1,19 +1,13 @@
 package eu.openanalytics.shinyproxyoperator.components
 
-import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import eu.openanalytics.shinyproxyoperator.retry
-import io.fabric8.kubernetes.api.model.ConfigMap
-import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder
-import io.fabric8.kubernetes.api.model.VolumeBuilder
-import io.fabric8.kubernetes.api.model.VolumeMountBuilder
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import mu.KotlinLogging
-import java.util.*
 
 class ReplicaSetFactory(private val kubeClient: KubernetesClient ) {
 
