@@ -42,12 +42,27 @@ class Operator {
     private val logger = KotlinLogging.logger {}
     private val client = DefaultKubernetesClient()
     private val namespace: String
-    val mode = Mode.CLUSTERED
+    private val mode: Mode
 
     /**
      * Initialize client and namespace
      */
     init {
+        val modeEnv = System.getenv("SPO_MODE")
+        mode = when {
+            modeEnv.toLowerCase() == "clustered" -> {
+                Mode.CLUSTERED
+            }
+            modeEnv.toLowerCase() == "namespaced" -> {
+                Mode.NAMESPACED
+            }
+            else -> {
+                Mode.CLUSTERED
+            }
+        }
+
+        logger.info { "Running in $mode mode" }
+
         namespace = if (client.namespace == null) {
             logger.info { "No namespace found via config, assuming default." }
             "default"
@@ -65,6 +80,7 @@ class Operator {
             client.customResourceDefinitions().create(podSetCustomResourceDefinition)
             logger.info { "Created CustomResourceDefinition" }
         }
+
     }
 
     /**
