@@ -16,7 +16,7 @@ pipeline {
 
             steps {
 
-                container('shinyproxy-operator-build') {
+                container('containerproxy-build') {
 
                      configFileProvider([configFile(fileId: 'maven-settings-rsb', variable: 'MAVEN_SETTINGS_RSB')]) {
 
