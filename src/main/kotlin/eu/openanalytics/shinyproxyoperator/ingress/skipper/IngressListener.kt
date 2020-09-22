@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.ingress.skipper
 
+import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEventType
@@ -77,6 +78,7 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
         val ownerReference = getShinyProxyOwnerRefByKind(replicaSet, "ShinyProxy") ?: return
 
         val shinyProxy = shinyProxyLister.namespace(resource.metadata.namespace)[ownerReference.name] ?: return
+        if (!Operator.isInManagedNamespace(shinyProxy)) return
         val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL]
         if (hashOfInstance == null) {
             logger.warn { "Cannot find hash of instance for resource ${resource.kind}/${resource.metadata.name}, probably some labels are wrong." }

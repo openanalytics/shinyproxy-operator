@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.controller
 
+import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
@@ -37,12 +38,14 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>,
     init {
         informer.addEventHandler(object : ResourceEventHandler<ShinyProxy> {
             override fun onAdd(shinyProxy: ShinyProxy) {
-                logger.debug { "ShinyProxy::OnAdd ${shinyProxy.metadata.name}" }
+                logger.debug { "ShinyProxy::OnAdd ${shinyProxy.metadata.name} in namespace ${shinyProxy.metadata.namespace}" }
+                if (!Operator.isInManagedNamespace(shinyProxy)) return
                 runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.ADD, shinyProxy, null)) }
             }
 
             override fun onUpdate(shinyProxy: ShinyProxy, newShinyProxy: ShinyProxy) {
-                logger.debug { "ShinyProxy::OnUpdate ${shinyProxy.metadata.name}: old hash ${shinyProxy.hashOfCurrentSpec}, new hash: ${newShinyProxy.hashOfCurrentSpec}" }
+                logger.debug { "ShinyProxy::OnUpdate ${shinyProxy.metadata.name} in namespace ${shinyProxy.metadata.namespace}: old hash ${shinyProxy.hashOfCurrentSpec}, new hash: ${newShinyProxy.hashOfCurrentSpec}" }
+                if (!Operator.isInManagedNamespace(shinyProxy)) return
 
                 if (shinyProxy.hashOfCurrentSpec == newShinyProxy.hashOfCurrentSpec) {
                     val shinyProxyInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec)
@@ -57,10 +60,12 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>,
             }
 
             override fun onDelete(shinyProxy: ShinyProxy, b: Boolean) {
-                logger.debug { "ShinyProxy::OnDelete ${shinyProxy.metadata.name}" }
+                logger.debug { "ShinyProxy::OnDelete ${shinyProxy.metadata.name} in namespace ${shinyProxy.metadata.namespace}" }
+                if (!Operator.isInManagedNamespace(shinyProxy)) return
                 runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.DELETE, shinyProxy, null)) }
             }
         })
     }
+
 
 }

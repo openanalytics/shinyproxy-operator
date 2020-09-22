@@ -32,34 +32,76 @@ import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
+import io.fabric8.kubernetes.client.dsl.base.OperationContext
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer
+import io.fabric8.kubernetes.client.informers.SharedInformerFactory
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
+import kotlin.properties.Delegates
+
 
 class Operator {
 
     private val logger = KotlinLogging.logger {}
     private val client = DefaultKubernetesClient()
-    private val namespace: String
-    private val mode: Mode
+
+    companion object {
+        var namespace: String by Delegates.notNull()
+        val mode: Mode
+
+        init {
+            val modeEnv = System.getenv("SPO_MODE")
+            mode = when {
+                modeEnv?.toLowerCase() == "clustered" -> {
+                    Mode.CLUSTERED
+                }
+                modeEnv?.toLowerCase() == "namespaced" -> {
+                    Mode.NAMESPACED
+                }
+                else -> {
+                    Mode.CLUSTERED
+                }
+            }
+        }
+
+        val logger = KotlinLogging.logger { }
+
+        fun isInManagedNamespace(shinyProxy: ShinyProxy): Boolean {
+            when (mode) {
+                Mode.CLUSTERED -> return true
+                Mode.NAMESPACED -> {
+                    if (shinyProxy.metadata.namespace == namespace) {
+                        return true
+                    }
+                    logger.debug { "ShinyProxy ${shinyProxy.metadata.name} in namespace ${shinyProxy.metadata.namespace} isn't managed by this operator." }
+                    return false
+                }
+            }
+        }
+    }
+
+    private val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
+            .withVersion("v1alpha1")
+            .withScope("Namespaced")
+            .withGroup("openanalytics.eu")
+            .withPlural("shinyproxies")
+            .build()
+
+    private val informerFactory: SharedInformerFactory
+    private val replicaSetInformer: SharedIndexInformer<ReplicaSet>
+    private val serviceInformer: SharedIndexInformer<Service>
+    private val configMapInformer: SharedIndexInformer<ConfigMap>
+    private val ingressInformer: SharedIndexInformer<Ingress>
+    private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>
+    private val podInformer: SharedIndexInformer<Pod>
+
 
     /**
      * Initialize client and namespace
      */
     init {
-        val modeEnv = System.getenv("SPO_MODE")
-        mode = when {
-            modeEnv?.toLowerCase() == "clustered" -> {
-                Mode.CLUSTERED
-            }
-            modeEnv?.toLowerCase() == "namespaced" -> {
-                Mode.NAMESPACED
-            }
-            else -> {
-                Mode.CLUSTERED
-            }
-        }
 
         logger.info { "Running in $mode mode" }
 
@@ -81,17 +123,34 @@ class Operator {
             logger.info { "Created CustomResourceDefinition" }
         }
 
+       informerFactory = when (mode) {
+            Mode.CLUSTERED -> client.inAnyNamespace().informers()
+            Mode.NAMESPACED -> client.inNamespace(namespace).informers()
+        }
+
+        if (mode == Mode.CLUSTERED) {
+            replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, 10 * 60 * 1000.toLong())
+            serviceInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, 10 * 60 * 1000.toLong())
+            configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
+            ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, 10 * 60 * 1000.toLong())
+            shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000)
+            podInformer = informerFactory.sharedIndexInformerFor(Pod::class.java, PodList::class.java, 10 * 60 * 1000.toLong())
+        } else {
+            val operationContext = OperationContext().withNamespace(namespace)
+            replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, operationContext, 10 * 60 * 1000.toLong())
+            serviceInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, operationContext, 10 * 60 * 1000.toLong())
+            configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, operationContext, 10 * 60 * 1000.toLong())
+            ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, operationContext, 10 * 60 * 1000.toLong())
+            shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, operationContext, 10 * 60 * 1000)
+            podInformer = informerFactory.sharedIndexInformerFor(Pod::class.java, PodList::class.java, operationContext, 10 * 60 * 1000.toLong())
+        }
+
     }
 
     /**
      * Main Components
      */
-    private val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
-            .withVersion("v1alpha1")
-            .withScope("Namespaced")
-            .withGroup("openanalytics.eu")
-            .withPlural("shinyproxies")
-            .build()
+//    private val shinyProxyClient = client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
 
     private val shinyProxyClient = when (mode) {
         Mode.CLUSTERED -> client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
@@ -103,16 +162,11 @@ class Operator {
     /**
      * Informers
      */
-    private val informerFactory = when(mode) {
-        Mode.CLUSTERED -> client.inAnyNamespace().informers()
-        Mode.NAMESPACED -> client.inNamespace(namespace).informers()
-    }
-    private val replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, 10 * 60 * 1000.toLong())
-    private val serviceInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, 10 * 60 * 1000.toLong())
-    private val configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
-    private val ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, 10 * 60 * 1000.toLong())
-    private val shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000)
-    private val podInformer = informerFactory.sharedIndexInformerFor(Pod::class.java, PodList::class.java, 10 * 60 * 1000.toLong())
+
+//    private val operationContext = when (mode) {
+//        Mode.CLUSTERED -> null// OperationContext().withName(null)
+//        Mode.NAMESPACED -> OperationContext().withNamespace(namespace)
+//    }
 
     /**
      * Listers

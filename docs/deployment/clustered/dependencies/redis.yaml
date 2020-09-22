@@ -44,15 +44,6 @@ spec:
     targetPort: 6379
   selector:
     app: redis
-#---
-#apiVersion: v1
-#kind: Secret
-#metadata:
-  #name: redis-password
-  #namespace: shinyproxy-operator
-#type: Opaque
-#data:
-  #password: bXlQYXNzd29yRA==
 ---
 apiVersion: v1
 kind: Secret
