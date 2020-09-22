@@ -50,7 +50,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
         } else {
             mapOf(
                     "kubernetes.io/ingress.class" to "skipper",
-                    "zalando.org/skipper-predicate" to """Cookie("sp-instance", "$hashOfSpec")""",
+                    "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hashOfSpec")""",
                     "zalando.org/skipper-filter" to """jsCookie("sp-latest-instance", "${shinyProxy.hashOfCurrentSpec}")"""
             )
         }
