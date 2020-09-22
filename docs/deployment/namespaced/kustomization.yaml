@@ -1,0 +1,8 @@
+resources:
+ - namespaces.yaml
+ - dependencies
+ - ldap_secret.yaml
+ - deployment.yaml
+ - shinyproxy.serviceAccount.yaml
+ - operator.serviceAccount.yaml
+ - role.yaml
