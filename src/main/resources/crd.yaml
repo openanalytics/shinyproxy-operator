@@ -113,8 +113,15 @@ spec:
                     - id
             kubernetesPodTemplateSpecPatches:
               type: string
+            image:
+              type: string
+            imagePullPolicy:
+              type: string
+            fqdn:
+              type: string
           required:
            - proxy
+           - fqdn
         status:
           description: ShinyProxyStatus defines the observed state of ShinyProxy
           type: object

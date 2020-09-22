@@ -40,7 +40,8 @@ class PodTemplateSpecFactory {
                 .withNewSpec()
                     .addNewContainer()
                         .withName("shinyproxy")
-                        .withImage("localhost:5000/shinyproxy-dev:latest") // TODO make configurable
+                        .withImage(shinyProxy.image)
+                        .withImagePullPolicy(shinyProxy.imagePullPolicy)
                         .withEnv(listOf(
                             EnvVarBuilder()
                                 .withName("SP_KUBE_POD_NAME")

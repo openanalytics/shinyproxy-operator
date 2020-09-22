@@ -28,11 +28,36 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import eu.openanalytics.shinyproxyoperator.sha1
 import io.fabric8.kubernetes.client.CustomResource
+import java.lang.IllegalStateException
 import javax.json.JsonPatch
 
 
 class ShinyProxy : CustomResource() {
     lateinit var spec: JsonNode
+
+    @get:JsonIgnore
+    val image: String by lazy {
+        if (spec.get("image")?.isTextual == true) {
+            return@lazy spec.get("image").textValue()
+        }
+        return@lazy "openanalytics/shinyproxy:latest"
+    }
+
+    @get:JsonIgnore
+    val imagePullPolicy: String by lazy {
+        if (spec.get("imagePullPolicy")?.isTextual == true) {
+            return@lazy spec.get("imagePullPolicy").textValue()
+        }
+        return@lazy "Always"
+    }
+
+    @get:JsonIgnore
+    val fqdn: String by lazy {
+        if (spec.get("fqdn")?.isTextual == true) {
+            return@lazy spec.get("fqdn").textValue()
+        }
+        throw IllegalStateException("Cannot create ShinyProxy instance when no FQDN is specified!")
+    }
 
     val status = ShinyProxyStatus()
 

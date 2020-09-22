@@ -79,3 +79,5 @@ spec:
       value:
         name: TEST_VAR
         value: TEST_VALUE
+  image: localhost:5000/shinyproxy-dev:latest
+  fqdn: skipper-demo.ledfan.be

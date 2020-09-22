@@ -71,7 +71,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                 .endMetadata()
                 .withNewSpec()
                     .addNewRule()
-                        .withHost("skipper-demo.ledfan.be")
+                        .withHost(shinyProxy.fqdn)
                         .withNewHttp()
                             .addNewPath()
                                 .withNewBackend()
