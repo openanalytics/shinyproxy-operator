@@ -48,5 +48,6 @@ object LabelFactory {
     const val NAME_LABEL = "openanalytics.eu/sp-resource-name"
     const val INSTANCE_LABEL = "openanalytics.eu/sp-instance"
     const val PROXIED_APP =  "openanalytics.eu/containerproxy-proxied-app"
+    const val INGRESS_IS_LATEST = "openanalytics.eu/ingress-is-latest"
 
 }

@@ -22,6 +22,7 @@ package eu.openanalytics.shinyproxyoperator.ingress.skipper
 
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
+import eu.openanalytics.shinyproxyoperator.components.LabelFactory.INGRESS_IS_LATEST
 import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -50,16 +51,28 @@ class IngressController(
     // Note: do not move this to the DiContainer since it is a Skipper-specific implementation
     private val ingressListener = IngressListener(channel, kubernetesClient, ingressInformer, shinyProxyListener)
 
-    override fun onNewInstance(shinyProxy: ShinyProxy, newInstance: ShinyProxyInstance) {
+    override fun reconcile(shinyProxy: ShinyProxy) {
         for (instance in shinyProxy.status.instances) {
-            val replicaSet = getReplicaSet(shinyProxy, instance) ?: continue // ignore since we still have to update the others
-            ingressFactory.createOrReplaceIngress(shinyProxy, instance, replicaSet)
+            try {
+                reconcileSingleInstance(shinyProxy, instance)
+            } catch (e: Exception) {
+                logger.warn(e) { "Unable to reconcile Ingress for ${instance.hashOfSpec}" }
+            }
         }
     }
 
-    override fun reconcileInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+    private fun reconcileSingleInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        logger.debug { "Reconciling ingress for ${shinyProxy.metadata.name} instance: ${shinyProxyInstance.hashOfSpec}" }
         val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
-        if (ingresses.isEmpty()) {
+
+        val mustBeUpdated = if (ingresses.isEmpty()) {
+            true
+        } else {
+            // if the label indicating this is the latest is different from the actual state -> reconile
+            ingresses[0].metadata.labels[INGRESS_IS_LATEST]?.toBoolean() != shinyProxyInstance.isLatestInstance
+        }
+
+        if (mustBeUpdated) {
             logger.debug { "0 Ingresses found -> creating Ingress" }
             val replicaSet = getReplicaSet(shinyProxy, shinyProxyInstance)
             if (replicaSet == null) {

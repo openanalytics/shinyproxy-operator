@@ -131,11 +131,10 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return existingInstance
         } else if (existingInstance != null && existingInstance.isLatestInstance == false) {
             // make the old existing instance again the latest instance
-            // TODO ingressController
             shinyProxy.status.instances.forEach { it.isLatestInstance = false }
             existingInstance.isLatestInstance = true
             shinyProxyClient.updateStatus(shinyProxy)
-            ingressController.onNewInstance(shinyProxy, existingInstance)
+            ingressController.reconcile(shinyProxy)
             return existingInstance
         }
 
@@ -174,7 +173,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         if (replicaSets.isEmpty()) {
             logger.debug { "0 ReplicaSets found -> creating ReplicaSet" }
             replicaSetFactory.create(shinyProxy, shinyProxyInstance)
-            ingressController.onNewInstance(shinyProxy, shinyProxyInstance)
+            ingressController.reconcile(shinyProxy)
             return
         }
 
@@ -185,7 +184,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
-        ingressController.reconcileInstance(shinyProxy, shinyProxyInstance)
+        ingressController.reconcile(shinyProxy)
     }
 
     private fun checkForObsoleteInstances() {

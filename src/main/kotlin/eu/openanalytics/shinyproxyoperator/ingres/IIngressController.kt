@@ -25,8 +25,5 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 
 interface IIngressController {
 
-    fun onNewInstance(shinyProxy: ShinyProxy, newInstance: ShinyProxyInstance)
-
-    fun reconcileInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance)
-
+    fun reconcile(shinyProxy: ShinyProxy)
 }

@@ -55,11 +55,14 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
             )
         }
 
+        val labels = LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance).toMutableMap()
+        labels[LabelFactory.INGRESS_IS_LATEST] = isLatest.toString()
+
         //@formatter:off
         val ingressDefinition = IngressBuilder()
                 .withNewMetadata()
                     .withName(ResourceNameFactory.createNameForIngress(shinyProxy, shinyProxyInstance))
-                    .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                    .withLabels(labels)
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ReplicaSet")
@@ -87,9 +90,6 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                 .build()
         //@formatter:on
 
-        println(SerializationUtils.dumpAsYaml(ingressDefinition))
-
-        // TODO check namespace
         val createdIngress = kubeClient.network().ingress().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
 
         logger.debug { "Created Ingress with name ${createdIngress.metadata.name} (latest=$isLatest)" }
