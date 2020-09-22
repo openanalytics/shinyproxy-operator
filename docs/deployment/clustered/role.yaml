@@ -1,5 +1,4 @@
 kind: ClusterRole
-#kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   namespace: shinyproxy-operator
@@ -31,8 +30,7 @@ rules:
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 kind: ClusterRoleBinding
-#kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: shinyproxy-operator-role
 subjects:

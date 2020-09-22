@@ -3,6 +3,6 @@ resources:
  - dependencies
  - ldap_secret.yaml
  - deployment.yaml
- - serviceAccount.yaml
+ - shinyproxy.serviceAccount.yaml
+ - operator.serviceAccount.yaml
  - role.yaml
- - shinyproxy.yaml

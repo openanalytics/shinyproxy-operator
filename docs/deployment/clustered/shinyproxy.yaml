@@ -11,16 +11,16 @@ spec:
       host: redis
       password: ${REDIS_PASSWORD}
   proxy:
-    title: Open Analytics Shiny Proxy (25)
+    title: Open Analytics Shiny Proxy
     logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
     landingPage: /
     heartbeatRate: 10000
     heartbeatTimeout: 60000
     port: 8080
-#    authentication: simple
     containerBackend: kubernetes
     kubernetes:
       namespace: shinyproxy-apps
+      internal-networking: true
     authentication: ldap
     ldap:
       url: ldap://ldap.forumsys.com:389/dc=example,dc=com
