@@ -135,6 +135,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             shinyProxy.status.instances.forEach { it.isLatestInstance = false }
             existingInstance.isLatestInstance = true
             shinyProxyClient.updateStatus(shinyProxy)
+            ingressController.onNewInstance(shinyProxy, existingInstance)
             return existingInstance
         }
 
