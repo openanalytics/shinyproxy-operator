@@ -28,13 +28,6 @@ spec:
       group-search-filter: (uniqueMember={0})
       manager-dn: cn=read-only-admin,dc=example,dc=com
       manager-password: ${LDAP_PASSWORD}
-    users:
-    - name: jack
-      password: password
-      groups: scientists
-    - name: jeff
-      password: password
-      groups: mathematicians
     specs:
     - id: 01_hello
       displayName: Hello Application

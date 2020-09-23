@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: shinyproxy-operator
-          image: openanalytics/shinyproxy-operator-snapshot:0.0.1-SNAPSHOT-20200922.103827
+          image: openanalytics/shinyproxy-operator-snapshot:0.0.1-SNAPSHOT-20200923.073315
           env:
             - name: SPO_MODE
               value: clustered
