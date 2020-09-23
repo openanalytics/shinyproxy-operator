@@ -134,7 +134,6 @@ class Operator {
             configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
             ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, 10 * 60 * 1000.toLong())
             shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000)
-            podInformer = informerFactory.sharedIndexInformerFor(Pod::class.java, PodList::class.java, 10 * 60 * 1000.toLong())
         } else {
             val operationContext = OperationContext().withNamespace(namespace)
             replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, operationContext, 10 * 60 * 1000.toLong())
@@ -142,31 +141,21 @@ class Operator {
             configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, operationContext, 10 * 60 * 1000.toLong())
             ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, operationContext, 10 * 60 * 1000.toLong())
             shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, operationContext, 10 * 60 * 1000)
-            podInformer = informerFactory.sharedIndexInformerFor(Pod::class.java, PodList::class.java, operationContext, 10 * 60 * 1000.toLong())
         }
+        // We need to find pods in all namespaces, therefore we never add an operationalContext
+        podInformer = client.inAnyNamespace().informers().sharedIndexInformerFor(Pod::class.java, PodList::class.java, 10 * 60 * 1000.toLong())
 
     }
 
     /**
      * Main Components
      */
-//    private val shinyProxyClient = client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
-
     private val shinyProxyClient = when (mode) {
         Mode.CLUSTERED -> client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
         Mode.NAMESPACED -> client.inNamespace(namespace).customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
     }
     private val channel = Channel<ShinyProxyEvent>(10000)
     private val sendChannel: SendChannel<ShinyProxyEvent> = channel
-
-    /**
-     * Informers
-     */
-
-//    private val operationContext = when (mode) {
-//        Mode.CLUSTERED -> null// OperationContext().withName(null)
-//        Mode.NAMESPACED -> OperationContext().withNamespace(namespace)
-//    }
 
     /**
      * Listers
@@ -201,6 +190,7 @@ class Operator {
 
     suspend fun run() {
         informerFactory.startAllRegisteredInformers()
+        podInformer.run()
 
         informerFactory.addSharedInformerEventListener {
             logger.warn { "Exception occurred, but caught $it" }

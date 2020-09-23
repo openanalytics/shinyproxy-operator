@@ -40,7 +40,6 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         val configMaps = arrayListOf<ConfigMap>()
         logger.debug { "Looking for configmap with labels: $labels in namespace $namespace" }
         for (configmap in configMapLister.namespace(namespace).list()) {
-            logger.debug { "Found ConfigMap ${configmap.metadata.name}" }
             if (configmap?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 configMaps.add(configmap)
             }
