@@ -79,6 +79,6 @@ spec:
       value:
         name: TEST_VAR
         value: TEST_VALUE
-  image: localhost:5000/shinyproxy-dev:latest
+  image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20200922.151458
   fqdn: skipper-demo.ledfan.be
 
