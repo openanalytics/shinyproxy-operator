@@ -193,7 +193,7 @@ class Operator {
         podInformer.run()
 
         informerFactory.addSharedInformerEventListener {
-            logger.warn { "Exception occurred, but caught $it" }
+            logger.warn(it) { "Exception occurred, but caught $it" }
         }
 
         shinyProxyController.run()

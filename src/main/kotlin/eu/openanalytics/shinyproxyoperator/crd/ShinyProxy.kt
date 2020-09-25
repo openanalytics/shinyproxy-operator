@@ -27,12 +27,13 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import eu.openanalytics.shinyproxyoperator.sha1
+import io.fabric8.kubernetes.api.model.Namespaced
 import io.fabric8.kubernetes.client.CustomResource
 import java.lang.IllegalStateException
 import javax.json.JsonPatch
 
 
-class ShinyProxy : CustomResource() {
+class ShinyProxy : CustomResource(), Namespaced {
     lateinit var spec: JsonNode
 
     @get:JsonIgnore
