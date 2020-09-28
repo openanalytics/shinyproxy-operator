@@ -1,17 +1,76 @@
+# Setup a second ShinyProxy Instance in another namespace (yanamespace)
+---
+# namespace to run the 01_hello app in
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: yanamespace
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ldap-password
+  namespace: yanamespace
+data:
+  password: cGFzc3dvcmQ=
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis-password
+  namespace: yanamespace
+type: Opaque
+data:
+  password: bXlQYXNzd29yRA==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: some-password
+  namespace: yanamespace
+data:
+  password: cGFzc3dvcmQ=
+type: Opaque
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: shinyproxy-apps-role
+  namespace: yanamespace
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: shinyproxy-apps-rolebinding
+  namespace: yanamespace
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: yanamespace
+roleRef:
+  kind: Role
+  name: shinyproxy-apps-role
+  apiGroup: rbac.authorization.k8s.io
 apiVersion: openanalytics.eu/v1alpha1
+---
 kind: ShinyProxy
 metadata:
   name: example-shinyproxy
-  namespace: shinyproxy
+  namespace: yanamespace
 spec:
   spring:
     session:
       store-type: redis
     redis:
-      host: redis
+      host: redis.shinyproxy-apps
       password: ${REDIS_PASSWORD}
   proxy:
-    title: Open Analytics Shiny Proxy
+    title: Yet Another Open Analytics Shiny Proxy
     logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
     landingPage: /
     heartbeatRate: 10000
@@ -19,15 +78,14 @@ spec:
     port: 8080
     containerBackend: kubernetes
     kubernetes:
-      namespace: shinyproxy
+      namespace: yanamespace
       internal-networking: true
-    authentication: ldap
-    ldap:
-      url: ldap://ldap.forumsys.com:389/dc=example,dc=com
-      user-dn-pattern: uid={0}
-      group-search-filter: (uniqueMember={0})
-      manager-dn: cn=read-only-admin,dc=example,dc=com
-      manager-password: ${LDAP_PASSWORD}
+    authentication: simple
+    users:
+    - name: demo
+      password: demo
+    - name: demo2
+      password: demo2
     specs:
     - id: 01_hello
       displayName: Hello Application
@@ -43,9 +101,6 @@ spec:
                secretKeyRef:
                 name: some-password
                 key: password
-       - op: replace
-         path: /metadata/namespace
-         value: my-namespace
     - id: 06_tabsets
       container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
       container-image: openanalytics/shinyproxy-demo
@@ -73,7 +128,5 @@ spec:
         name: TEST_VAR
         value: TEST_VALUE
   image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20200922.151458
-  fqdn: skipper-demo.local
-  appNamespaces:
-   - my-namespace
+  fqdn: skipper2-demo.local
 
