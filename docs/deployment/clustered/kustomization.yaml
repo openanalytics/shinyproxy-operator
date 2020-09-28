@@ -5,4 +5,3 @@ resources:
  - deployment.yaml
  - shinyproxy.serviceAccount.yaml
  - operator.serviceAccount.yaml
- - role.yaml

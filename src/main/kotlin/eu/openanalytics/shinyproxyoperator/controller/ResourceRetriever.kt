@@ -31,7 +31,6 @@ import mu.KotlinLogging
 class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
                         private val configMapLister: Lister<ConfigMap>,
                         private val serviceLister: Lister<Service>,
-                        private val podLister: Lister<Pod>,
                         private val ingressLister: Lister<Ingress>) {
 
     private val logger = KotlinLogging.logger {}
@@ -72,17 +71,6 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
         return services
     }
 
-    fun getPodByLabels(labels: Map<String, String>): List<Pod> {
-        val pods = arrayListOf<Pod>()
-        logger.debug { "Looking for Pods with labels: $labels" }
-        for (pod in podLister.list()) {
-            if (pod?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
-                pods.add(pod)
-            }
-        }
-        logger.info { "PodCount: ${pods.size}, ${pods.map { it.metadata.name }}" }
-        return pods
-    }
 
     fun getIngressByLabels(labels: Map<String, String>, namespace: String): List<Ingress> {
         val ingresses = arrayListOf<Ingress>()

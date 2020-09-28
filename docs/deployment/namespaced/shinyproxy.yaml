@@ -41,11 +41,11 @@ spec:
            - name: LDAP_PASSWORD
              valueFrom:
                secretKeyRef:
-                name: ldap-password
+                name: some-password
                 key: password
-           #- op: replace
-               #path: /metadata/namespace
-               #value: my-namespace
+       - op: replace
+         path: /metadata/namespace
+         value: my-namespace
     - id: 06_tabsets
       container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
       container-image: openanalytics/shinyproxy-demo
@@ -73,5 +73,7 @@ spec:
         name: TEST_VAR
         value: TEST_VALUE
   image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20200922.151458
-  fqdn: skipper-demo.ledfan.be
+  fqdn: skipper-demo.local
+  appNamespaces:
+   - my-namespace
 

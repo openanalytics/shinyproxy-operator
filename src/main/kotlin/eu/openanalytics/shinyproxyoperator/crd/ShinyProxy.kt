@@ -60,6 +60,28 @@ class ShinyProxy : CustomResource(), Namespaced {
         throw IllegalStateException("Cannot create ShinyProxy instance when no FQDN is specified!")
     }
 
+    @get:JsonIgnore
+    val namespacesOfCurrentInstance: List<String> by lazy {
+        val namespaces = arrayListOf<String>()
+
+        val kubernetesNamespace = spec.get("proxy")?.get("kubernetes")?.get("namespace")?.textValue()
+        if (kubernetesNamespace != null) {
+            namespaces.add(kubernetesNamespace)
+        }
+
+        namespaces.add(metadata.namespace)
+
+        val appNamespaces = spec.get("appNamespaces")
+        if (appNamespaces != null) {
+            for (idx in 0 until appNamespaces.size()) {
+                val namespace = appNamespaces.get(idx)?.textValue() ?: continue
+                namespaces.add(namespace)
+            }
+        }
+
+        return@lazy namespaces
+    }
+
     val status = ShinyProxyStatus()
 
     val specAsYaml: String by lazy {

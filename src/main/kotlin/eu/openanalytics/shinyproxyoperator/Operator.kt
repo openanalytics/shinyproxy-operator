@@ -95,7 +95,7 @@ class Operator {
     private val configMapInformer: SharedIndexInformer<ConfigMap>
     private val ingressInformer: SharedIndexInformer<Ingress>
     private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>
-    private val podInformer: SharedIndexInformer<Pod>
+    private val podRetriever: PodRetriever
 
 
     /**
@@ -134,6 +134,7 @@ class Operator {
             configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
             ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, 10 * 60 * 1000.toLong())
             shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000)
+            TODO("No podRetriever!")
         } else {
             val operationContext = OperationContext().withNamespace(namespace)
             replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, operationContext, 10 * 60 * 1000.toLong())
@@ -141,9 +142,8 @@ class Operator {
             configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, operationContext, 10 * 60 * 1000.toLong())
             ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, operationContext, 10 * 60 * 1000.toLong())
             shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, operationContext, 10 * 60 * 1000)
+            podRetriever = PodRetriever(client)
         }
-        // We need to find pods in all namespaces, therefore we never add an operationalContext
-        podInformer = client.inAnyNamespace().informers().sharedIndexInformerFor(Pod::class.java, PodList::class.java, 10 * 60 * 1000.toLong())
 
     }
 
@@ -165,7 +165,6 @@ class Operator {
     private val configMapLister = Lister(configMapInformer.indexer)
     private val serviceLister = Lister(serviceInformer.indexer)
     private val ingressLister = Lister(ingressInformer.indexer)
-    private val podLister = Lister(podInformer.indexer)
 
     /**
      * Listeners
@@ -179,18 +178,17 @@ class Operator {
     /**
      * Helpers
      */
-    private val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, podLister, ingressLister)
+    private val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, ingressLister)
 
     /**
      * Controllers
      */
     private val ingressController = IngressController(channel, ingressInformer, shinyProxyLister, client, resourceRetriever)
-    private val shinyProxyController = ShinyProxyController(channel, client, shinyProxyClient, replicaSetInformer, shinyProxyInformer, ingressController, resourceRetriever, shinyProxyLister)
+    private val shinyProxyController = ShinyProxyController(channel, client, shinyProxyClient, replicaSetInformer, shinyProxyInformer, ingressController, resourceRetriever, shinyProxyLister, podRetriever)
 
 
     suspend fun run() {
         informerFactory.startAllRegisteredInformers()
-        podInformer.run()
 
         informerFactory.addSharedInformerEventListener {
             logger.warn(it) { "Exception occurred, but caught $it" }

@@ -63,6 +63,7 @@ class IngressController(
 
     private fun reconcileSingleInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         logger.debug { "Reconciling ingress for ${shinyProxy.metadata.name} instance: ${shinyProxyInstance.hashOfSpec}" }
+
         val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
 
         val mustBeUpdated = if (ingresses.isEmpty()) {

@@ -27,22 +27,14 @@ import eu.openanalytics.shinyproxyoperator.components.ReplicaSetFactory
 import eu.openanalytics.shinyproxyoperator.components.ServiceFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import eu.openanalytics.shinyproxyoperator.ingres.IIngressController
-import eu.openanalytics.shinyproxyoperator.ingress.skipper.IngressController
-import io.fabric8.kubernetes.api.model.ConfigMap
-import io.fabric8.kubernetes.api.model.Pod
-import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
-import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
@@ -56,7 +48,8 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                            private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>,
                            private val ingressController: IIngressController,
                            private val resourceRetriever: ResourceRetriever,
-                           private val shinyProxyLister: Lister<ShinyProxy>) {
+                           private val shinyProxyLister: Lister<ShinyProxy>,
+                           private val podRetriever: PodRetriever) {
 
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val serviceFactory = ServiceFactory(kubernetesClient)
@@ -65,7 +58,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     private val logger = KotlinLogging.logger {}
 
     suspend fun run() {
-        logger.info("Starting PodSet controller")
+        logger.info("Starting ShinyProxy Operator")
         while (!replicaSetInformer.hasSynced() || !shinyProxyInformer.hasSynced()) {
             // Wait till Informer syncs
         }
@@ -185,6 +178,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
 
         ingressController.reconcile(shinyProxy)
+        podRetriever.addNamespaces(shinyProxy.namespacesOfCurrentInstance)
     }
 
     private fun checkForObsoleteInstances() {
@@ -195,19 +189,16 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 val instancesToCheck = shinyProxy.status.instances.toList()
                 for (shinyProxyInstance in instancesToCheck) {
                     if (shinyProxyInstance.isLatestInstance == true) continue
-                    val hashOfSpec: String = shinyProxyInstance.hashOfSpec ?: continue
-                    val pods = resourceRetriever.getPodByLabels(
-                            mapOf(
-                                    LabelFactory.PROXIED_APP to "true",
-                                    LabelFactory.INSTANCE_LABEL to hashOfSpec
-                            )
-                    )
+
+                    val pods = podRetriever.getPodsForShinyProxyInstance(shinyProxy, shinyProxyInstance)
 
                     if (pods.isEmpty()) {
                         logger.info { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has no running apps and is not the latest version => removing this instance" }
                         deleteSingleShinyProxyInstance(shinyProxy, shinyProxyInstance)
                         shinyProxy.status.instances.remove(shinyProxyInstance)
                         shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
+                    } else {
+                        logger.info { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has ${pods.size} running apps => not removing this instance" }
                     }
                 }
             }

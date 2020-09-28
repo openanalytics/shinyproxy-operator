@@ -119,6 +119,8 @@ spec:
               type: string
             fqdn:
               type: string
+            appNamespaces:
+              type: array
           required:
            - proxy
            - fqdn
