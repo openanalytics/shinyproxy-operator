@@ -31,8 +31,7 @@ This documentation provides an example deployment of the ShinyProxy operator on 
     The Skipper ingress created a service. You can find the URL of this service using `minikube service --url skipper-ingress -n kube-system`.
     See below for a temporary ingress setup.
     Note that you should always access the Ingress using HTTPS, otherwise the cookie-based routing will not work.
- 9. Deploy ShinyProxy
-    The `shinyproxy.yaml` file contains an example configuration for the operator.
+ 9. Deploy ShinyProxy: the `shinyproxy.yaml` file contains an example configuration for the operator.
     Some important parts of it:
 
      - `spring` config related to Spring, such as the redis connection information
