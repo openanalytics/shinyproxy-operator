@@ -29,14 +29,15 @@ import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import mu.KotlinLogging
 
-class ReplicaSetFactory(private val kubeClient: KubernetesClient ) {
+class ReplicaSetFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
     private val podTemplateSpecFactory = PodTemplateSpecFactory()
 
-    suspend fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ReplicaSet {
-       val replicaSetDefinition: ReplicaSet = ReplicaSetBuilder()
+    fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        //@formatter:off
+        val replicaSetDefinition: ReplicaSet = ReplicaSetBuilder()
                 .withNewMetadata()
                    .withName(ResourceNameFactory.createNameForReplicaSet(shinyProxy, shinyProxyInstance))
                    .withNamespace(shinyProxy.metadata.namespace)
@@ -57,14 +58,10 @@ class ReplicaSetFactory(private val kubeClient: KubernetesClient ) {
                     .withTemplate(podTemplateSpecFactory.create(shinyProxy, shinyProxyInstance))
                 .endSpec()
                 .build()
+        //@formatter:on
 
         val createdReplicaSet = kubeClient.apps().replicaSets().inNamespace(shinyProxy.metadata.namespace).create(replicaSetDefinition)
-        if (retry(60, 1000) { Readiness.isReady(kubeClient.resource(createdReplicaSet).fromServer().get()) }) {
-            logger.debug { "Created ReplicaSet with name ${createdReplicaSet.metadata.name}" }
-            return kubeClient.resource(createdReplicaSet).fromServer().get()
-        } else {
-            throw RuntimeException("Could not create ReplicaSet ${createdReplicaSet.metadata.name}")
-        }
+        logger.debug { "Created ReplicaSet with name ${createdReplicaSet.metadata.name}" }
     }
 
 }

@@ -33,6 +33,7 @@ import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
+import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -131,15 +132,31 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return existingInstance
         }
 
-        // create new instance to replace old ones
+        // create new instance and add it to the list of instances
+        // initial the instance is not the latest. Only when the ReplicaSet is created and fully running
+        // the latestInstance marker will change to the new instance.
         val newInstance = ShinyProxyInstance()
         newInstance.hashOfSpec = shinyProxy.hashOfCurrentSpec
-        newInstance.isLatestInstance = true
-        shinyProxy.status.instances.forEach { it.isLatestInstance = false }
+        newInstance.isLatestInstance = false
         shinyProxy.status.instances.add(newInstance)
         shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
 
         return newInstance
+    }
+
+    private fun updateLatestMarker(shinyProxy: ShinyProxy) {
+        val latestInstance = shinyProxy.status.instances.firstOrNull { it.hashOfSpec == shinyProxy.hashOfCurrentSpec }
+                ?: return
+
+        if (latestInstance.isLatestInstance == true) {
+            // already updated marker
+            return
+        }
+
+        shinyProxy.status.instances.forEach { it.isLatestInstance = false }
+        latestInstance.isLatestInstance = true
+        shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
+
     }
 
     private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
@@ -166,9 +183,17 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         if (replicaSets.isEmpty()) {
             logger.debug { "0 ReplicaSets found -> creating ReplicaSet" }
             replicaSetFactory.create(shinyProxy, shinyProxyInstance)
-            ingressController.reconcile(shinyProxy)
             return
         }
+
+        if (!Readiness.isReady(replicaSets[0])) {
+            // do no proceed until replicaset is ready
+            return
+        }
+
+        logger.debug { "ReplicaSet is ready -> proceed with reconcile" }
+
+        updateLatestMarker(shinyProxy)
 
         val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (services.isEmpty()) {
@@ -188,7 +213,12 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 // take a copy of the list to check to prevent concurrent modification
                 val instancesToCheck = shinyProxy.status.instances.toList()
                 for (shinyProxyInstance in instancesToCheck) {
-                    if (shinyProxyInstance.isLatestInstance == true) continue
+                    if (shinyProxyInstance.isLatestInstance == true
+                            || shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {
+                        // shinyProxyInstance is either the latest or the soon to be latest instance
+                        continue
+                    }
+
 
                     val pods = podRetriever.getPodsForShinyProxyInstance(shinyProxy, shinyProxyInstance)
 
@@ -198,7 +228,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         shinyProxy.status.instances.remove(shinyProxyInstance)
                         shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
                     } else {
-                        logger.info { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has ${pods.size} running apps => not removing this instance" }
+                        logger.debug { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has ${pods.size} running apps => not removing this instance" }
                     }
                 }
             }

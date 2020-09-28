@@ -33,6 +33,7 @@ import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
+import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.channels.Channel
 import mu.KotlinLogging
 import java.lang.RuntimeException
@@ -62,8 +63,6 @@ class IngressController(
     }
 
     private fun reconcileSingleInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        logger.debug { "Reconciling ingress for ${shinyProxy.metadata.name} instance: ${shinyProxyInstance.hashOfSpec}" }
-
         val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
 
         val mustBeUpdated = if (ingresses.isEmpty()) {
@@ -74,12 +73,18 @@ class IngressController(
         }
 
         if (mustBeUpdated) {
-            logger.debug { "0 Ingresses found -> creating Ingress" }
+            logger.debug { "Reconciling ingress for ${shinyProxy.metadata.name} instance: ${shinyProxyInstance.hashOfSpec}" }
             val replicaSet = getReplicaSet(shinyProxy, shinyProxyInstance)
             if (replicaSet == null) {
-                // throw exception so that this renoncile will be called again
-                throw RuntimeException("Cannot reconcile Ingress for ${shinyProxyInstance.hashOfSpec} since it has no ReplicaSet")
+                logger.warn { "Cannot reconcile Ingress for ${shinyProxyInstance.hashOfSpec} since it has no ReplicaSet - probably this resource is being deleted." }
+                return
             }
+            if (!Readiness.isReady(replicaSet)) {
+                logger.warn { "Cannot reconcile Ingress for ${shinyProxyInstance.hashOfSpec} since the corresponding ReplicaSet is not ready yet - it is probably being created." }
+                return
+            }
+            // ReplicaSet exists and is ready -> time to create ingress
+            // By only creating the ingress now, we ensure no 502 bad gateways are generated
             ingressFactory.createOrReplaceIngress(shinyProxy, shinyProxyInstance, replicaSet)
         }
     }
@@ -87,7 +92,6 @@ class IngressController(
     private fun getReplicaSet(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ReplicaSet? {
         val replicaSets = resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (replicaSets.isEmpty()) {
-            logger.warn { "Cannot reconcile Ingress when there is no replicaset for instance ${shinyProxyInstance.hashOfSpec} (maybe it is already removed?)" }
             return null
         }
         return replicaSets[0]
