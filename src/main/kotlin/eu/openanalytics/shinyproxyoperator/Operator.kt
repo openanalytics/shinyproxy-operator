@@ -113,16 +113,6 @@ class Operator {
         }
         logger.info { "Using namespace : $namespace " }
 
-        var podSetCustomResourceDefinition = when (mode) {
-            Mode.CLUSTERED -> client.customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get()
-            Mode.NAMESPACED -> client.inNamespace(namespace).customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get()
-        }
-        if (podSetCustomResourceDefinition == null) {
-            podSetCustomResourceDefinition = client.customResourceDefinitions().load(object : Any() {}.javaClass.getResourceAsStream("/crd.yaml")).get()
-            client.customResourceDefinitions().create(podSetCustomResourceDefinition)
-            logger.info { "Created CustomResourceDefinition" }
-        }
-
        informerFactory = when (mode) {
             Mode.CLUSTERED -> client.inAnyNamespace().informers()
             Mode.NAMESPACED -> client.inNamespace(namespace).informers()
