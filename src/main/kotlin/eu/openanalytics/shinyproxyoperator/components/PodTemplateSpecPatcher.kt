@@ -26,11 +26,14 @@ import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import io.fabric8.kubernetes.api.model.HTTPGetAction
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.api.model.PodTemplateSpec
+import io.fabric8.kubernetes.client.internal.SerializationUtils
+import mu.KotlinLogging
 import javax.json.JsonPatch
 import javax.json.JsonStructure
 
 class PodTemplateSpecPatcher {
     private val mapper = ObjectMapper(YAMLFactory())
+    private val logger = KotlinLogging.logger {  }
 
     init {
         mapper.registerModule(JSR353Module())
@@ -43,6 +46,9 @@ class PodTemplateSpecPatcher {
         if (patch == null) {
             return pod
         }
+
+        logger.debug { "Original PodTemplateSpec (before applying patches): ${mapper.writeValueAsString(pod)}" }
+
         // 1. convert PodTemplate to javax.json.JsonValue object.
         // This conversion does not actually convert to a string, but some internal
         // representation of Jackson.
@@ -53,10 +59,12 @@ class PodTemplateSpecPatcher {
         val patchedPodTemplateSpec = mapper.convertValue(patchedPodAsJsonValue, PodTemplateSpec::class.java)
 
         for (container in patchedPodTemplateSpec.spec.containers) {
-            patchHttpGet(container.livenessProbe.httpGet)
-            patchHttpGet(container.readinessProbe.httpGet)
-            patchHttpGet(container.startupProbe.httpGet)
+            container.livenessProbe?.httpGet?.let { patchHttpGet(it) }
+            container.readinessProbe?.httpGet?.let { patchHttpGet(it) }
+            container.startupProbe?.httpGet?.let { patchHttpGet(it) }
         }
+
+        logger.debug { "Patched PodTemplateSpec (after applying patches): ${mapper.writeValueAsString(patchedPodTemplateSpec)}" }
 
         return patchedPodTemplateSpec
     }
