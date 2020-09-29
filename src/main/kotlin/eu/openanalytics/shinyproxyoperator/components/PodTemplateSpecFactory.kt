@@ -66,21 +66,21 @@ class PodTemplateSpecFactory {
                         .build())
                         .withNewLivenessProbe()
                             .withNewHttpGet()
-                                .withPath("/actuator/health/liveness")
+                                .withPath("${shinyProxy.subPath}/actuator/health/liveness")
                                 .withPort(IntOrString(8080))
                             .endHttpGet()
                             .withPeriodSeconds(1) // TODO
                         .endLivenessProbe()
                         .withNewReadinessProbe()
                             .withNewHttpGet()
-                                .withPath("/actuator/health/readiness")
+                                .withPath("${shinyProxy.subPath}/actuator/health/readiness")
                                 .withNewPort(8080) // string instead of int because of quirks in the library
                             .endHttpGet()
                             .withPeriodSeconds(1) // TODO
                         .endReadinessProbe()
                         .withNewStartupProbe()
                             .withNewHttpGet()
-                                .withPath("/actuator/health/liveness")
+                                .withPath("${shinyProxy.subPath}/actuator/health/liveness")
                                 .withNewPort(8080) // string instead of int because of quirks in the library
                                 .endHttpGet()
                             .withFailureThreshold(6) // TODO

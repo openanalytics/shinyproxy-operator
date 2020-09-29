@@ -25,13 +25,13 @@ import eu.openanalytics.shinyproxyoperator.components.ResourceNameFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
+import io.fabric8.kubernetes.api.model.networking.v1beta1.HTTPIngressPath
+import io.fabric8.kubernetes.api.model.networking.v1beta1.HTTPIngressPathBuilder
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
-import io.fabric8.kubernetes.client.internal.SerializationUtils
 import mu.KotlinLogging
-import java.lang.RuntimeException
 
 class IngressFactory(private val kubeClient: KubernetesClient) {
 
@@ -77,14 +77,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                     .addNewRule()
                         .withHost(shinyProxy.fqdn)
                         .withNewHttp()
-                            .addNewPath()
-                                .withNewBackend()
-                                    .withServiceName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
-                                    .withNewServicePort()
-                                        .withIntVal(80)
-                                    .endServicePort()
-                                .endBackend()
-                            .endPath()
+                            .addToPaths(createPath(shinyProxy, shinyProxyInstance))
                         .endHttp()
                     .endRule()
                 .endSpec()
@@ -104,6 +97,24 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
             }
         }
 
+    }
+
+    private fun createPath(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): HTTPIngressPath {
+        //@formatter:off
+        val builder = HTTPIngressPathBuilder()
+                .withNewBackend()
+                    .withServiceName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
+                    .withNewServicePort()
+                        .withIntVal(80)
+                    .endServicePort()
+                .endBackend()
+        //@formatter:on
+
+        if (shinyProxy.subPath != "") {
+            builder.withPath(shinyProxy.subPath)
+        }
+
+        return builder.build()
     }
 
 }
