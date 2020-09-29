@@ -32,11 +32,13 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
-    fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ConfigMap {
+    fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         if (shinyProxy.hashOfCurrentSpec != shinyProxyInstance.hashOfSpec) {
-            TODO("Cannot re-create ConfigMap for old instance")
+            logger.warn {"Cannot re-create ConfigMap for old instance" }
+            return
         }
 
+        //@formatter:off
         val configMapDefinition: ConfigMap = ConfigMapBuilder()
                 .withNewMetadata()
                     .withNamespace(shinyProxy.metadata.namespace)
@@ -52,11 +54,10 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                 .endMetadata()
                 .addToData("application.yml", shinyProxy.specAsYaml)
                 .build()
+        //@formatter:on
 
         val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).create(configMapDefinition)
         logger.debug { "Created ConfigMap with name ${createdConfigMap.metadata.name}" }
-
-        return kubeClient.resource(createdConfigMap).fromServer().get()
     }
 
 }
