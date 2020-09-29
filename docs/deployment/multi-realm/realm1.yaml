@@ -1,0 +1,78 @@
+apiVersion: openanalytics.eu/v1alpha1
+kind: ShinyProxy
+metadata:
+  name: shinyproxy-realm1
+  namespace: shinyproxy
+spec:
+  server:
+    servlet:
+      context-path: /realm1
+  spring:
+    session:
+      store-type: redis
+    redis:
+      host: redis
+      password: ${REDIS_PASSWORD}
+  proxy:
+    title: Open Analytics Shiny Proxy - Realm1 3
+    logoUrl: https://www.openanalytics.eu/shinyproxy/logo.png
+    landingPage: /
+    heartbeatRate: 10000
+    heartbeatTimeout: 60000
+    port: 8080
+    containerBackend: kubernetes
+    kubernetes:
+      namespace: shinyproxy
+      internal-networking: true
+    authentication: ldap
+    ldap:
+      url: ldap://ldap.forumsys.com:389/dc=example,dc=com
+      user-dn-pattern: uid={0}
+      group-search-filter: (uniqueMember={0})
+      manager-dn: cn=read-only-admin,dc=example,dc=com
+      manager-password: ${LDAP_PASSWORD}
+    specs:
+    - id: 01_hello
+      displayName: Hello Application
+      description: Application which demonstrates the basics of a Shiny app
+      containerCmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+      containerImage: openanalytics/shinyproxy-demo
+      #kubernetes-pod-patches: |
+       #- op: add
+         #path: /spec/containers/0/env
+         #value:
+           #- name: SOME_PASSWORD
+             #valueFrom:
+               #secretKeyRef:
+                #name: some-password
+                #key: password
+    - id: 06_tabsets
+      container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
+      container-image: openanalytics/shinyproxy-demo
+      description: Some Tabset Description 42
+  kubernetesPodTemplateSpecPatches: |
+    - op: add
+      path: /spec/containers/0/env/-
+      value:
+        name: LDAP_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: ldap-password
+            key: password
+    - op: add
+      path: /spec/containers/0/env/-
+      value:
+        name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: redis-password
+            key: password
+    - op: add
+      path: /spec/containers/0/env/-
+      value:
+        name: TEST_VAR
+        value: TEST_VALUE
+  #image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20201002.120450
+  image: localhost:5000/shinyproxy-dev
+  fqdn: my.sp.demo.shinyproxy-demo.local
+

@@ -23,6 +23,7 @@ package eu.openanalytics.shinyproxyoperator.components
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.*
+import java.nio.file.Paths
 
 class PodTemplateSpecFactory {
 
@@ -66,21 +67,21 @@ class PodTemplateSpecFactory {
                         .build())
                         .withNewLivenessProbe()
                             .withNewHttpGet()
-                                .withPath("${shinyProxy.subPath}/actuator/health/liveness")
+                                .withPath(Paths.get(shinyProxy.subPath, "/actuator/health/liveness").toString())
                                 .withPort(IntOrString(8080))
                             .endHttpGet()
                             .withPeriodSeconds(1) // TODO
                         .endLivenessProbe()
                         .withNewReadinessProbe()
                             .withNewHttpGet()
-                                .withPath("${shinyProxy.subPath}/actuator/health/readiness")
+                                .withPath(Paths.get(shinyProxy.subPath, "/actuator/health/readiness").toString())
                                 .withNewPort(8080) // string instead of int because of quirks in the library
                             .endHttpGet()
                             .withPeriodSeconds(1) // TODO
                         .endReadinessProbe()
                         .withNewStartupProbe()
                             .withNewHttpGet()
-                                .withPath("${shinyProxy.subPath}/actuator/health/liveness")
+                                .withPath(Paths.get(shinyProxy.subPath, "/actuator/health/liveness").toString())
                                 .withNewPort(8080) // string instead of int because of quirks in the library
                                 .endHttpGet()
                             .withFailureThreshold(6) // TODO
