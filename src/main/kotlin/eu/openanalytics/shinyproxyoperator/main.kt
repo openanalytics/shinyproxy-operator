@@ -35,6 +35,7 @@ suspend fun main() {
     val logger = KotlinLogging.logger {}
     try {
         val operator = Operator()
+        Operator.operatorInstance = operator
         operator.run()
     } catch (exception: KubernetesClientException) {
         logger.warn { "Kubernetes Client Exception : ${exception.message}" }

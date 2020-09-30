@@ -26,10 +26,11 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import mu.KotlinLogging
 
-class PodRetriever(private val client: DefaultKubernetesClient) {
+class PodRetriever(private val client: NamespacedKubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
     private val informers = mutableMapOf<String, SharedIndexInformer<Pod>>()

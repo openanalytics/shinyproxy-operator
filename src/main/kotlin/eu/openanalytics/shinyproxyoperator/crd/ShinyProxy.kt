@@ -84,6 +84,7 @@ class ShinyProxy : CustomResource(), Namespaced {
 
     val status = ShinyProxyStatus()
 
+    @get:JsonIgnore
     val specAsYaml: String by lazy {
         val objectMapper = ObjectMapper(YAMLFactory())
         objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
@@ -107,6 +108,7 @@ class ShinyProxy : CustomResource(), Namespaced {
         return@lazy null
     }
 
+    @get:JsonIgnore
     val hashOfCurrentSpec: String by lazy {
         return@lazy specAsYaml.sha1()
     }

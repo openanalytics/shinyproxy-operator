@@ -25,13 +25,16 @@ import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import eu.openanalytics.shinyproxyoperator.ingress.skipper.IngressController
-import io.fabric8.kubernetes.api.model.*
+import io.fabric8.kubernetes.api.model.ConfigMap
+import io.fabric8.kubernetes.api.model.ConfigMapList
+import io.fabric8.kubernetes.api.model.Service
+import io.fabric8.kubernetes.api.model.ServiceList
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
-import io.fabric8.kubernetes.client.KubernetesClientException
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import io.fabric8.kubernetes.client.dsl.base.OperationContext
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
@@ -40,48 +43,14 @@ import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
-import kotlin.properties.Delegates
 
 
-class Operator {
+class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null) {
 
     private val logger = KotlinLogging.logger {}
-    private val client = DefaultKubernetesClient()
-
-    companion object {
-        var namespace: String by Delegates.notNull()
-        val mode: Mode
-
-        init {
-            val modeEnv = System.getenv("SPO_MODE")
-            mode = when {
-                modeEnv?.toLowerCase() == "clustered" -> {
-                    Mode.CLUSTERED
-                }
-                modeEnv?.toLowerCase() == "namespaced" -> {
-                    Mode.NAMESPACED
-                }
-                else -> {
-                    Mode.CLUSTERED
-                }
-            }
-        }
-
-        val logger = KotlinLogging.logger { }
-
-        fun isInManagedNamespace(shinyProxy: ShinyProxy): Boolean {
-            when (mode) {
-                Mode.CLUSTERED -> return true
-                Mode.NAMESPACED -> {
-                    if (shinyProxy.metadata.namespace == namespace) {
-                        return true
-                    }
-                    logger.debug { "ShinyProxy ${shinyProxy.metadata.name} in namespace ${shinyProxy.metadata.namespace} isn't managed by this operator." }
-                    return false
-                }
-            }
-        }
-    }
+    private val client: NamespacedKubernetesClient
+    val mode: Mode
+    val namespace: String
 
     private val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
             .withVersion("v1alpha1")
@@ -100,23 +69,45 @@ class Operator {
 
 
     /**
-     * Initialize client and namespace
+     * Initialize mode, client, namespace and informers
      */
     init {
+        if (client != null) {
+            this.client = client
+        } else {
+            this.client = DefaultKubernetesClient()
+        }
+
+        if (mode != null) {
+            this.mode = mode
+        } else {
+            val modeEnv = System.getenv("SPO_MODE")
+            this.mode = when {
+                modeEnv?.toLowerCase() == "clustered" -> {
+                    Mode.CLUSTERED
+                }
+                modeEnv?.toLowerCase() == "namespaced" -> {
+                    Mode.NAMESPACED
+                }
+                else -> {
+                    Mode.CLUSTERED
+                }
+            }
+        }
 
         logger.info { "Running in $mode mode" }
 
-        namespace = if (client.namespace == null) {
+        namespace = if (this.client.namespace == null) {
             logger.info { "No namespace found via config, assuming default." }
             "default"
         } else {
-            client.namespace
+            this.client.namespace
         }
         logger.info { "Using namespace : $namespace " }
 
-       informerFactory = when (mode) {
-            Mode.CLUSTERED -> client.inAnyNamespace().informers()
-            Mode.NAMESPACED -> client.inNamespace(namespace).informers()
+        informerFactory = when (this.mode) {
+            Mode.CLUSTERED -> this.client.inAnyNamespace().informers()
+            Mode.NAMESPACED -> this.client.inNamespace(namespace).informers()
         }
 
         if (mode == Mode.CLUSTERED) {
@@ -125,7 +116,7 @@ class Operator {
             configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
             ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, 10 * 60 * 1000.toLong())
             shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000)
-            podRetriever = PodRetriever(client)
+            podRetriever = PodRetriever(this.client)
         } else {
             val operationContext = OperationContext().withNamespace(namespace)
             replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, operationContext, 10 * 60 * 1000.toLong())
@@ -133,7 +124,7 @@ class Operator {
             configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, operationContext, 10 * 60 * 1000.toLong())
             ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, operationContext, 10 * 60 * 1000.toLong())
             shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, operationContext, 10 * 60 * 1000)
-            podRetriever = PodRetriever(client)
+            podRetriever = PodRetriever(this.client)
         }
 
     }
@@ -141,9 +132,9 @@ class Operator {
     /**
      * Main Components
      */
-    private val shinyProxyClient = when (mode) {
-        Mode.CLUSTERED -> client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
-        Mode.NAMESPACED -> client.inNamespace(namespace).customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
+    private val shinyProxyClient = when (this.mode) {
+        Mode.CLUSTERED -> this.client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
+        Mode.NAMESPACED -> this.client.inNamespace(namespace).customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
     }
     private val channel = Channel<ShinyProxyEvent>(10000)
     private val sendChannel: SendChannel<ShinyProxyEvent> = channel
@@ -174,8 +165,8 @@ class Operator {
     /**
      * Controllers
      */
-    private val ingressController = IngressController(channel, ingressInformer, shinyProxyLister, client, resourceRetriever)
-    private val shinyProxyController = ShinyProxyController(channel, client, shinyProxyClient, replicaSetInformer, shinyProxyInformer, ingressController, resourceRetriever, shinyProxyLister, podRetriever)
+    private val ingressController = IngressController(channel, ingressInformer, shinyProxyLister, this.client, resourceRetriever)
+    private val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, replicaSetInformer, shinyProxyInformer, ingressController, resourceRetriever, shinyProxyLister, podRetriever)
 
 
     suspend fun run() {
@@ -188,6 +179,11 @@ class Operator {
 
         shinyProxyController.run()
     }
+
+    companion object {
+        var operatorInstance: Operator? = null
+    }
+
 }
 
 enum class Mode {
