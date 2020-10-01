@@ -41,7 +41,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertNotNull(sp)
         val instance = sp.status.instances[0]
         assertNotNull(instance)
-        assertEquals(true, instance.isLatestInstance)
+        assertTrue(instance.isLatestInstance)
 
         // check confgimap
         val configMaps = client.inNamespace(namespace).configMaps().list().items

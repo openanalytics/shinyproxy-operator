@@ -26,9 +26,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource
 
 
 @JsonDeserialize(using = JsonDeserializer.None::class)
-class ShinyProxyStatus : KubernetesResource {
-
-    var instances = ArrayList<ShinyProxyInstance>()
+data class ShinyProxyStatus(val instances: ArrayList<ShinyProxyInstance> = arrayListOf()) : KubernetesResource {
 
     fun getInstanceByHash(hash: String): ShinyProxyInstance? {
         return instances.find { it.hashOfSpec ==  hash}

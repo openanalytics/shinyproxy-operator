@@ -5,8 +5,9 @@ import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class MainIntegrationTest : IntegrationTestBase() {
@@ -40,14 +41,14 @@ class MainIntegrationTest : IntegrationTestBase() {
                 // -> Service should not yet be created
                 assertEquals(0, namespacedClient.services().list().items.size)
 
-                // -> Ingresss should not yet be created
+                // -> Ingress should not yet be created
                 assertEquals(0, namespacedClient.network().ingresses().list().items.size)
 
                 // -> Latest marker should not yet be set
                 val sp = spTestInstance.retrieveInstance()
                 assertEquals(1, sp.status.instances.size)
                 println("${sp.status.instances[0].isLatestInstance} => ${Readiness.isReady(replicaSet)}")
-                assertEquals(false, sp.status.instances[0].isLatestInstance)
+                assertFalse(sp.status.instances[0].isLatestInstance)
                 checked = true
             } else {
                 // ReplicaSet is Ready -> break

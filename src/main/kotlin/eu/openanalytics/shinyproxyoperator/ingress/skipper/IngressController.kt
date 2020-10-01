@@ -68,7 +68,7 @@ class IngressController(
         val mustBeUpdated = if (ingresses.isEmpty()) {
             true
         } else {
-            // if the label indicating this is the latest is different from the actual state -> reconile
+            // if the label indicating this is the latest is different from the actual state -> reconcile
             ingresses[0].metadata.labels[INGRESS_IS_LATEST]?.toBoolean() != shinyProxyInstance.isLatestInstance
         }
 

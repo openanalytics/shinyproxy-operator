@@ -37,9 +37,9 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
     private val logger = KotlinLogging.logger {}
 
     fun createOrReplaceIngress(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, replicaSet: ReplicaSet): Ingress? {
+        val hashOfSpec = shinyProxyInstance.hashOfSpec
 
-        val hashOfSpec = shinyProxyInstance.hashOfSpec ?: throw RuntimeException("Cannot create ingress for ShinyProxyInstance without hash of spec")
-
+        // TODO this should use shinyProxyInstance.isLatestInstance ?
         val isLatest = hashOfSpec == shinyProxy.hashOfCurrentSpec
         val annotations = if (isLatest) {
             mapOf(

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.controller.*
 import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -40,6 +41,7 @@ import io.fabric8.kubernetes.client.dsl.base.OperationContext
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory
 import io.fabric8.kubernetes.client.informers.cache.Lister
+import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
@@ -74,6 +76,8 @@ class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null, p
      * Initialize mode, client, namespace and informers
      */
     init {
+        Serialization.jsonMapper().registerKotlinModule()
+        Serialization.yamlMapper().registerKotlinModule()
         if (client != null) {
             this.client = client
         } else {
@@ -138,7 +142,7 @@ class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null, p
         Mode.CLUSTERED -> this.client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
         Mode.NAMESPACED -> this.client.inNamespace(namespace).customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
     }
-    val channel = Channel<ShinyProxyEvent>(10000)
+    private val channel = Channel<ShinyProxyEvent>(10000)
     private val sendChannel: SendChannel<ShinyProxyEvent> = channel
 
     /**

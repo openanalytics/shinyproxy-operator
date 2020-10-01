@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.shinyproxyoperator.ingress.skipper
 
-import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEventType
@@ -49,18 +48,18 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
         informer.addEventHandler(object : ResourceEventHandler<Ingress> {
             override fun onAdd(resource: Ingress) {
                 logger.debug { "${resource.kind}::OnAdd ${resource.metadata.name}" }
-                runBlocking { enqueuResource(resource) }
+                runBlocking { enqueueResource(resource) }
             }
 
             override fun onUpdate(resource: Ingress, newResource: Ingress) {
                 logger.debug { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
-                runBlocking { enqueuResource(resource) }
+                runBlocking { enqueueResource(resource) }
             }
 
             override fun onDelete(resource: Ingress, b: Boolean) {
                 logger.debug { "${resource.kind}::OnDelete ${resource.metadata.name}" }
                 try {
-                    runBlocking { enqueuResource(resource) }
+                    runBlocking { enqueueResource(resource) }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -68,7 +67,7 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
         })
     }
 
-    private suspend fun enqueuResource(resource: Ingress) {
+    private suspend fun enqueueResource(resource: Ingress) {
         val replicaSetOwnerReference = getShinyProxyOwnerRefByKind(resource, "ReplicaSet") ?: return
         // TODO namespace
         val replicaSet = kubernetesClient.apps().replicaSets().inNamespace(resource.metadata.namespace).withName(replicaSetOwnerReference.name).get()

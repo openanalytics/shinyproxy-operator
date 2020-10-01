@@ -123,10 +123,10 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     private fun createNewInstance(shinyProxy: ShinyProxy): ShinyProxyInstance {
         val existingInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec)
 
-        if (existingInstance != null && existingInstance.isLatestInstance == true) {
+        if (existingInstance != null && existingInstance.isLatestInstance) {
             logger.warn { "Trying to create new instance which already exists and is the latest instance" }
             return existingInstance
-        } else if (existingInstance != null && existingInstance.isLatestInstance == false) {
+        } else if (existingInstance != null && !existingInstance.isLatestInstance) {
             // make the old existing instance again the latest instance
             shinyProxy.status.instances.forEach { it.isLatestInstance = false }
             existingInstance.isLatestInstance = true
@@ -138,9 +138,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         // create new instance and add it to the list of instances
         // initial the instance is not the latest. Only when the ReplicaSet is created and fully running
         // the latestInstance marker will change to the new instance.
-        val newInstance = ShinyProxyInstance()
-        newInstance.hashOfSpec = shinyProxy.hashOfCurrentSpec
-        newInstance.isLatestInstance = false
+        val newInstance = ShinyProxyInstance(shinyProxy.hashOfCurrentSpec, false)
         shinyProxy.status.instances.add(newInstance)
         shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
 
@@ -151,7 +149,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         val latestInstance = shinyProxy.status.instances.firstOrNull { it.hashOfSpec == shinyProxy.hashOfCurrentSpec }
                 ?: return
 
-        if (latestInstance.isLatestInstance == true) {
+        if (latestInstance.isLatestInstance) {
             // already updated marker
             return
         }
@@ -164,11 +162,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
     private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         logger.info { "ReconcileSingleShinyProxy: ${shinyProxy.metadata.name} ${shinyProxyInstance.hashOfSpec}" }
-
-        if (shinyProxyInstance.hashOfSpec == null) {
-            logger.warn { "Cannot reconcile ShinProxyInstance $shinyProxyInstance because it has no hash." }
-            return
-        }
 
         if (!shinyProxy.status.instances.contains(shinyProxyInstance)) {
             logger.info { "Cannot reconcile ShinProxyInstance ${shinyProxyInstance.hashOfSpec} because it is begin deleted." }
@@ -217,8 +210,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 // take a copy of the list to check to prevent concurrent modification
                 val instancesToCheck = shinyProxy.status.instances.toList()
                 for (shinyProxyInstance in instancesToCheck) {
-                    if (shinyProxyInstance.isLatestInstance == true
-                            || shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {
+                    if (shinyProxyInstance.isLatestInstance || shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {
                         // shinyProxyInstance is either the latest or the soon to be latest instance
                         continue
                     }

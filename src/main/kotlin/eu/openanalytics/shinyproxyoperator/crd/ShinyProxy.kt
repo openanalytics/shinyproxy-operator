@@ -32,9 +32,7 @@ import io.fabric8.kubernetes.client.CustomResource
 import java.lang.IllegalStateException
 import javax.json.JsonPatch
 
-
-class ShinyProxy : CustomResource(), Namespaced {
-    lateinit var spec: JsonNode
+data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyProxyStatus()) : CustomResource(), Namespaced {
 
     @get:JsonIgnore
     val image: String by lazy {
@@ -81,8 +79,6 @@ class ShinyProxy : CustomResource(), Namespaced {
 
         return@lazy namespaces
     }
-
-    val status = ShinyProxyStatus()
 
     @get:JsonIgnore
     val specAsYaml: String by lazy {

@@ -1,5 +1,6 @@
 package eu.openanalytics.shinyproxyoperator.helpers
 
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.Mode
 import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
@@ -11,6 +12,7 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
+import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 
@@ -23,11 +25,12 @@ abstract class IntegrationTestBase {
             .withPlural("shinyproxies")
             .build()
 
-    val namespace = "itest"
-    val client = DefaultKubernetesClient()
+    private val namespace = "itest"
+    private val client = DefaultKubernetesClient()
 
     protected fun setup(block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, Operator, ReconcileListener) -> Unit) {
         runBlocking {
+
             Runtime.getRuntime().addShutdownHook(Thread {
                 runBlocking {
                     deleteNamespace(client, namespace)

@@ -54,7 +54,7 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
                 LabelFactory.INSTANCE_LABEL to shinyProxyInstance.hashOfSpec
         )
 
-        val namespacesToCheck = if (shinyProxyInstance.isLatestInstance == true) {
+        val namespacesToCheck = if (shinyProxyInstance.isLatestInstance) {
             shinyProxy.namespacesOfCurrentInstance
         } else {
             // We don't know the exact namespaces used by older ShinyProxyInstance, therefore we have to look into all namespaces.
