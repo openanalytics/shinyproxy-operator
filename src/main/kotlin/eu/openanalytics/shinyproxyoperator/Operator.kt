@@ -43,9 +43,11 @@ import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
+import java.util.concurrent.CancellationException
+import kotlin.math.log
 
 
-class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null) {
+class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null, private val reconcileListener: IReconcileListener? = null) {
 
     private val logger = KotlinLogging.logger {}
     private val client: NamespacedKubernetesClient
@@ -136,7 +138,7 @@ class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null) {
         Mode.CLUSTERED -> this.client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
         Mode.NAMESPACED -> this.client.inNamespace(namespace).customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
     }
-    private val channel = Channel<ShinyProxyEvent>(10000)
+    val channel = Channel<ShinyProxyEvent>(10000)
     private val sendChannel: SendChannel<ShinyProxyEvent> = channel
 
     /**
@@ -166,10 +168,10 @@ class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null) {
      * Controllers
      */
     private val ingressController = IngressController(channel, ingressInformer, shinyProxyLister, this.client, resourceRetriever)
-    private val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, replicaSetInformer, shinyProxyInformer, ingressController, resourceRetriever, shinyProxyLister, podRetriever)
+    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, replicaSetInformer, shinyProxyInformer, ingressController, resourceRetriever, shinyProxyLister, podRetriever, reconcileListener)
 
 
-    suspend fun run() {
+    fun prepare() {
         informerFactory.startAllRegisteredInformers()
 
         informerFactory.addSharedInformerEventListener {
@@ -177,6 +179,13 @@ class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null) {
             logger.warn(it) { "Exception occurred, but caught $it" }
         }
 
+        while (!replicaSetInformer.hasSynced() || !shinyProxyInformer.hasSynced()) {
+            // Wait till Informer syncs
+        }
+    }
+
+    suspend fun run() {
+        prepare()
         shinyProxyController.run()
     }
 

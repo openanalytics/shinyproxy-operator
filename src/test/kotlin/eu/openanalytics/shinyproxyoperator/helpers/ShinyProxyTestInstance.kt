@@ -3,6 +3,7 @@ package eu.openanalytics.shinyproxyoperator.helpers
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.IntOrString
@@ -11,8 +12,6 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
-import kotlinx.coroutines.delay
-import java.io.ByteArrayInputStream
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -20,34 +19,21 @@ import kotlin.test.assertTrue
 class ShinyProxyTestInstance(private val namespace: String,
                              private val client: NamespacedKubernetesClient,
                              private val shinyProxyClient: ShinyProxyClient,
-                             private val specification: String) {
+                             private val fileName: String,
+                             private val reconcileListener: ReconcileListener) {
 
-    private var hash: String? = null
+    private lateinit var hash: String
 
     fun create() {
-        val sp: ShinyProxy = shinyProxyClient.load(ByteArrayInputStream(specification.toByteArray())).create()
+        val sp: ShinyProxy = shinyProxyClient.load(this.javaClass.getResourceAsStream("/configs/$fileName")).create()
         hash = sp.hashOfCurrentSpec
 
         // assert that it has been created
         assertEquals(1, shinyProxyClient.inNamespace(namespace).list().items.size)
     }
 
-    suspend fun waitUntilReady() {
-        checkLoop@ while (true) {
-            for (sp in shinyProxyClient.inNamespace(namespace).list().items) {
-                if (sp?.hashOfCurrentSpec == hash) {
-                    if (sp?.status?.instances?.size == 1 && sp.status.instances[0].isLatestInstance == true) {
-                        break@checkLoop
-                    }
-                    if (sp?.status?.instances?.size != null && sp.status.instances.size > 1) {
-                        TODO("Not implemented")
-                    }
-                    break
-                }
-            }
-
-            delay(1_000)
-        }
+    suspend fun waitForOneReconcile(): ShinyProxyInstance? {
+        return reconcileListener.waitForNextReconcile(hash).await()
     }
 
     fun assertInstanceIsCorrect() {
