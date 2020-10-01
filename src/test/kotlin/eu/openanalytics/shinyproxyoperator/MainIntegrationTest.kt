@@ -7,6 +7,8 @@ import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
+import io.fabric8.kubernetes.client.dsl.MixedOperation
+import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -42,7 +44,60 @@ class MainIntegrationTest {
             .build()
 
     @Test
-    fun simple_test() {
+    fun simple_test() = setup { namespace, shinyProxyClient, namespacedClient, operator ->
+        // 1. create a SP instance
+        val shinyProxyDefinition = """
+            apiVersion: openanalytics.eu/v1alpha1
+            kind: ShinyProxy
+            metadata:
+              name: example-shinyproxy
+              namespace: $namespace
+            spec:
+                fqdn: itest.local
+                proxy:
+                  title: Open Analytics Shiny Proxy
+                  logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
+                  landingPage: /
+                  heartbeatRate: 10000
+                  heartbeatTimeout: 60000
+                  port: 8080
+                  authentication: simple
+
+                  users:
+                  - name: demo
+                    password: demo
+                    groups: scientists
+                  - name: demo2
+                    password: demo2
+                    groups: mathematicians
+                  specs:
+                  - id: 01_hello
+                    displayName: Hello Application
+                    description: Application which demonstrates the basics of a Shiny app
+                    containerCmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+                    containerImage: openanalytics/shinyproxy-demo
+                  - id: 06_tabsets
+                    container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
+                    container-image: openanalytics/shinyproxy-demo
+        """.trimIndent()
+
+        val spTestInstance = ShinyProxyTestInstance(session.namespace, namespacedClient, shinyProxyClient, shinyProxyDefinition)
+        spTestInstance.create()
+
+        // 2. start the operator and let it do it's work
+        GlobalScope.launch {
+            operator.run()
+        }
+
+        // 3. wait until instance is created
+        spTestInstance.waitUntilReady()
+
+        // 4. assert correctness
+        spTestInstance.assertInstanceIsCorrect()
+
+    }
+
+    private fun setup(block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, Operator) -> Unit) {
         runBlocking {
             // 1. create the operator
             val namespacedClient = DefaultKubernetesClient(client.configuration)
@@ -56,75 +111,11 @@ class MainIntegrationTest {
 
                 val shinyProxyClient = namespacedClient.inNamespace(session.namespace).customResources(customResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
 
-                // 3. create a SP instance
-                val shinyProxyDefinition = """
-                apiVersion: openanalytics.eu/v1alpha1
-                kind: ShinyProxy
-                metadata:
-                  name: example-shinyproxy
-                  namespace: ${session.namespace}
-                spec:
-                    fqdn: itest.local
-                    proxy:
-                      title: Open Analytics Shiny Proxy
-                      logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
-                      landingPage: /
-                      heartbeatRate: 10000
-                      heartbeatTimeout: 60000
-                      port: 8080
-                      authentication: simple
-
-                      users:
-                      - name: demo
-                        password: demo
-                        groups: scientists
-                      - name: demo2
-                        password: demo2
-                        groups: mathematicians
-                      specs:
-                      - id: 01_hello
-                        displayName: Hello Application
-                        description: Application which demonstrates the basics of a Shiny app
-                        containerCmd: ["R", "-e", "shinyproxy::run_01_hello()"]
-                        containerImage: openanalytics/shinyproxy-demo
-                      - id: 06_tabsets
-                        container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
-                        container-image: openanalytics/shinyproxy-demo
-            """.trimIndent()
-
-                val spTestInstance = ShinyProxyTestInstance(session.namespace, namespacedClient, shinyProxyClient, shinyProxyDefinition)
-                spTestInstance.create()
-//                shinyProxyClient.load(ByteArrayInputStream(shinyProxyDefinition.toByteArray())).create()
-                // assert that it has been created
-//                assertEquals(1, shinyProxyClient.inNamespace(session.namespace).list().items.size)
-
-                // 4. start the operator and let it do it's work
-                GlobalScope.launch {
-                    operator.run()
-                }
-
-                spTestInstance.waitUntilReady()
-                spTestInstance.assertInstanceIsCorrect()
-
-//                while (true) {
-//                    val sp = shinyProxyClient.inNamespace(session.namespace).list().items[0]
-//                    assertNotNull(sp)
-//                    if (sp.status.instances.size == 1 && sp.status.instances[0].isLatestInstance == true) {
-//                        break
-//                    }
-//                    println("Instance not ready yet!")
-//                    delay(1_000)
-//                }
-//
-//                val sp = shinyProxyClient.inNamespace(session.namespace).list().items[0]
-//                assertNotNull(sp)
-//                val instance = sp.status.instances[0]
-//                assertNotNull(instance)
-//                assertEquals(true, instance.isLatestInstance)
-
+                // 3. run test
+                block(session.namespace, shinyProxyClient, namespacedClient, operator)
 
             } finally {
-                // Remove the CRD
+                // 4. remove the CRD
                 val podSetCustomResourceDefinition = client.customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
                 client.customResourceDefinitions().delete(podSetCustomResourceDefinition)
             }

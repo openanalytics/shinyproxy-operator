@@ -70,7 +70,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                         .withName(ResourceNameFactory.createNameForReplicaSet(shinyProxy, shinyProxyInstance))
                         .withNewUid(replicaSet.metadata.uid)
                     .endOwnerReference()
-                .withAnnotations(annotations)
+                    .withAnnotations(annotations)
                 .endMetadata()
                 .withNewSpec()
                     .addNewRule()
