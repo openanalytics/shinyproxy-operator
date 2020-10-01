@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
+import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -22,6 +23,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayInputStream
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -94,6 +96,98 @@ class MainIntegrationTest {
 
         // 4. assert correctness
         spTestInstance.assertInstanceIsCorrect()
+
+    }
+
+    @Test
+    fun `ingress should not be created before ReplicaSet is ready`() = setup { namespace, shinyProxyClient, namespacedClient, operator ->
+        // 1. create a SP instance
+        val shinyProxyDefinition = """
+            apiVersion: openanalytics.eu/v1alpha1
+            kind: ShinyProxy
+            metadata:
+              name: example-shinyproxy
+              namespace: $namespace
+            spec:
+                fqdn: itest.local
+                proxy:
+                  title: Open Analytics Shiny Proxy
+                  logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
+                  landingPage: /
+                  heartbeatRate: 10000
+                  heartbeatTimeout: 60000
+                  port: 8080
+                  authentication: simple
+
+                  users:
+                  - name: demo
+                    password: demo
+                    groups: scientists
+                  - name: demo2
+                    password: demo2
+                    groups: mathematicians
+                  specs:
+                  - id: 01_hello
+                    displayName: Hello Application
+                    description: Application which demonstrates the basics of a Shiny app
+                    containerCmd: ["R", "-e", "shinyproxy::run_01_hello()"]
+                    containerImage: openanalytics/shinyproxy-demo
+                  - id: 06_tabsets
+                    container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
+                    container-image: openanalytics/shinyproxy-demo
+        """.trimIndent()
+
+        val spTestInstance = ShinyProxyTestInstance(session.namespace, namespacedClient, shinyProxyClient, shinyProxyDefinition)
+        spTestInstance.create()
+
+        // 2. start the operator and let it do it's work
+        GlobalScope.launch {
+            operator.run()
+        }
+
+        // 3. check whether the controller waits until the ReplicaSet is ready before creating other resources
+        var checked = false
+        while (true) {
+            delay(500)
+
+            // get replicaset
+            val replicaSets = namespacedClient.apps().replicaSets().list().items
+            if (replicaSets.size == 0) {
+                continue
+            }
+            assertEquals(1, replicaSets.size)
+            val replicaSet = replicaSets[0]
+
+            if (!Readiness.isReady(replicaSet)) {
+                // replicaset not ready
+                // -> Service should not yet be created
+                assertEquals(0, namespacedClient.services().list().items.size)
+
+                // -> Ingresss should not yet be created
+                assertEquals(0, namespacedClient.network().ingresses().list().items.size)
+
+                // -> Latest marker should not yet be set
+                val sp = spTestInstance.retrieveInstance()
+                assertEquals(1, sp.status.instances.size)
+                assertEquals(false, sp.status.instances[0].isLatestInstance)
+                checked = true
+            } else {
+                // ReplicaSet is Ready -> break
+                break
+            }
+        }
+
+        assertTrue(checked) // actually checked that ingress wasn't created when the ReplicaSet wasn't ready yet
+
+        // 4. wait until instance is created
+        spTestInstance.waitUntilReady()
+
+        // 5. assert correctness
+        spTestInstance.assertInstanceIsCorrect()
+    }
+
+    @Test
+    fun `operator should re-create removed resources`() = setup { namespace, shinyProxyClient, namespacedClient, operator ->
 
     }
 

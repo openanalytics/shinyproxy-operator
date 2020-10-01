@@ -207,7 +207,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(sp.metadata.uid, resource.metadata.ownerReferences[0].uid)
     }
 
-    private fun retrieveInstance(): ShinyProxy {
+    fun retrieveInstance(): ShinyProxy {
         for (sp in shinyProxyClient.inNamespace(namespace).list().items) {
             if (sp != null && sp.hashOfCurrentSpec == hash) {
                 return sp
