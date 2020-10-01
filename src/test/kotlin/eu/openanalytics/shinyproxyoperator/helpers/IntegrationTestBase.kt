@@ -1,6 +1,5 @@
 package eu.openanalytics.shinyproxyoperator.helpers
 
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.Mode
 import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
@@ -12,7 +11,6 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
-import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 
@@ -26,6 +24,7 @@ abstract class IntegrationTestBase {
             .build()
 
     private val namespace = "itest"
+    private val managedNamespaces = listOf("itest", "itest-2")
     private val client = DefaultKubernetesClient()
 
     protected fun setup(block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, Operator, ReconcileListener) -> Unit) {
@@ -33,19 +32,14 @@ abstract class IntegrationTestBase {
 
             Runtime.getRuntime().addShutdownHook(Thread {
                 runBlocking {
-                    deleteNamespace(client, namespace)
+                    deleteNamespaces()
                     deleteCRD(client)
                 }
             })
 
             // 1. Create the namespace
-            deleteNamespace(client, namespace)
-
-            client.namespaces().create(NamespaceBuilder()
-                    .withNewMetadata()
-                    .withName(namespace)
-                    .endMetadata()
-                    .build())
+            deleteNamespaces()
+            createNamespaces()
 
             val namespacedKubernetesClient = client.inNamespace(namespace)
 
@@ -76,17 +70,29 @@ abstract class IntegrationTestBase {
                 }
 
                 // 6. delete namespace
-                deleteNamespace(client, namespace)
+                deleteNamespaces()
             }
         }
 
     }
 
-    private suspend fun deleteNamespace(client: DefaultKubernetesClient, namespace: String) {
-        val ns = client.namespaces().withName(namespace).get() ?: return
-        client.namespaces().delete(ns)
-        while (client.namespaces().withName(namespace).get() != null) {
-            delay(1000)
+    private fun createNamespaces() {
+        for (managedNamespace in managedNamespaces) {
+            client.namespaces().create(NamespaceBuilder()
+                    .withNewMetadata()
+                    .withName(managedNamespace)
+                    .endMetadata()
+                    .build())
+        }
+    }
+
+    private suspend fun deleteNamespaces() {
+        for (managedNamespace in managedNamespaces) {
+            val ns = client.namespaces().withName(managedNamespace).get() ?: return
+            client.namespaces().delete(ns)
+            while (client.namespaces().withName(managedNamespace).get() != null) {
+                delay(1000)
+            }
         }
     }
 

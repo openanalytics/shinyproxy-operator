@@ -25,7 +25,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     lateinit var hash: String
 
     fun create(): ShinyProxy {
-        val sp: ShinyProxy = shinyProxyClient.load(this.javaClass.getResourceAsStream("/configs/$fileName")).create()
+        val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).create()
         hash = sp.hashOfCurrentSpec
 
         // assert that it has been created

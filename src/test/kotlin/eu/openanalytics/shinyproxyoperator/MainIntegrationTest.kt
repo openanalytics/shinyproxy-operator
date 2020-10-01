@@ -4,6 +4,7 @@ import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -129,6 +130,27 @@ class MainIntegrationTest : IntegrationTestBase() {
         namespacedClient.network().ingress().withName("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63)).delete()
         spTestInstance.waitForOneReconcile()
         spTestInstance.assertInstanceIsCorrect()
+
+        job.cancel()
+    }
+
+    @Test
+    fun `sp in other namespaced should be ignored when using namespaced mode`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+        // 1. create a SP instance in other namespace
+        val spTestInstance = ShinyProxyTestInstance("itest-2", namespacedClient.inNamespace("itest-2"), shinyProxyClient, "simple_config.yaml", reconcileListener)
+        val sp = spTestInstance.create()
+
+        // 2. start the operator and let it do it's work
+        val job = GlobalScope.launch {
+            operator.prepare()
+            operator.run()
+        }
+
+        // 3. wait a bit
+        delay(20000)
+
+        // assert that there are no ReplicaSets created
+        assertEquals(0, namespacedClient.apps().replicaSets().list().items.size)
 
         job.cancel()
     }
