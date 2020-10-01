@@ -110,14 +110,24 @@ class MainIntegrationTest : IntegrationTestBase() {
         // 4. assert correctness
         spTestInstance.assertInstanceIsCorrect()
 
-        // 5. Delete Replicaset
-        println("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63))
+        // 5. Delete Replicaset -> reconcile -> assert it is still ok
         namespacedClient.apps().replicaSets().withName("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63)).delete()
-
-        // 6. wait until instance is created
         spTestInstance.waitForOneReconcile()
+        spTestInstance.assertInstanceIsCorrect()
 
-        // 7. assert correctness
+        // 6. Delete ConfigMap -> reconcile -> assert it is still ok
+        namespacedClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63)).delete()
+        spTestInstance.waitForOneReconcile()
+        spTestInstance.assertInstanceIsCorrect()
+
+        // 7. Delete Service -> reconcile -> assert it is still ok
+        namespacedClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstance.hash}".take(63)).delete()
+        spTestInstance.waitForOneReconcile()
+        spTestInstance.assertInstanceIsCorrect()
+
+        // 8. Delete Ingress -> reconcile -> assert it is still ok
+        namespacedClient.network().ingress().withName("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63)).delete()
+        spTestInstance.waitForOneReconcile()
         spTestInstance.assertInstanceIsCorrect()
 
         job.cancel()
