@@ -22,14 +22,15 @@ class ShinyProxyTestInstance(private val namespace: String,
                              private val fileName: String,
                              private val reconcileListener: ReconcileListener) {
 
-    private lateinit var hash: String
+    lateinit var hash: String
 
-    fun create() {
+    fun create(): ShinyProxy {
         val sp: ShinyProxy = shinyProxyClient.load(this.javaClass.getResourceAsStream("/configs/$fileName")).create()
         hash = sp.hashOfCurrentSpec
 
         // assert that it has been created
         assertEquals(1, shinyProxyClient.inNamespace(namespace).list().items.size)
+        return sp
     }
 
     suspend fun waitForOneReconcile(): ShinyProxyInstance? {

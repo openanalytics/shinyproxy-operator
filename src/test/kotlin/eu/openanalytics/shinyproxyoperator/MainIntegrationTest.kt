@@ -93,8 +93,34 @@ class MainIntegrationTest : IntegrationTestBase() {
 
 
     @Test
-    fun `operator should re-create removed resources`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconileListener ->
+    fun `operator should re-create removed resources`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+        // 1. create a SP instance
+        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
+        val sp = spTestInstance.create()
 
+        // 2. start the operator and let it do it's work
+        val job = GlobalScope.launch {
+            operator.prepare()
+            operator.run()
+        }
+
+        // 3. wait until instance is created
+        spTestInstance.waitForOneReconcile()
+
+        // 4. assert correctness
+        spTestInstance.assertInstanceIsCorrect()
+
+        // 5. Delete Replicaset
+        println("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63))
+        namespacedClient.apps().replicaSets().withName("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63)).delete()
+
+        // 6. wait until instance is created
+        spTestInstance.waitForOneReconcile()
+
+        // 7. assert correctness
+        spTestInstance.assertInstanceIsCorrect()
+
+        job.cancel()
     }
 
 }
