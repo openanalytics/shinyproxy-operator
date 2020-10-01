@@ -44,31 +44,23 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertNotNull(instance)
         assertTrue(instance.isLatestInstance)
 
-        // check confgimap
-        val configMaps = client.inNamespace(namespace).configMaps().list().items
-        assertEquals(1, configMaps.size)
-        val configMap = configMaps[0]
-        assertConfigMapIsCorrect(configMap, sp)
+        // check configmap
+        assertConfigMapIsCorrect(sp)
 
         // check replicaset
-        val replicaSets = client.inNamespace(namespace).apps().replicaSets().list().items
-        assertEquals(1, replicaSets.size)
-        val replicaSet = replicaSets[0]
-        assertReplicaSetIsCorrect(replicaSet, sp)
+        assertReplicaSetIsCorrect(sp)
 
-        val services = client.inNamespace(namespace).services().list().items
-        assertEquals(1, services.size)
-        val service = services[0]
-        assertServiceIsCorrect(service, sp)
+        // check service
+        assertServiceIsCorrect(sp)
 
+        // check ingress
+        assertIngressIsCorrect(sp)
+    }
+
+    fun assertIngressIsCorrect(sp: ShinyProxy) {
         val ingresses = client.inNamespace(namespace).network().ingresses().list().items
         assertEquals(1, ingresses.size)
         val ingress = ingresses[0]
-        assertIngressIsCorrect(ingress, sp)
-
-    }
-
-    private fun assertIngressIsCorrect(ingress: Ingress?, sp: ShinyProxy) {
         assertNotNull(ingress)
         assertEquals("sp-${sp.metadata.name}-ing-${hash}".take(63), ingress.metadata.name)
 
@@ -103,7 +95,10 @@ class ShinyProxyTestInstance(private val namespace: String,
 
     }
 
-    private fun assertServiceIsCorrect(service: Service?, sp: ShinyProxy) {
+    fun assertServiceIsCorrect(sp: ShinyProxy) {
+        val services = client.inNamespace(namespace).services().list().items
+        assertEquals(1, services.size)
+        val service = services[0]
         assertNotNull(service)
         assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), service.metadata.name)
         assertLabelsAreCorrect(service, sp)
@@ -121,7 +116,10 @@ class ShinyProxyTestInstance(private val namespace: String,
 
     }
 
-    private fun assertConfigMapIsCorrect(configMap: ConfigMap?, sp: ShinyProxy) {
+    fun assertConfigMapIsCorrect(sp: ShinyProxy) {
+        val configMaps = client.inNamespace(namespace).configMaps().list().items
+        assertEquals(1, configMaps.size)
+        val configMap = configMaps[0]
         assertNotNull(configMap)
         assertEquals("sp-${sp.metadata.name}-cm-${hash}".take(63), configMap.metadata.name)
         assertEquals(listOf("application.yml"), configMap.data.keys.toList())
@@ -133,7 +131,10 @@ class ShinyProxyTestInstance(private val namespace: String,
 //        assertTrue(configMap.immutable) // TODO make the configmap immutable?
     }
 
-    private fun assertReplicaSetIsCorrect(replicaSet: ReplicaSet, sp: ShinyProxy) {
+    fun assertReplicaSetIsCorrect(sp: ShinyProxy) {
+        val replicaSets = client.inNamespace(namespace).apps().replicaSets().list().items
+        assertEquals(1, replicaSets.size)
+        val replicaSet = replicaSets[0]
         assertNotNull(replicaSet)
         assertEquals(1, replicaSet.status.replicas)
         assertEquals(1, replicaSet.status.readyReplicas)

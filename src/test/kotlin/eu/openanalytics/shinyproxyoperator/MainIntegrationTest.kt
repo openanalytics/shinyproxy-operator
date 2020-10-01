@@ -2,6 +2,7 @@ package eu.openanalytics.shinyproxyoperator
 
 import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
+import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -9,6 +10,7 @@ import kotlinx.coroutines.launch
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class MainIntegrationTest : IntegrationTestBase() {
@@ -154,5 +156,67 @@ class MainIntegrationTest : IntegrationTestBase() {
 
         job.cancel()
     }
+
+    @Test
+    fun `simple test with PodTemplateSpec patches`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+        // 1. create a SP instance in other namespace
+        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_with_patches.yaml", reconcileListener)
+        val sp = spTestInstance.create()
+
+        // 2. start the operator and let it do it's work
+        val job = GlobalScope.launch {
+            operator.prepare()
+            operator.run()
+        }
+
+        // 3. wait until instance is created
+        spTestInstance.waitForOneReconcile()
+
+
+        // 4. assertions
+        val retrievedSp = spTestInstance.retrieveInstance()
+        assertNotNull(retrievedSp)
+        val instance = retrievedSp.status.instances[0]
+        assertNotNull(instance)
+        assertTrue(instance.isLatestInstance)
+
+        // check configmap
+        spTestInstance.assertConfigMapIsCorrect(sp)
+
+        // check replicaset
+        val replicaSets = namespacedClient.inNamespace(namespace).apps().replicaSets().list().items
+        assertEquals(1, replicaSets.size)
+        val replicaSet = replicaSets[0]
+        val templateSpec = replicaSet.spec.template.spec
+        assertEquals(1, templateSpec.containers.size)
+        assertEquals("shinyproxy", templateSpec.containers[0].name)
+
+        assertEquals(1, templateSpec.containers[0].livenessProbe.periodSeconds)
+        assertEquals(30, templateSpec.containers[0].livenessProbe.initialDelaySeconds) // changed by patch
+        assertEquals("/actuator/health/liveness", templateSpec.containers[0].livenessProbe.httpGet.path)
+        assertEquals(IntOrString(8080), templateSpec.containers[0].livenessProbe.httpGet.port)
+
+        assertEquals(1, templateSpec.containers[0].readinessProbe.periodSeconds)
+        assertEquals(30, templateSpec.containers[0].readinessProbe.initialDelaySeconds) // changed by patch
+        assertEquals("/actuator/health/readiness", templateSpec.containers[0].readinessProbe.httpGet.path)
+        assertEquals(IntOrString(8080), templateSpec.containers[0].readinessProbe.httpGet.port)
+
+        assertEquals(null, templateSpec.containers[0].startupProbe) // changed by patch
+
+        assertEquals(3, templateSpec.containers[0].env.size) // changed by patch
+        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
+        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
+        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" })
+        assertEquals("TEST_VALUE", templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" }?.value)
+
+        // check service
+        spTestInstance.assertServiceIsCorrect(sp)
+
+        // check ingress
+        spTestInstance.assertIngressIsCorrect(sp)
+
+        job.cancel()
+    }
+
 
 }
