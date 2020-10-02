@@ -4,6 +4,7 @@ metadata:
   name: example-shinyproxy
 spec:
     fqdn: itest.local
+    image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20200930.145654
     proxy:
       title: Open Analytics Shiny Proxy
       logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
@@ -12,6 +13,9 @@ spec:
       heartbeatTimeout: 60000
       port: 8080
       authentication: simple
+      containerBackend: kubernetes
+      kubernetes:
+        namespace: itest
       users:
       - name: demo
         password: demo

@@ -23,15 +23,21 @@ package eu.openanalytics.shinyproxyoperator.helpers
 import eu.openanalytics.shinyproxyoperator.Mode
 import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
+import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
+import io.fabric8.kubernetes.api.model.Pod
+import io.fabric8.kubernetes.api.model.PodList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
+import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder
 import kotlinx.coroutines.*
+import java.util.*
+
 
 abstract class IntegrationTestBase {
 
@@ -59,6 +65,7 @@ abstract class IntegrationTestBase {
             // 1. Create the namespace
             deleteNamespaces()
             createNamespaces()
+            setupServiceAccount()
 
             val namespacedKubernetesClient = client.inNamespace(namespace)
 
@@ -136,6 +143,45 @@ abstract class IntegrationTestBase {
             delay(100)
             block()
         }
+    }
+
+//    protected fun portForwardToService(namespace: String, serviceName: String): URL {
+//        val kubernetesAssistant = KubernetesAssistant(io.fabric8.kubernetes.clnt.v4_0.DefaultKubernetesClient(), namespace)
+//        return kubernetesAssistant.getServiceUrl(serviceName).get()
+//        val pod: Pod = getRandomPod(client, service.getMetadata().getName(), namespace)
+//        val service = client.inNamespace(namespace).services().withName(serviceName).get();
+//        service.
+//        val servicePort: ServicePort? = service?.spec?.ports?.get(0)
+//        val containerPort = servicePort?.targetPort?.intVal ?: 0
+//
+//        val build = ConfigBuilder(client.configuration).withNamespace(namespace).build()
+//        val portForwarder = PortForwarder(build, podName)
+//        portForwarder.forwardPort(sourcePort, targetPort)
+//        return sourcePort
+
+
+//    }
+
+    protected fun runCurlRequest(serviceName: String, namespace: String) {
+        client.run().inNamespace(namespace)
+                .withRunConfig(RunConfigBuilder()
+                        .withName("itest-curl-helper")
+                        .withImage("curlimages/curl")
+                        .withArgs("-X", "POST", "-u", "demo:demo", "${serviceName}/api/proxy/01_hello")
+                        .withRestartPolicy("Never")
+                        .build())
+                .done()
+    }
+
+    private fun setupServiceAccount() {
+        client.load(this.javaClass.getResourceAsStream("/configs/serviceaccount.yaml")).createOrReplace()
+    }
+
+    protected fun getPodsForInstance(instanceHash: String): PodList? {
+        return client.pods().inNamespace(namespace).withLabels(mapOf(
+                LabelFactory.PROXIED_APP to "true",
+                LabelFactory.INSTANCE_LABEL to instanceHash
+        )).list()
     }
 
 }

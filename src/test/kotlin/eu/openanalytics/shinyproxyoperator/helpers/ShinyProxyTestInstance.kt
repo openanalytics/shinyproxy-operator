@@ -24,16 +24,13 @@ import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.IntOrString
-import io.fabric8.kubernetes.api.model.Service
-import io.fabric8.kubernetes.api.model.apps.ReplicaSet
-import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import java.lang.IllegalStateException
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -58,30 +55,31 @@ class ShinyProxyTestInstance(private val namespace: String,
         return reconcileListener.waitForNextReconcile(hash).await()
     }
 
-    fun assertInstanceIsCorrect() {
+    fun assertInstanceIsCorrect(numInstancesRunning: Int = 1, isLatest: Boolean = true) {
         val sp = retrieveInstance()
         assertNotNull(sp)
-        val instance = sp.status.instances.firstOrNull { it.hashOfSpec == hash}
+        val instance = sp.status.instances.firstOrNull { it.hashOfSpec == hash }
         assertNotNull(instance)
-        assertTrue(instance.isLatestInstance)
+        assertEquals(isLatest, instance.isLatestInstance)
+        assertEquals(numInstancesRunning, sp.status.instances.size)
 
         // check configmap
-        assertConfigMapIsCorrect(sp)
+        assertConfigMapIsCorrect(sp, numInstancesRunning, isLatest)
 
         // check replicaset
-        assertReplicaSetIsCorrect(sp)
+        assertReplicaSetIsCorrect(sp, numInstancesRunning)
 
         // check service
-        assertServiceIsCorrect(sp)
+        assertServiceIsCorrect(sp, numInstancesRunning)
 
         // check ingress
-        assertIngressIsCorrect(sp)
+        assertIngressIsCorrect(sp, numInstancesRunning, isLatest)
     }
 
-    fun assertIngressIsCorrect(sp: ShinyProxy) {
+    fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {
         val ingresses = client.inNamespace(namespace).network().ingresses().list().items
-        assertEquals(1, ingresses.size)
-        val ingress = ingresses[0]
+        assertEquals(numInstancesRunning, ingresses.size)
+        val ingress = ingresses.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
         assertNotNull(ingress)
         assertEquals("sp-${sp.metadata.name}-ing-${hash}".take(63), ingress.metadata.name)
 
@@ -89,7 +87,7 @@ class ShinyProxyTestInstance(private val namespace: String,
                 LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
                 LabelFactory.NAME_LABEL to sp.metadata.name,
                 LabelFactory.INSTANCE_LABEL to hash,
-                LabelFactory.INGRESS_IS_LATEST to "true"
+                LabelFactory.INGRESS_IS_LATEST to isLatest.toString()
         ), ingress.metadata.labels)
 
         assertEquals(1, ingress.metadata.ownerReferences.size)
@@ -98,11 +96,19 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals("v1", ingress.metadata.ownerReferences[0].apiVersion)
         assertEquals("sp-${sp.metadata.name}-rs-${hash}".take(63), ingress.metadata.ownerReferences[0].name)
 
-        assertEquals(mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
-                "zalando.org/skipper-predicate" to "True()",
-                "zalando.org/skipper-filter" to """jsCookie("sp-instance", "${sp.hashOfCurrentSpec}") -> jsCookie("sp-latest-instance", "${sp.hashOfCurrentSpec}")"""
-        ), ingress.metadata.annotations)
+        if (isLatest) {
+            assertEquals(mapOf(
+                    "kubernetes.io/ingress.class" to "skipper",
+                    "zalando.org/skipper-predicate" to "True()",
+                    "zalando.org/skipper-filter" to """jsCookie("sp-instance", "${sp.hashOfCurrentSpec}") -> jsCookie("sp-latest-instance", "${sp.hashOfCurrentSpec}")"""
+            ), ingress.metadata.annotations)
+        } else {
+            assertEquals(mapOf(
+                    "kubernetes.io/ingress.class" to "skipper",
+                    "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
+                    "zalando.org/skipper-filter" to """jsCookie("sp-latest-instance", "${sp.hashOfCurrentSpec}")"""
+            ), ingress.metadata.annotations)
+        }
 
         assertEquals(1, ingress.spec.rules.size)
         val rule = ingress.spec.rules[0]
@@ -116,10 +122,10 @@ class ShinyProxyTestInstance(private val namespace: String,
 
     }
 
-    fun assertServiceIsCorrect(sp: ShinyProxy) {
+    fun assertServiceIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1) {
         val services = client.inNamespace(namespace).services().list().items
-        assertEquals(1, services.size)
-        val service = services[0]
+        assertEquals(numInstancesRunning, services.size)
+        val service = services.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
         assertNotNull(service)
         assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), service.metadata.name)
         assertLabelsAreCorrect(service, sp)
@@ -137,14 +143,18 @@ class ShinyProxyTestInstance(private val namespace: String,
 
     }
 
-    fun assertConfigMapIsCorrect(sp: ShinyProxy) {
+    fun assertConfigMapIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {
         val configMaps = client.inNamespace(namespace).configMaps().list().items
-        assertEquals(1, configMaps.size)
-        val configMap = configMaps[0]
+        assertEquals(numInstancesRunning, configMaps.size)
+        val configMap = configMaps.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
         assertNotNull(configMap)
         assertEquals("sp-${sp.metadata.name}-cm-${hash}".take(63), configMap.metadata.name)
         assertEquals(listOf("application.yml"), configMap.data.keys.toList())
-        assertEquals(sp.specAsYaml, configMap.data["application.yml"])
+        if (isLatest) {
+            assertEquals(sp.specAsYaml, configMap.data["application.yml"])
+        } else {
+            assertNotEquals(sp.specAsYaml, configMap.data["application.yml"])
+        }
 
         assertLabelsAreCorrect(configMap, sp)
         assertOwnerReferenceIsCorrect(configMap, sp)
@@ -152,10 +162,10 @@ class ShinyProxyTestInstance(private val namespace: String,
 //        assertTrue(configMap.immutable) // TODO make the configmap immutable?
     }
 
-    fun assertReplicaSetIsCorrect(sp: ShinyProxy) {
+    fun assertReplicaSetIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1) {
         val replicaSets = client.inNamespace(namespace).apps().replicaSets().list().items
-        assertEquals(1, replicaSets.size)
-        val replicaSet = replicaSets[0]
+        assertEquals(numInstancesRunning, replicaSets.size)
+        val replicaSet = replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
         assertNotNull(replicaSet)
         assertEquals(1, replicaSet.status.replicas)
         assertEquals(1, replicaSet.status.readyReplicas)
@@ -218,10 +228,12 @@ class ShinyProxyTestInstance(private val namespace: String,
 
     fun retrieveInstance(): ShinyProxy {
         for (sp in shinyProxyClient.inNamespace(namespace).list().items) {
-            if (sp != null && sp.hashOfCurrentSpec == hash) {
+            if (sp != null && sp.status.instances.find { it.hashOfSpec == hash } != null) {
                 return sp
             }
         }
+//        return shinyProxyClient.inNamespace(namespace).withName("example-shinyproxy").get() // TODO hard-coded name
+//                ?: 
         throw IllegalStateException("Instance not found")
     }
 

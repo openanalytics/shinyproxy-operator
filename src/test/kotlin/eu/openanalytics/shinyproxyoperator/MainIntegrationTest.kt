@@ -22,6 +22,8 @@
 
 package eu.openanalytics.shinyproxyoperator
 
+import eu.openanalytics.shinyproxyoperator.components.LabelFactory
+import eu.openanalytics.shinyproxyoperator.components.ResourceNameFactory
 import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
 import io.fabric8.kubernetes.api.model.IntOrString
@@ -226,7 +228,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertTrue(instance.isLatestInstance)
 
         // check configmap
-        spTestInstance.assertConfigMapIsCorrect(sp)
+        spTestInstance.assertConfigMapIsCorrect(sp, 2)
 
         // check replicaset
         val replicaSets = namespacedClient.inNamespace(namespace).apps().replicaSets().list().items
@@ -305,7 +307,63 @@ class MainIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `update with running`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `update with apps running`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+        // 1. create a SP instance
+        val spTestInstanceOriginal = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
+        val sp = spTestInstanceOriginal.create()
+
+        // 2. start the operator and let it do it's work
+        val job = GlobalScope.launch {
+            operator.prepare()
+            operator.run()
+        }
+
+        // 3. wait until instance is created
+        spTestInstanceOriginal.waitForOneReconcile()
+
+        // 4. assert correctness
+        spTestInstanceOriginal.assertInstanceIsCorrect()
+
+        // 5. launch an app
+        runCurlRequest("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63), namespace)
+        delay(10_000) // give the app some time to properly boot
+
+        // 6. update ShinyProxy instance
+        logger.debug { "Base instance created -> updating it" }
+        val spTestInstanceUpdated = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_updated.yaml", reconcileListener)
+        val spUpdated = spTestInstanceUpdated.create()
+        logger.debug { "Base instance created -> updated" }
+
+        // 7. wait until instance is created
+        spTestInstanceUpdated.waitForOneReconcile()
+
+        // 7. wait for delete to not happen
+        delay(5000)
+
+        // 8. assert that two instances are correctly working
+        spTestInstanceOriginal.assertInstanceIsCorrect(2, false)
+        spTestInstanceUpdated.assertInstanceIsCorrect(2, true)
+
+        // 9. kill app on older instance
+        namespacedClient.pods().delete(getPodsForInstance(spTestInstanceOriginal.hash)?.items)
+
+        // 10. wait for delete to happen
+        while (getPodsForInstance(spTestInstanceOriginal.hash)?.items?.isNotEmpty() == true
+                || namespacedClient.pods().withName("sp-${spUpdated.metadata.name}-pod-${spUpdated.hashOfCurrentSpec}").get() != null) {
+            delay(1000)
+            println("Pod still exists!")
+        }
+        // 11. give operator time to clenaup
+        delay(5000)
+
+        // 11. assert older instance does not exists anymore
+        assertThrows<IllegalStateException>("Instance not found") {
+            spTestInstanceOriginal.retrieveInstance()
+        }
+
+        spTestInstanceUpdated.assertInstanceIsCorrect(1, true)
+
+        job.cancel()
 
     }
 
