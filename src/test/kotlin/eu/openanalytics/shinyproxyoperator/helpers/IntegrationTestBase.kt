@@ -11,8 +11,7 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
 abstract class IntegrationTestBase {
 
@@ -110,7 +109,13 @@ abstract class IntegrationTestBase {
         return client.customResourceDefinitions().list().items.firstOrNull {
             it.spec.group == "openanalytics.eu" && it.spec.names.plural == "shinyproxies"
         } != null
+    }
 
+    protected fun executeAsyncAfter100ms(block: () -> Unit): Job {
+        return GlobalScope.launch {
+            delay(100)
+            block()
+        }
     }
 
 }

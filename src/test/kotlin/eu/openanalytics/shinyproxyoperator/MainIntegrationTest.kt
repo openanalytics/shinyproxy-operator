@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import mu.KotlinLogging
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -14,6 +15,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class MainIntegrationTest : IntegrationTestBase() {
+
+    private val logger = KotlinLogging.logger {  }
 
     @Test
     fun `ingress should not be created before ReplicaSet is ready`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
@@ -109,31 +112,49 @@ class MainIntegrationTest : IntegrationTestBase() {
 
         // 3. wait until instance is created
         spTestInstance.waitForOneReconcile()
+        logger.info { "Fuly created instance." }
 
         // 4. assert correctness
         spTestInstance.assertInstanceIsCorrect()
 
         // 5. Delete Replicaset -> reconcile -> assert it is still ok
-        namespacedClient.apps().replicaSets().withName("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63)).delete()
+        executeAsyncAfter100ms {
+            namespacedClient.apps().replicaSets().withName("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63)).delete()
+            logger.info { "Deleted ReplicaSet" }
+        }
         spTestInstance.waitForOneReconcile()
+        logger.info { "Reconciled after deleting RS" }
         spTestInstance.assertInstanceIsCorrect()
 
         // 6. Delete ConfigMap -> reconcile -> assert it is still ok
-        namespacedClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63)).delete()
+        executeAsyncAfter100ms {
+            namespacedClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63)).delete()
+            logger.info { "Deleted ConfigMap" }
+        }
         spTestInstance.waitForOneReconcile()
+        logger.info { "Reconciled after deleting CM" }
         spTestInstance.assertInstanceIsCorrect()
 
         // 7. Delete Service -> reconcile -> assert it is still ok
-        namespacedClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstance.hash}".take(63)).delete()
+        executeAsyncAfter100ms {
+            namespacedClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstance.hash}".take(63)).delete()
+            logger.info { "Deleted Service" }
+        }
         spTestInstance.waitForOneReconcile()
+        logger.info { "Reconciled after deleting SVC" }
         spTestInstance.assertInstanceIsCorrect()
 
         // 8. Delete Ingress -> reconcile -> assert it is still ok
-        namespacedClient.network().ingress().withName("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63)).delete()
+        executeAsyncAfter100ms {
+            namespacedClient.network().ingress().withName("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63)).delete()
+            logger.info { "Deleted Ingress" }
+        }
         spTestInstance.waitForOneReconcile()
         spTestInstance.assertInstanceIsCorrect()
+        logger.info { "Reconciled after deleting Ingress" }
 
         job.cancel()
+        logger.info { "Operator stopped" }
     }
 
     @Test

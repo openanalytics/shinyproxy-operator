@@ -28,6 +28,7 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.internal.SerializationUtils
 import mu.KotlinLogging
 import java.lang.RuntimeException
@@ -36,7 +37,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
-    fun createOrReplaceIngress(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, replicaSet: ReplicaSet): Ingress? {
+    fun createOrReplaceIngress(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, replicaSet: ReplicaSet) {
         val hashOfSpec = shinyProxyInstance.hashOfSpec
 
         // TODO this should use shinyProxyInstance.isLatestInstance ?
@@ -90,11 +91,19 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                 .build()
         //@formatter:on
 
-        val createdIngress = kubeClient.network().ingress().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
+        try {
+            val createdIngress = kubeClient.network().ingress().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
+            logger.debug { "Created Ingress with name ${createdIngress.metadata.name} (latest=$isLatest)" }
+        } catch (e: KubernetesClientException) {
+            if (e.code == 409) {
+                // Kubernetes reported a conflict -> the resource is probably already begin created -> ignore
+                // In the case that something else happened, kubernetes will create an event
+                logger.debug { "Conflict during creating of resource, ignoring." }
+            } else {
+                throw e
+            }
+        }
 
-        logger.debug { "Created Ingress with name ${createdIngress.metadata.name} (latest=$isLatest)" }
-
-        return kubeClient.resource(createdIngress).fromServer().get()
     }
 
 }

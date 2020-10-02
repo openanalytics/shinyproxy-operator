@@ -26,13 +26,15 @@ import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.ServiceBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
 import mu.KotlinLogging
 
 class ServiceFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
-    suspend fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Service? {
+    fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        //@formatter:off
         val serviceDefinition: Service = ServiceBuilder()
                 .withNewMetadata()
                     .withName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
@@ -55,11 +57,20 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
                     .withSelector(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                 .endSpec()
                 .build()
+        //@formatter:on
 
-        val createdService = kubeClient.services().inNamespace(shinyProxy.metadata.namespace).create(serviceDefinition)
-        logger.debug { "Created Service with name ${createdService.metadata.name}" }
-
-        return kubeClient.resource(createdService).fromServer().get()
+        try {
+            val createdService = kubeClient.services().inNamespace(shinyProxy.metadata.namespace).create(serviceDefinition)
+            logger.debug { "Created Service with name ${createdService.metadata.name}" }
+        } catch (e: KubernetesClientException) {
+            if (e.code == 409) {
+                // Kubernetes reported a conflict -> the resource is probably already begin created -> ignore
+                // In the case that something else happened, kubernetes will create an event
+                logger.debug { "Conflict during creating of resource, ignoring." }
+            } else {
+                throw e
+            }
+        }
     }
 
 }
