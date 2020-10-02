@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.shinyproxyoperator.controller
 
-import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.isInManagedNamespace
