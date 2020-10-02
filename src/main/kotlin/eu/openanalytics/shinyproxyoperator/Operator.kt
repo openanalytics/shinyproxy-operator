@@ -45,8 +45,6 @@ import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
-import java.util.concurrent.CancellationException
-import kotlin.math.log
 
 
 class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null, private val reconcileListener: IReconcileListener? = null) {

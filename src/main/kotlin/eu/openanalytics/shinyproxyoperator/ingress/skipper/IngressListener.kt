@@ -58,11 +58,7 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
 
             override fun onDelete(resource: Ingress, b: Boolean) {
                 logger.debug { "${resource.kind}::OnDelete ${resource.metadata.name}" }
-                try {
-                    runBlocking { enqueueResource(resource) }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                runBlocking { enqueueResource(resource) }
             }
         })
     }

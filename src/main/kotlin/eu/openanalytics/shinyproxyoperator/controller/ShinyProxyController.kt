@@ -84,7 +84,8 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         return
                     }
                     val newInstance = createNewInstance(event.shinyProxy)
-                    reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
+                    val freshShinyProxy = refreshShinyProxy(event.shinyProxy)
+                    reconcileSingleShinyProxyInstance(freshShinyProxy, newInstance)
                 }
                 ShinyProxyEventType.UPDATE_SPEC -> {
                     if (event.shinyProxy == null) {
@@ -92,7 +93,8 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         return
                     }
                     val newInstance = createNewInstance(event.shinyProxy)
-                    reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
+                    val freshShinyProxy = refreshShinyProxy(event.shinyProxy)
+                    reconcileSingleShinyProxyInstance(freshShinyProxy, newInstance)
                 }
                 ShinyProxyEventType.DELETE -> {
                     // DELETE is not needed
@@ -128,9 +130,10 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return existingInstance
         } else if (existingInstance != null && !existingInstance.isLatestInstance) {
             // make the old existing instance again the latest instance
-            shinyProxy.status.instances.forEach { it.isLatestInstance = false }
-            existingInstance.isLatestInstance = true
-            shinyProxyClient.updateStatus(shinyProxy)
+            updateStatus(shinyProxy) {
+                it.status.instances.forEach { inst -> inst.isLatestInstance = false }
+                existingInstance.isLatestInstance = true
+            }
             ingressController.reconcile(shinyProxy)
             return existingInstance
         }
@@ -139,10 +142,26 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         // initial the instance is not the latest. Only when the ReplicaSet is created and fully running
         // the latestInstance marker will change to the new instance.
         val newInstance = ShinyProxyInstance(shinyProxy.hashOfCurrentSpec, false)
-        shinyProxy.status.instances.add(newInstance)
-        shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
+        updateStatus(shinyProxy) {
+            it.status.instances.add(newInstance)
+        }
 
         return newInstance
+    }
+
+    private fun updateStatus(shinyProxy: ShinyProxy, updater: (ShinyProxy) -> Unit) {
+        val freshShinyProxy = refreshShinyProxy(shinyProxy)
+        updater(freshShinyProxy)
+        try {
+            shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(freshShinyProxy)
+        } catch (e: KubernetesClientException) {
+            // TODO handle this
+            throw e
+        }
+    }
+
+    private fun refreshShinyProxy(shinyProxy: ShinyProxy): ShinyProxy {
+        return shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
     }
 
     private fun updateLatestMarker(shinyProxy: ShinyProxy) {
@@ -154,9 +173,10 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
-        shinyProxy.status.instances.forEach { it.isLatestInstance = false }
-        latestInstance.isLatestInstance = true
-        shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
+        updateStatus(shinyProxy) {
+            it.status.instances.forEach { inst -> inst.isLatestInstance = false }
+            it.status.instances.first { inst -> inst.hashOfSpec == latestInstance.hashOfSpec }.isLatestInstance = true
+        }
 
     }
 
@@ -215,14 +235,14 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         continue
                     }
 
-
                     val pods = podRetriever.getPodsForShinyProxyInstance(shinyProxy, shinyProxyInstance)
 
                     if (pods.isEmpty()) {
                         logger.info { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has no running apps and is not the latest version => removing this instance" }
                         deleteSingleShinyProxyInstance(shinyProxy, shinyProxyInstance)
-                        shinyProxy.status.instances.remove(shinyProxyInstance)
-                        shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
+                        updateStatus(shinyProxy) {
+                            it.status.instances.remove(shinyProxyInstance)
+                        }
                     } else {
                         logger.debug { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has ${pods.size} running apps => not removing this instance" }
                     }

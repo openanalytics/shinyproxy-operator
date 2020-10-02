@@ -9,6 +9,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.lang.IllegalStateException
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -239,5 +241,55 @@ class MainIntegrationTest : IntegrationTestBase() {
         job.cancel()
     }
 
+    @Test
+    fun `update without apps running`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+        // 1. create a SP instance
+        val spTestInstanceOriginal = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
+        spTestInstanceOriginal.create()
+
+        // 2. start the operator and let it do it's work
+        val job = GlobalScope.launch {
+            operator.prepare()
+            operator.run()
+        }
+
+        // 3. wait until instance is created
+        spTestInstanceOriginal.waitForOneReconcile()
+
+        // 4. assert correctness
+        spTestInstanceOriginal.assertInstanceIsCorrect()
+
+        // 5. update ShinyProxy instance
+        logger.debug { "Base instance created -> updating it" }
+        val spTestInstanceUpdated = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_updated.yaml", reconcileListener)
+        spTestInstanceUpdated.create()
+        logger.debug { "Base instance created -> updated" }
+
+        // 6. wait until instance is created
+        spTestInstanceUpdated.waitForOneReconcile()
+
+        // 7. wait for delete to happen
+        delay(5000)
+
+        // 8. assert correctness
+        spTestInstanceUpdated.assertInstanceIsCorrect()
+
+        // 9. assert older instance does not exists anymore
+        assertThrows<IllegalStateException>("Instance not found") {
+            spTestInstanceOriginal.retrieveInstance()
+        }
+
+        job.cancel()
+    }
+
+    @Test
+    fun `update with running`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+
+    }
+
+    @Test
+    fun `apps running in different namespaces`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+
+    }
 
 }

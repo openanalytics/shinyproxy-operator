@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
+import java.lang.IllegalStateException
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -25,7 +26,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     lateinit var hash: String
 
     fun create(): ShinyProxy {
-        val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).create()
+        val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).createOrReplace()
         hash = sp.hashOfCurrentSpec
 
         // assert that it has been created
@@ -40,7 +41,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     fun assertInstanceIsCorrect() {
         val sp = retrieveInstance()
         assertNotNull(sp)
-        val instance = sp.status.instances[0]
+        val instance = sp.status.instances.firstOrNull { it.hashOfSpec == hash}
         assertNotNull(instance)
         assertTrue(instance.isLatestInstance)
 
@@ -201,7 +202,7 @@ class ShinyProxyTestInstance(private val namespace: String,
                 return sp
             }
         }
-        throw Exception("Instance not found")
+        throw IllegalStateException("Instance not found")
     }
 
 }
