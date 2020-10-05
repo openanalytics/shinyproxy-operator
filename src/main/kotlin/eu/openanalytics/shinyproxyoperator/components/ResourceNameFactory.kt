@@ -32,37 +32,22 @@ object ResourceNameFactory {
     const val KUBE_RESOURCE_NAME_MAX_LENGTH = 63
 
     fun createNameForService(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        if (shinyProxyInstance.hashOfSpec == null) {
-            throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
-        }
         return "sp-${shinyProxy.metadata.name}-svc-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
     fun createNameForConfigMap(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        if (shinyProxyInstance.hashOfSpec == null) {
-            throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
-        }
         return "sp-${shinyProxy.metadata.name}-cm-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
     fun createNameForPod(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        if (shinyProxyInstance.hashOfSpec == null) {
-            throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
-        }
         return "sp-${shinyProxy.metadata.name}-pod-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
     fun createNameForReplicaSet(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        if (shinyProxyInstance.hashOfSpec == null) {
-            throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
-        }
         return "sp-${shinyProxy.metadata.name}-rs-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
     fun createNameForIngress(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        if (shinyProxyInstance.hashOfSpec == null) {
-            throw IllegalStateException("Cannot create name for ingress if hash of spec is unknown!")
-        }
         return "sp-${shinyProxy.metadata.name}-ing-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 

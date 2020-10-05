@@ -26,10 +26,11 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import mu.KotlinLogging
 
-class PodRetriever(private val client: DefaultKubernetesClient) {
+class PodRetriever(private val client: NamespacedKubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
     private val informers = mutableMapOf<String, SharedIndexInformer<Pod>>()
@@ -53,7 +54,7 @@ class PodRetriever(private val client: DefaultKubernetesClient) {
                 LabelFactory.INSTANCE_LABEL to shinyProxyInstance.hashOfSpec
         )
 
-        val namespacesToCheck = if (shinyProxyInstance.isLatestInstance == true) {
+        val namespacesToCheck = if (shinyProxyInstance.isLatestInstance) {
             shinyProxy.namespacesOfCurrentInstance
         } else {
             // We don't know the exact namespaces used by older ShinyProxyInstance, therefore we have to look into all namespaces.
@@ -84,6 +85,10 @@ class PodRetriever(private val client: DefaultKubernetesClient) {
 
     fun addNamespaces(namespaces: List<String>) {
         namespaces.forEach { addNamespace(it) }
+    }
+
+    fun getNamespaces(): Set<String> {
+        return informers.keys
     }
 
 }

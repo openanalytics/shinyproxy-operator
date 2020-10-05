@@ -20,11 +20,11 @@
  */
 package eu.openanalytics.shinyproxyoperator.ingress.skipper
 
-import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.isInManagedNamespace
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.OwnerReference
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
@@ -48,26 +48,22 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
         informer.addEventHandler(object : ResourceEventHandler<Ingress> {
             override fun onAdd(resource: Ingress) {
                 logger.debug { "${resource.kind}::OnAdd ${resource.metadata.name}" }
-                runBlocking { enqueuResource(resource) }
+                runBlocking { enqueueResource(resource) }
             }
 
             override fun onUpdate(resource: Ingress, newResource: Ingress) {
                 logger.debug { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
-                runBlocking { enqueuResource(resource) }
+                runBlocking { enqueueResource(resource) }
             }
 
             override fun onDelete(resource: Ingress, b: Boolean) {
                 logger.debug { "${resource.kind}::OnDelete ${resource.metadata.name}" }
-                try {
-                    runBlocking { enqueuResource(resource) }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                runBlocking { enqueueResource(resource) }
             }
         })
     }
 
-    private suspend fun enqueuResource(resource: Ingress) {
+    private suspend fun enqueueResource(resource: Ingress) {
         val replicaSetOwnerReference = getShinyProxyOwnerRefByKind(resource, "ReplicaSet") ?: return
         // TODO namespace
         val replicaSet = kubernetesClient.apps().replicaSets().inNamespace(resource.metadata.namespace).withName(replicaSetOwnerReference.name).get()
@@ -78,7 +74,7 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
         val ownerReference = getShinyProxyOwnerRefByKind(replicaSet, "ShinyProxy") ?: return
 
         val shinyProxy = shinyProxyLister.namespace(resource.metadata.namespace)[ownerReference.name] ?: return
-        if (!Operator.isInManagedNamespace(shinyProxy)) return
+        if (!isInManagedNamespace(shinyProxy)) return
         val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL]
         if (hashOfInstance == null) {
             logger.warn { "Cannot find hash of instance for resource ${resource.kind}/${resource.metadata.name}, probably some labels are wrong." }

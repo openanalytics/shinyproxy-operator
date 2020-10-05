@@ -18,18 +18,13 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator.crd
+package eu.openanalytics.shinyproxyoperator.controller
 
-import com.fasterxml.jackson.databind.JsonDeserializer
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import io.fabric8.kubernetes.api.model.KubernetesResource
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 
+interface IReconcileListener  {
 
-@JsonDeserialize(using = JsonDeserializer.None::class)
-data class ShinyProxyStatus(val instances: ArrayList<ShinyProxyInstance> = arrayListOf()) : KubernetesResource {
-
-    fun getInstanceByHash(hash: String): ShinyProxyInstance? {
-        return instances.find { it.hashOfSpec ==  hash}
-    }
+    fun onInstanceFullyReconciled(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance)
 
 }

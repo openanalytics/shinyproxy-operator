@@ -25,6 +25,7 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
 import mu.KotlinLogging
 
 
@@ -34,7 +35,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
 
     fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         if (shinyProxy.hashOfCurrentSpec != shinyProxyInstance.hashOfSpec) {
-            logger.warn {"Cannot re-create ConfigMap for old instance" }
+            logger.warn { "Cannot re-create ConfigMap for old instance" }
             return
         }
 
@@ -55,9 +56,18 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                 .addToData("application.yml", shinyProxy.specAsYaml)
                 .build()
         //@formatter:on
-
-        val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).create(configMapDefinition)
-        logger.debug { "Created ConfigMap with name ${createdConfigMap.metadata.name}" }
+        try {
+            val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).create(configMapDefinition)
+            logger.debug { "Created ConfigMap with name ${createdConfigMap.metadata.name}" }
+        } catch (e: KubernetesClientException) {
+            if (e.code == 409) {
+                // Kubernetes reported a conflict -> the resource is probably already begin created -> ignore
+                // In the case that something else happened, kubernetes will create an event
+                logger.debug { "Conflict during creating of resource, ignoring." }
+            } else {
+                throw e
+            }
+        }
     }
 
 }

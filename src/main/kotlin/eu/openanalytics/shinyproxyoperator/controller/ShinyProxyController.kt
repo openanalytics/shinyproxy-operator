@@ -34,6 +34,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -50,7 +51,8 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                            private val ingressController: IIngressController,
                            private val resourceRetriever: ResourceRetriever,
                            private val shinyProxyLister: Lister<ShinyProxy>,
-                           private val podRetriever: PodRetriever) {
+                           private val podRetriever: PodRetriever,
+                           private val reconcileListener: IReconcileListener?) {
 
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val serviceFactory = ServiceFactory(kubernetesClient)
@@ -60,74 +62,78 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
     suspend fun run() {
         logger.info("Starting ShinyProxy Operator")
-        while (!replicaSetInformer.hasSynced() || !shinyProxyInformer.hasSynced()) {
-            // Wait till Informer syncs
-        }
         GlobalScope.launch { scheduleAdditionalEvents() }
         while (true) {
             try {
-                val event = channel.receive()
-
-                try {
-                    when (event.eventType) {
-                        ShinyProxyEventType.ADD -> {
-                            if (event.shinyProxy == null) {
-                                logger.warn { "Event of type ADD should have shinyproxy attached to it." }
-                                continue
-                            }
-                            val newInstance = createNewInstance(event.shinyProxy)
-                            reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
-                        }
-                        ShinyProxyEventType.UPDATE_SPEC -> {
-                            if (event.shinyProxy == null) {
-                                logger.warn { "Event of type UPDATE_SPEC should have shinyproxy attached to it." }
-                                continue
-                            }
-                            val newInstance = createNewInstance(event.shinyProxy)
-                            reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
-                        }
-                        ShinyProxyEventType.DELETE -> {
-                            // DELETE is not needed
-                        }
-                        ShinyProxyEventType.RECONCILE -> {
-                            if (event.shinyProxy == null) {
-                                logger.warn { "Event of type RECONCILE should have shinyProxy attached to it." }
-                                continue
-                            }
-                            if (event.shinyProxyInstance == null) {
-                                logger.warn { "Event of type RECONCILE should have shinyProxyInstance attached to it." }
-                                continue
-                            }
-                            reconcileSingleShinyProxyInstance(event.shinyProxy, event.shinyProxyInstance)
-                        }
-                        ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES -> {
-                            checkForObsoleteInstances()
-                        }
-                    }
-                } catch (e: KubernetesClientException) {
-                    logger.warn(e) { "Caught KubernetesClientException while processing event $event. Exiting process." }
-                    exitProcess(1)
-                } catch (e: Exception) {
-                    logger.warn(e) { "Caught an exception while processing event $event. Continuing processing other events." }
-                }
-            } catch (interruptedException: InterruptedException) {
-                Thread.currentThread().interrupt()
-                logger.warn { "controller interrupted.." }
+                receiveAndHandleEvent()
+            } catch (cancellationException: CancellationException) {
+                logger.warn { "Controller cancelled -> stopping" }
+                throw cancellationException
             }
+        }
+    }
+
+    suspend fun receiveAndHandleEvent() {
+        val event = channel.receive()
+
+        try {
+            when (event.eventType) {
+                ShinyProxyEventType.ADD -> {
+                    if (event.shinyProxy == null) {
+                        logger.warn { "Event of type ADD should have shinyproxy attached to it." }
+                        return
+                    }
+                    val newInstance = createNewInstance(event.shinyProxy)
+                    val freshShinyProxy = refreshShinyProxy(event.shinyProxy)
+                    reconcileSingleShinyProxyInstance(freshShinyProxy, newInstance)
+                }
+                ShinyProxyEventType.UPDATE_SPEC -> {
+                    if (event.shinyProxy == null) {
+                        logger.warn { "Event of type UPDATE_SPEC should have shinyproxy attached to it." }
+                        return
+                    }
+                    val newInstance = createNewInstance(event.shinyProxy)
+                    val freshShinyProxy = refreshShinyProxy(event.shinyProxy)
+                    reconcileSingleShinyProxyInstance(freshShinyProxy, newInstance)
+                }
+                ShinyProxyEventType.DELETE -> {
+                    // DELETE is not needed
+                }
+                ShinyProxyEventType.RECONCILE -> {
+                    if (event.shinyProxy == null) {
+                        logger.warn { "Event of type RECONCILE should have shinyProxy attached to it." }
+                        return
+                    }
+                    if (event.shinyProxyInstance == null) {
+                        logger.warn { "Event of type RECONCILE should have shinyProxyInstance attached to it." }
+                        return
+                    }
+                    reconcileSingleShinyProxyInstance(event.shinyProxy, event.shinyProxyInstance)
+                }
+                ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES -> {
+                    checkForObsoleteInstances()
+                }
+            }
+        } catch (e: KubernetesClientException) {
+            logger.warn(e) { "Caught KubernetesClientException while processing event $event. Exiting process." }
+            exitProcess(1)
+        } catch (e: Exception) {
+            logger.warn(e) { "Caught an exception while processing event $event. Continuing processing other events." }
         }
     }
 
     private fun createNewInstance(shinyProxy: ShinyProxy): ShinyProxyInstance {
         val existingInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec)
 
-        if (existingInstance != null && existingInstance.isLatestInstance == true) {
+        if (existingInstance != null && existingInstance.isLatestInstance) {
             logger.warn { "Trying to create new instance which already exists and is the latest instance" }
             return existingInstance
-        } else if (existingInstance != null && existingInstance.isLatestInstance == false) {
+        } else if (existingInstance != null && !existingInstance.isLatestInstance) {
             // make the old existing instance again the latest instance
-            shinyProxy.status.instances.forEach { it.isLatestInstance = false }
-            existingInstance.isLatestInstance = true
-            shinyProxyClient.updateStatus(shinyProxy)
+            updateStatus(shinyProxy) {
+                it.status.instances.forEach { inst -> inst.isLatestInstance = false }
+                existingInstance.isLatestInstance = true
+            }
             ingressController.reconcile(shinyProxy)
             return existingInstance
         }
@@ -135,37 +141,47 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         // create new instance and add it to the list of instances
         // initial the instance is not the latest. Only when the ReplicaSet is created and fully running
         // the latestInstance marker will change to the new instance.
-        val newInstance = ShinyProxyInstance()
-        newInstance.hashOfSpec = shinyProxy.hashOfCurrentSpec
-        newInstance.isLatestInstance = false
-        shinyProxy.status.instances.add(newInstance)
-        shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
+        val newInstance = ShinyProxyInstance(shinyProxy.hashOfCurrentSpec, false)
+        updateStatus(shinyProxy) {
+            it.status.instances.add(newInstance)
+        }
 
         return newInstance
+    }
+
+    private fun updateStatus(shinyProxy: ShinyProxy, updater: (ShinyProxy) -> Unit) {
+        val freshShinyProxy = refreshShinyProxy(shinyProxy)
+        updater(freshShinyProxy)
+        try {
+            shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(freshShinyProxy)
+        } catch (e: KubernetesClientException) {
+            // TODO handle this
+            throw e
+        }
+    }
+
+    private fun refreshShinyProxy(shinyProxy: ShinyProxy): ShinyProxy {
+        return shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
     }
 
     private fun updateLatestMarker(shinyProxy: ShinyProxy) {
         val latestInstance = shinyProxy.status.instances.firstOrNull { it.hashOfSpec == shinyProxy.hashOfCurrentSpec }
                 ?: return
 
-        if (latestInstance.isLatestInstance == true) {
+        if (latestInstance.isLatestInstance) {
             // already updated marker
             return
         }
 
-        shinyProxy.status.instances.forEach { it.isLatestInstance = false }
-        latestInstance.isLatestInstance = true
-        shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
+        updateStatus(shinyProxy) {
+            it.status.instances.forEach { inst -> inst.isLatestInstance = false }
+            it.status.instances.first { inst -> inst.hashOfSpec == latestInstance.hashOfSpec }.isLatestInstance = true
+        }
 
     }
 
     private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         logger.info { "ReconcileSingleShinyProxy: ${shinyProxy.metadata.name} ${shinyProxyInstance.hashOfSpec}" }
-
-        if (shinyProxyInstance.hashOfSpec == null) {
-            logger.warn { "Cannot reconcile ShinProxyInstance $shinyProxyInstance because it has no hash." }
-            return
-        }
 
         if (!shinyProxy.status.instances.contains(shinyProxyInstance)) {
             logger.info { "Cannot reconcile ShinProxyInstance ${shinyProxyInstance.hashOfSpec} because it is begin deleted." }
@@ -204,6 +220,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         ingressController.reconcile(shinyProxy)
         podRetriever.addNamespaces(shinyProxy.namespacesOfCurrentInstance)
+        reconcileListener?.onInstanceFullyReconciled(shinyProxy, shinyProxyInstance)
     }
 
     private fun checkForObsoleteInstances() {
@@ -213,20 +230,19 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 // take a copy of the list to check to prevent concurrent modification
                 val instancesToCheck = shinyProxy.status.instances.toList()
                 for (shinyProxyInstance in instancesToCheck) {
-                    if (shinyProxyInstance.isLatestInstance == true
-                            || shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {
+                    if (shinyProxyInstance.isLatestInstance || shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {
                         // shinyProxyInstance is either the latest or the soon to be latest instance
                         continue
                     }
-
 
                     val pods = podRetriever.getPodsForShinyProxyInstance(shinyProxy, shinyProxyInstance)
 
                     if (pods.isEmpty()) {
                         logger.info { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has no running apps and is not the latest version => removing this instance" }
                         deleteSingleShinyProxyInstance(shinyProxy, shinyProxyInstance)
-                        shinyProxy.status.instances.remove(shinyProxyInstance)
-                        shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(shinyProxy)
+                        updateStatus(shinyProxy) {
+                            it.status.instances.remove(shinyProxyInstance)
+                        }
                     } else {
                         logger.debug { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has ${pods.size} running apps => not removing this instance" }
                     }

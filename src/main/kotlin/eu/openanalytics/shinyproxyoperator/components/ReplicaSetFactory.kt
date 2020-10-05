@@ -26,8 +26,10 @@ import eu.openanalytics.shinyproxyoperator.retry
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import mu.KotlinLogging
+import okhttp3.OkHttpClient
 
 class ReplicaSetFactory(private val kubeClient: KubernetesClient) {
 
@@ -60,8 +62,18 @@ class ReplicaSetFactory(private val kubeClient: KubernetesClient) {
                 .build()
         //@formatter:on
 
-        val createdReplicaSet = kubeClient.apps().replicaSets().inNamespace(shinyProxy.metadata.namespace).create(replicaSetDefinition)
-        logger.debug { "Created ReplicaSet with name ${createdReplicaSet.metadata.name}" }
+        try {
+            val createdReplicaSet = kubeClient.apps().replicaSets().inNamespace(shinyProxy.metadata.namespace).create(replicaSetDefinition)
+            logger.debug { "Created ReplicaSet with name ${createdReplicaSet.metadata.name}" }
+        } catch (e: KubernetesClientException) {
+            if (e.code == 409) {
+                // Kubernetes reported a conflict -> the resource is probably already begin created -> ignore
+                // In the case that something else happened, kubernetes will create an event
+                logger.debug { "Conflict during creating of resource, ignoring." }
+            } else {
+                throw e
+            }
+        }
     }
 
 }

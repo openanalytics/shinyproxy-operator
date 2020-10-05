@@ -35,7 +35,7 @@ object LabelFactory {
     }
     
     fun labelsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Map<String, String> {
-        val hashOfSpec = shinyProxyInstance.hashOfSpec ?: throw RuntimeException("Cannot create label for ShinyProxyInstance without hash of spec")
+        val hashOfSpec = shinyProxyInstance.hashOfSpec
         return mapOf(
                 APP_LABEL to APP_LABEL_VALUE,
                 NAME_LABEL to shinyProxy.metadata.name,
