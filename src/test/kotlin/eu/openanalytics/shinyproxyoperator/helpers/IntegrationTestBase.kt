@@ -52,7 +52,7 @@ abstract class IntegrationTestBase {
     private val managedNamespaces = listOf("itest", "itest-2")
     private val client = DefaultKubernetesClient()
 
-    protected fun setup(block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, Operator, ReconcileListener) -> Unit) {
+    protected fun setup(mode: Mode, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, Operator, ReconcileListener) -> Unit) {
         runBlocking {
 
             Runtime.getRuntime().addShutdownHook(Thread {
@@ -77,7 +77,7 @@ abstract class IntegrationTestBase {
 
             // 3. create the operator
             val reconcileListener = ReconcileListener()
-            val operator = Operator(namespacedKubernetesClient, Mode.NAMESPACED, reconcileListener)
+            val operator = Operator(namespacedKubernetesClient, mode, reconcileListener)
             Operator.operatorInstance = operator
 
             val shinyProxyClient = client.inNamespace(namespace).customResources(customResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
@@ -144,23 +144,6 @@ abstract class IntegrationTestBase {
             block()
         }
     }
-
-//    protected fun portForwardToService(namespace: String, serviceName: String): URL {
-//        val kubernetesAssistant = KubernetesAssistant(io.fabric8.kubernetes.clnt.v4_0.DefaultKubernetesClient(), namespace)
-//        return kubernetesAssistant.getServiceUrl(serviceName).get()
-//        val pod: Pod = getRandomPod(client, service.getMetadata().getName(), namespace)
-//        val service = client.inNamespace(namespace).services().withName(serviceName).get();
-//        service.
-//        val servicePort: ServicePort? = service?.spec?.ports?.get(0)
-//        val containerPort = servicePort?.targetPort?.intVal ?: 0
-//
-//        val build = ConfigBuilder(client.configuration).withNamespace(namespace).build()
-//        val portForwarder = PortForwarder(build, podName)
-//        portForwarder.forwardPort(sourcePort, targetPort)
-//        return sourcePort
-
-
-//    }
 
     protected fun runCurlRequest(serviceName: String, namespace: String) {
         client.run().inNamespace(namespace)

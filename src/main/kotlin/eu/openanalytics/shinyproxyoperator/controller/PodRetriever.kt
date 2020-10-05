@@ -87,4 +87,8 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
         namespaces.forEach { addNamespace(it) }
     }
 
+    fun getNamespaces(): Set<String> {
+        return informers.keys
+    }
+
 }

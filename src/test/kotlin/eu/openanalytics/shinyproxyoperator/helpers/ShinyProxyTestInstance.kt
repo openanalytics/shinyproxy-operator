@@ -232,8 +232,6 @@ class ShinyProxyTestInstance(private val namespace: String,
                 return sp
             }
         }
-//        return shinyProxyClient.inNamespace(namespace).withName("example-shinyproxy").get() // TODO hard-coded name
-//                ?: 
         throw IllegalStateException("Instance not found")
     }
 

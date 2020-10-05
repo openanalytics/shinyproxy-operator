@@ -67,7 +67,7 @@ class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null, p
     private val configMapInformer: SharedIndexInformer<ConfigMap>
     private val ingressInformer: SharedIndexInformer<Ingress>
     private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>
-    private val podRetriever: PodRetriever
+    val podRetriever: PodRetriever
 
 
     /**

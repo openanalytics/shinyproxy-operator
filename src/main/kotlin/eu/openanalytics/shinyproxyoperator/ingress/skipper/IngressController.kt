@@ -20,7 +20,6 @@
  */
 package eu.openanalytics.shinyproxyoperator.ingress.skipper
 
-import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory.INGRESS_IS_LATEST
 import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
@@ -36,7 +35,6 @@ import io.fabric8.kubernetes.client.informers.cache.Lister
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.channels.Channel
 import mu.KotlinLogging
-import java.lang.RuntimeException
 
 class IngressController(
         channel: Channel<ShinyProxyEvent>,

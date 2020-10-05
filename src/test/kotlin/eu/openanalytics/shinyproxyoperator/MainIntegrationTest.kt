@@ -19,11 +19,9 @@
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
 
-
 package eu.openanalytics.shinyproxyoperator
 
-import eu.openanalytics.shinyproxyoperator.components.LabelFactory
-import eu.openanalytics.shinyproxyoperator.components.ResourceNameFactory
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
 import io.fabric8.kubernetes.api.model.IntOrString
@@ -34,7 +32,6 @@ import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.lang.IllegalStateException
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -45,7 +42,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     private val logger = KotlinLogging.logger {  }
 
     @Test
-    fun `ingress should not be created before ReplicaSet is ready`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `ingress should not be created before ReplicaSet is ready`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance
         val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
         spTestInstance.create()
@@ -104,7 +101,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun simple_test() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `simple test namespaces`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance
         val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
         spTestInstance.create()
@@ -125,7 +122,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
 
     @Test
-    fun `operator should re-create removed resources`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `operator should re-create removed resources`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance
         val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
         val sp = spTestInstance.create()
@@ -184,10 +181,10 @@ class MainIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `sp in other namespaced should be ignored when using namespaced mode`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `sp in other namespaced should be ignored when using namespaced mode`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance in other namespace
         val spTestInstance = ShinyProxyTestInstance("itest-2", namespacedClient.inNamespace("itest-2"), shinyProxyClient, "simple_config.yaml", reconcileListener)
-        val sp = spTestInstance.create()
+        spTestInstance.create()
 
         // 2. start the operator and let it do it's work
         val job = GlobalScope.launch {
@@ -205,7 +202,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `simple test with PodTemplateSpec patches`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `simple test with PodTemplateSpec patches`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance in other namespace
         val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_with_patches.yaml", reconcileListener)
         val sp = spTestInstance.create()
@@ -266,7 +263,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `update without apps running`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `update without apps running`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance
         val spTestInstanceOriginal = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
         spTestInstanceOriginal.create()
@@ -307,7 +304,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `update with apps running`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `update with apps running`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance
         val spTestInstanceOriginal = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
         val sp = spTestInstanceOriginal.create()
@@ -368,8 +365,68 @@ class MainIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `apps running in different namespaces`() = setup { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `apps running in different namespaces`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+        // 1. create a SP instance
+        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_multiple_namespaces.yaml", reconcileListener)
+        val sp = spTestInstance.create()
 
+        // 2. start the operator and let it do it's work
+        val job = GlobalScope.launch {
+            operator.prepare()
+            operator.run()
+        }
+
+        // 3. wait until instance is created
+        spTestInstance.waitForOneReconcile()
+
+        // 4. assert namespaces are correctly loaded
+        assertEquals(setOf("my-namespace", "itest"), operator.podRetriever.getNamespaces())
+
+        // 5. assert correctness
+        spTestInstance.assertInstanceIsCorrect()
+
+        // 6. remove instance
+        shinyProxyClient.inNamespace(namespace).delete(sp)
+
+        // 7. wait for delete to not happen
+        delay(5000)
+
+        // 8. assert namespaces are still watched
+        assertEquals(setOf("my-namespace", "itest"), operator.podRetriever.getNamespaces())
+
+        job.cancel()
+
+    }
+
+    @Test
+    fun `simple test clustered`() = setup(Mode.CLUSTERED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+        // 1. create a SP instance
+        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
+        spTestInstance.create()
+
+        // 2. start the operator and let it do it's work
+        val job = GlobalScope.launch {
+            operator.prepare()
+            operator.run()
+        }
+
+        // 3. wait until instance is created
+        spTestInstance.waitForOneReconcile()
+
+        // 4. assert correctness
+        spTestInstance.assertInstanceIsCorrect()
+
+        // 5. create instance in other namespace
+        val spTestInstance2 = ShinyProxyTestInstance("itest-2", namespacedClient.inNamespace("itest-2"), shinyProxyClient, "simple_config.yaml", reconcileListener)
+        spTestInstance2.create()
+
+        // 6. wait until instance is created
+        spTestInstance2.waitForOneReconcile()
+
+        // 7. assert correctness
+        spTestInstance2.assertInstanceIsCorrect()
+
+        job.cancel()
     }
 
 }
