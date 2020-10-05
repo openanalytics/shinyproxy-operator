@@ -228,7 +228,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertTrue(instance.isLatestInstance)
 
         // check configmap
-        spTestInstance.assertConfigMapIsCorrect(sp, 2)
+        spTestInstance.assertConfigMapIsCorrect(sp)
 
         // check replicaset
         val replicaSets = namespacedClient.inNamespace(namespace).apps().replicaSets().list().items
