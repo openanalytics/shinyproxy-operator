@@ -12,7 +12,7 @@ spec:
       password: ${REDIS_PASSWORD}
   proxy:
     title: Open Analytics Shiny Proxy
-    logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
+    logoUrl: https://www.openanalytics.eu/shinyproxy/logo.png
     landingPage: /
     heartbeatRate: 10000
     heartbeatTimeout: 60000
