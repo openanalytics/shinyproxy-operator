@@ -99,7 +99,7 @@ class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null, p
             }
         }
 
-        logger.info { "Running in $mode mode" }
+        logger.info { "Running in ${this.mode} mode" }
 
         namespace = if (this.client.namespace == null) {
             logger.info { "No namespace found via config, assuming default." }
