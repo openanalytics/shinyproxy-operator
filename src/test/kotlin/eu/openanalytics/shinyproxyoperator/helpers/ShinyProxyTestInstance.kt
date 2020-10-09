@@ -100,13 +100,13 @@ class ShinyProxyTestInstance(private val namespace: String,
             assertEquals(mapOf(
                     "kubernetes.io/ingress.class" to "skipper",
                     "zalando.org/skipper-predicate" to "True()",
-                    "zalando.org/skipper-filter" to """jsCookie("sp-instance", "${sp.hashOfCurrentSpec}") -> jsCookie("sp-latest-instance", "${sp.hashOfCurrentSpec}")"""
+                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure;  Path=/")"""
             ), ingress.metadata.annotations)
         } else {
             assertEquals(mapOf(
                     "kubernetes.io/ingress.class" to "skipper",
                     "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
-                    "zalando.org/skipper-filter" to """jsCookie("sp-latest-instance", "${sp.hashOfCurrentSpec}")"""
+                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure;  Path=/")"""
             ), ingress.metadata.annotations)
         }
 
