@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: realm-selector
+  annotations:
+    kubernetes.io/ingress.class: "skipper"
+    zalando.org/skipper-predicate: True()
+spec:
+  rules:
+  - host: shinyproxy-demo.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: realm-selector
+            port:
+              number: 80

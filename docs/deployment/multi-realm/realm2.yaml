@@ -80,6 +80,6 @@ spec:
       value:
         name: TEST_VAR
         value: TEST_VALUE
-  image: localhost:5000/shinyproxy-dev
-  fqdn: my.sp.demo.shinyproxy-demo.local
+  image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20201002.120450
+  fqdn: shinyproxy-demo.local
 
