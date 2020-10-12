@@ -37,15 +37,6 @@ spec:
       description: Application which demonstrates the basics of a Shiny app
       containerCmd: ["R", "-e", "shinyproxy::run_01_hello()"]
       containerImage: openanalytics/shinyproxy-demo
-      #kubernetes-pod-patches: |
-       #- op: add
-         #path: /spec/containers/0/env
-         #value:
-           #- name: SOME_PASSWORD
-             #valueFrom:
-               #secretKeyRef:
-                #name: some-password
-                #key: password
     - id: 06_tabsets
       container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
       container-image: openanalytics/shinyproxy-demo
