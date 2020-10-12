@@ -56,6 +56,11 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>,
                     }
                     runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance)) }
                 } else {
+                    if (shinyProxy.subPath != newShinyProxy.subPath) {
+                        logger.warn { "Cannot update subpath of an existing ShinyProxy Instance ${shinyProxy.metadata.name}" }
+                        return
+                    }
+
                     runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE_SPEC, newShinyProxy, null)) }
                 }
             }

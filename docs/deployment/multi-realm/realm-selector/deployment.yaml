@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realm-selector
+  labels:
+    app: realm-selector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: realm-selector
+  template:
+    metadata:
+      labels:
+        app: realm-selector
+    spec:
+      containers:
+        - name: realm-selector
+          image: localhost:5000/realm-selector-dev
+          imagePullPolicy: Always

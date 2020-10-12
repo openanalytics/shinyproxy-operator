@@ -100,13 +100,13 @@ class ShinyProxyTestInstance(private val namespace: String,
             assertEquals(mapOf(
                     "kubernetes.io/ingress.class" to "skipper",
                     "zalando.org/skipper-predicate" to "True()",
-                    "zalando.org/skipper-filter" to """jsCookie("sp-instance", "${sp.hashOfCurrentSpec}") -> jsCookie("sp-latest-instance", "${sp.hashOfCurrentSpec}")"""
+                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure;  Path=/")"""
             ), ingress.metadata.annotations)
         } else {
             assertEquals(mapOf(
                     "kubernetes.io/ingress.class" to "skipper",
                     "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
-                    "zalando.org/skipper-filter" to """jsCookie("sp-latest-instance", "${sp.hashOfCurrentSpec}")"""
+                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure;  Path=/")"""
             ), ingress.metadata.annotations)
         }
 
@@ -209,7 +209,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertTrue(Readiness.isReady(replicaSet))
     }
 
-    private fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy) {
+    fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy) {
         assertEquals(mapOf(
                 LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
                 LabelFactory.NAME_LABEL to sp.metadata.name,
@@ -217,7 +217,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         ), resource.metadata.labels)
     }
 
-    private fun assertOwnerReferenceIsCorrect(resource: HasMetadata, sp: ShinyProxy) {
+    fun assertOwnerReferenceIsCorrect(resource: HasMetadata, sp: ShinyProxy) {
         assertEquals(1, resource.metadata.ownerReferences.size)
         assertTrue(resource.metadata.ownerReferences[0].controller)
         assertEquals("ShinyProxy", resource.metadata.ownerReferences[0].kind)

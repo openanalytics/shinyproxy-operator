@@ -70,3 +70,24 @@ Add a line to `/etc/hosts`:
 Now you can acess the service at `shinyproxy-demo.local`.
 In a production environment, you can use a loadbalancer from a cloud provider or use e.g. nginx in front of Skipper.
 
+
+## Deploying ShinyProxy with multiple realms
+
+This section describes the deployment of ShinyProxy in the case that multiple realms are required.
+Most deployments don't need this part.
+
+Sometimes deployments need to support multiple authentication options. For example combining LDAP with OIDC or supporting two OIDC realms.
+To achieve this, multiple instances of ShinyProxy can be deployed at different sub-paths.
+The configuration in the [multi-realm](multi-realm) directory configures two ShinyProxy instances:
+ - **realm1**: using LDAP under sub-path `/realm1`
+ - **realm2**: using simple authentication under sub-path `/realm2`
+
+When deployed, the operator creates two ShinyProxy instances, which work completely independent.
+Both configurations can be changed without affecting the other. Therefore this setup can also be used for multi-tenant setups.
+
+The [multi-realm/realm-selector](multi-realm/realm-selector) directory contains a very simple docker container to host a webpage to allow users to select their corresponding realm.
+To use this app:
+ - build the docker image
+ - push it some registry
+ - change the image tag in deployment.yaml
+ - `kubectl apply -f deployment.yaml service.yaml skipper-ingress.yaml`

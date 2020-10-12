@@ -105,6 +105,19 @@ data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyPr
     }
 
     @get:JsonIgnore
+    val subPath: String by lazy {
+        if (spec.get("server")?.get("servlet")?.get("context-path")?.isTextual == true) {
+            val path = spec.get("server").get("servlet").get("context-path").textValue()
+            if (path.last() != '/') {
+                return@lazy "$path/"
+            }
+            return@lazy path
+        }
+
+        return@lazy ""
+    }
+
+    @get:JsonIgnore
     val hashOfCurrentSpec: String by lazy {
         return@lazy specAsYaml.sha1()
     }
