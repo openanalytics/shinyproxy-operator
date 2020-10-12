@@ -209,7 +209,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertTrue(Readiness.isReady(replicaSet))
     }
 
-    private fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy) {
+    fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy) {
         assertEquals(mapOf(
                 LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
                 LabelFactory.NAME_LABEL to sp.metadata.name,
@@ -217,7 +217,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         ), resource.metadata.labels)
     }
 
-    private fun assertOwnerReferenceIsCorrect(resource: HasMetadata, sp: ShinyProxy) {
+    fun assertOwnerReferenceIsCorrect(resource: HasMetadata, sp: ShinyProxy) {
         assertEquals(1, resource.metadata.ownerReferences.size)
         assertTrue(resource.metadata.ownerReferences[0].controller)
         assertEquals("ShinyProxy", resource.metadata.ownerReferences[0].kind)
