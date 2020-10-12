@@ -4,9 +4,6 @@ metadata:
   name: shinyproxy-realm2
   namespace: shinyproxy
 spec:
-  server:
-    servlet:
-      context-path: /realm2
   spring:
     session:
       store-type: redis
@@ -65,5 +62,5 @@ spec:
         name: TEST_VAR
         value: TEST_VALUE
   image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20201002.120450
-  fqdn: shinyproxy-demo.local
+  fqdn: realm2.shinyproxy-demo.local
 

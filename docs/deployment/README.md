@@ -91,3 +91,6 @@ To use this app:
  - push it some registry
  - change the image tag in deployment.yaml
  - `kubectl apply -f deployment.yaml service.yaml skipper-ingress.yaml`
+
+Multi-realm (or multi-tenancy) is also supported when using sub-domains instead of sub-paths.
+See the [multi-realm-domain](multi-realm-domain) for this.

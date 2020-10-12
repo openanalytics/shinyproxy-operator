@@ -1,12 +1,9 @@
 apiVersion: openanalytics.eu/v1alpha1
 kind: ShinyProxy
 metadata:
-  name: shinyproxy-realm2
+  name: shinyproxy-realm1
   namespace: shinyproxy
 spec:
-  server:
-    servlet:
-      context-path: /realm2
   spring:
     session:
       store-type: redis
@@ -14,7 +11,7 @@ spec:
       host: redis
       password: ${REDIS_PASSWORD}
   proxy:
-    title: Open Analytics Shiny Proxy - Realm2
+    title: Open Analytics Shiny Proxy - Realm1
     logoUrl: https://www.openanalytics.eu/shinyproxy/logo.png
     landingPage: /
     heartbeatRate: 10000
@@ -24,14 +21,13 @@ spec:
     kubernetes:
       namespace: shinyproxy
       internal-networking: true
-    authentication: simple
-    users:
-    - name: jack
-      password: password
-      groups: scientists, admin
-    - name: jeff
-      password: password
-      groups: mathematicians
+    authentication: ldap
+    ldap:
+      url: ldap://ldap.forumsys.com:389/dc=example,dc=com
+      user-dn-pattern: uid={0}
+      group-search-filter: (uniqueMember={0})
+      manager-dn: cn=read-only-admin,dc=example,dc=com
+      manager-password: ${LDAP_PASSWORD}
     specs:
     - id: 01_hello
       displayName: Hello Application
@@ -65,5 +61,5 @@ spec:
         name: TEST_VAR
         value: TEST_VALUE
   image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20201002.120450
-  fqdn: shinyproxy-demo.local
+  fqdn: realm1.shinyproxy-demo.local
 
