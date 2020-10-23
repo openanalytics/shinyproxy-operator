@@ -114,7 +114,7 @@ class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null, p
             Mode.NAMESPACED -> this.client.inNamespace(namespace).informers()
         }
 
-        if (mode == Mode.CLUSTERED) {
+        if (this.mode == Mode.CLUSTERED) {
             replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, 10 * 60 * 1000.toLong())
             serviceInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, 10 * 60 * 1000.toLong())
             configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())

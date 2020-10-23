@@ -177,7 +177,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             it.status.instances.forEach { inst -> inst.isLatestInstance = false }
             it.status.instances.first { inst -> inst.hashOfSpec == latestInstance.hashOfSpec }.isLatestInstance = true
         }
-
     }
 
     private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
