@@ -52,7 +52,7 @@ abstract class IntegrationTestBase {
     private val managedNamespaces = listOf("itest", "itest-2")
     private val client = DefaultKubernetesClient()
 
-    protected fun setup(mode: Mode, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, Operator, ReconcileListener) -> Unit) {
+    protected fun setup(mode: Mode, disableSecureCookies: Boolean = false, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, Operator, ReconcileListener) -> Unit) {
         runBlocking {
 
             Runtime.getRuntime().addShutdownHook(Thread {
@@ -77,7 +77,7 @@ abstract class IntegrationTestBase {
 
             // 3. create the operator
             val reconcileListener = ReconcileListener()
-            val operator = Operator(namespacedKubernetesClient, mode, reconcileListener)
+            val operator = Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener)
             Operator.operatorInstance = operator
 
             val shinyProxyClient = client.inNamespace(namespace).customResources(customResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)

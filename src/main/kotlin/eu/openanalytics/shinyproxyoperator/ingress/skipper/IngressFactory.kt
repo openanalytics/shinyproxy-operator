@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.ingress.skipper
 
+import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.components.ResourceNameFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -48,18 +49,25 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
         } else {
             "/"
         }
+
+        val security = if (Operator.operatorInstance!!.disableSecureCookies) {
+            ""
+        } else {
+            "Secure;"
+        }
+
         val annotations = if (isLatest) {
             mapOf(
                     "kubernetes.io/ingress.class" to "skipper",
                     "zalando.org/skipper-predicate" to "True()",
-                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=$hashOfSpec; Secure; Path=$cookiePath") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; Secure;  Path=$cookiePath")"""
+                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=$hashOfSpec; $security Path=$cookiePath") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")"""
 
             )
         } else {
             mapOf(
                     "kubernetes.io/ingress.class" to "skipper",
                     "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hashOfSpec")""",
-                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; Secure;  Path=$cookiePath")"""
+                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")"""
             )
         }
 

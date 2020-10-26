@@ -40,7 +40,7 @@ import kotlin.test.assertTrue
 
 class MainIntegrationTest : IntegrationTestBase() {
 
-    private val logger = KotlinLogging.logger {  }
+    private val logger = KotlinLogging.logger { }
 
     @Test
     fun `ingress should not be created before ReplicaSet is ready`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
@@ -120,7 +120,6 @@ class MainIntegrationTest : IntegrationTestBase() {
         spTestInstance.assertInstanceIsCorrect()
         job.cancel()
     }
-
 
     @Test
     fun `operator should re-create removed resources`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
@@ -535,7 +534,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         // d. check ingress
         val ingresses = namespacedClient.inNamespace(namespace).network().ingresses().list().items
         assertEquals(1, ingresses.size)
-        val ingress = ingresses.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash}
+        val ingress = ingresses.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
         assertNotNull(ingress)
         assertEquals("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63), ingress.metadata.name)
 
@@ -555,7 +554,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertEquals(mapOf(
                 "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to "True()",
-                "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/sub-path/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure;  Path=/sub-path/")"""
+                "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/sub-path/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/sub-path/")"""
         ), ingress.metadata.annotations)
 
         assertEquals(1, ingress.spec.rules.size)
@@ -567,8 +566,50 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertNotNull(path)
         assertEquals("sp-${sp.metadata.name}-svc-${spTestInstance.hash}".take(63), path.backend.serviceName)
         assertEquals(IntOrString(80), path.backend.servicePort)
+    }
 
+    @Test
+    fun `simple test namespaces non-secure cookie`() = setup(Mode.NAMESPACED, disableSecureCookies = true) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+        // 1. create a SP instance
+        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
+        val sp = spTestInstance.create()
 
+        // 2. start the operator and let it do it's work
+        val job = GlobalScope.launch {
+            operator.prepare()
+            operator.run()
+        }
+
+        // 3. wait until instance is created
+        spTestInstance.waitForOneReconcile()
+
+        // 4. assert correctness of ingress
+        val ingresses = namespacedClient.inNamespace(namespace).network().ingresses().list().items
+        assertEquals(1, ingresses.size)
+        val ingress = ingresses.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
+        assertNotNull(ingress)
+        assertEquals("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63), ingress.metadata.name)
+
+        assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.NAME_LABEL to sp.metadata.name,
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
+                LabelFactory.INGRESS_IS_LATEST to "true"
+        ), ingress.metadata.labels)
+
+        assertEquals(1, ingress.metadata.ownerReferences.size)
+        assertTrue(ingress.metadata.ownerReferences[0].controller)
+        assertEquals("ReplicaSet", ingress.metadata.ownerReferences[0].kind)
+        assertEquals("v1", ingress.metadata.ownerReferences[0].apiVersion)
+        assertEquals("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63), ingress.metadata.ownerReferences[0].name)
+
+        assertEquals(mapOf(
+                "kubernetes.io/ingress.class" to "skipper",
+                "zalando.org/skipper-predicate" to "True()",
+                "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec};  Path=/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec};  Path=/")"""
+        ), ingress.metadata.annotations)
+
+        job.cancel()
     }
 
 }

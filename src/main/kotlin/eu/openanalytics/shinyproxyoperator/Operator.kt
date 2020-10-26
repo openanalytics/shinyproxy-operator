@@ -47,12 +47,16 @@ import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
 
 
-class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null, private val reconcileListener: IReconcileListener? = null) {
+class Operator(client: NamespacedKubernetesClient? = null,
+               mode: Mode? = null,
+               disableSecureCookies: Boolean? = null,
+               private val reconcileListener: IReconcileListener? = null) {
 
     private val logger = KotlinLogging.logger {}
     private val client: NamespacedKubernetesClient
     val mode: Mode
     val namespace: String
+    val disableSecureCookies: Boolean
 
     private val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
             .withVersion("v1alpha1")
@@ -97,6 +101,13 @@ class Operator(client: NamespacedKubernetesClient? = null, mode: Mode? = null, p
                     Mode.CLUSTERED
                 }
             }
+        }
+
+        if (disableSecureCookies != null) {
+            this.disableSecureCookies = disableSecureCookies
+        } else {
+            val secureEnv = System.getenv("SPO_DISABLE_SECURE_COOKIES")
+            this.disableSecureCookies = secureEnv != null
         }
 
         logger.info { "Running in ${this.mode} mode" }
