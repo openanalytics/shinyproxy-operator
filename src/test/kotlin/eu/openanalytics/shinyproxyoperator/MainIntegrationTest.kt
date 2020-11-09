@@ -247,11 +247,13 @@ class MainIntegrationTest : IntegrationTestBase() {
 
         assertEquals(null, templateSpec.containers[0].startupProbe) // changed by patch
 
-        assertEquals(3, templateSpec.containers[0].env.size) // changed by patch
+        assertEquals(4, templateSpec.containers[0].env.size) // changed by patch
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" })
         assertEquals("TEST_VALUE", templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" }?.value)
+        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
+        assertEquals(sp.metadata.name, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
 
         // check service
         spTestInstance.assertServiceIsCorrect(sp)
