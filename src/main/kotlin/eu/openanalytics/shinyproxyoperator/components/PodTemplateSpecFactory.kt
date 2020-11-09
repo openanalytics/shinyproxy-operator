@@ -59,6 +59,10 @@ class PodTemplateSpecFactory {
                                         .withFieldPath("metadata.uid")
                                     .endFieldRef()
                                 .endValueFrom()
+                            .build(),
+                            EnvVarBuilder()
+                                .withName("PROXY_REALM_ID")
+                                .withValue(shinyProxy.metadata.name)
                             .build()))
                         .withVolumeMounts(VolumeMountBuilder()
                             .withName("config-volume")

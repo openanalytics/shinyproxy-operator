@@ -180,9 +180,11 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(sp.image, templateSpec.containers[0].image)
         assertEquals(sp.imagePullPolicy, templateSpec.containers[0].imagePullPolicy)
 
-        assertEquals(2, templateSpec.containers[0].env.size)
+        assertEquals(3, templateSpec.containers[0].env.size)
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
+        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
+        assertEquals(sp.metadata.name, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
 
         assertEquals(1, templateSpec.containers[0].volumeMounts.size)
         assertEquals("config-volume", templateSpec.containers[0].volumeMounts[0].name)
