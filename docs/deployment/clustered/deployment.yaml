@@ -11,6 +11,9 @@ spec:
   selector:
     matchLabels:
       app: shinyproxy-operator
+  strategy:
+    # There may be only one Operator instance at a time! Otherwise bad things will happen!
+    type: Recreate
   template:
     metadata:
       labels:
