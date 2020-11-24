@@ -164,12 +164,18 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         return shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
     }
 
-    private fun updateLatestMarker(shinyProxy: ShinyProxy) {
+    private fun updateLatestMarker(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         val latestInstance = shinyProxy.status.instances.firstOrNull { it.hashOfSpec == shinyProxy.hashOfCurrentSpec }
                 ?: return
 
         if (latestInstance.isLatestInstance) {
             // already updated marker
+            return
+        }
+
+        if (latestInstance != shinyProxyInstance) {
+            // not called by latest instance -> not updating the latest marker
+            // this update could be triggered by an older instance while the latest instance is not ready yet
             return
         }
 
@@ -208,7 +214,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         logger.debug { "ReplicaSet is ready -> proceed with reconcile" }
 
-        updateLatestMarker(shinyProxy)
+        updateLatestMarker(shinyProxy, shinyProxyInstance)
 
         val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (services.isEmpty()) {
