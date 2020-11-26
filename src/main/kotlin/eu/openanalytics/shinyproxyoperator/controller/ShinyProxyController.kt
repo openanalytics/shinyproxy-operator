@@ -143,6 +143,10 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         // the latestInstance marker will change to the new instance.
         val newInstance = ShinyProxyInstance(shinyProxy.hashOfCurrentSpec, false)
         updateStatus(shinyProxy) {
+            // Extra check, if this check is positive we have some bug
+            if (it.status.instances.firstOrNull { instance -> instance.hashOfSpec == newInstance.hashOfSpec } != null) {
+                logger.error(Throwable()) { "Tried to add new instance with hash ${newInstance.hashOfSpec}, while status already contains an instance with that hash, this should not happen! New: $newInstance, status: ${it.status} " }
+            }
             it.status.instances.add(newInstance)
         }
 
