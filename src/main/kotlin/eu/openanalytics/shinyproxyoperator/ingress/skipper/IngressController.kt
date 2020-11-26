@@ -55,7 +55,7 @@ class IngressController(
             try {
                 reconcileSingleInstance(shinyProxy, instance)
             } catch (e: Exception) {
-                logger.warn(e) { "Unable to reconcile Ingress for ${instance.hashOfSpec}" }
+                logger.warn(e) { "${shinyProxy.logPrefix(instance)} Unable to reconcile Ingress" }
             }
         }
     }
@@ -71,14 +71,14 @@ class IngressController(
         }
 
         if (mustBeUpdated) {
-            logger.debug { "Reconciling ingress for ${shinyProxy.metadata.name} instance: ${shinyProxyInstance.hashOfSpec}" }
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} Reconciling ingress" }
             val replicaSet = getReplicaSet(shinyProxy, shinyProxyInstance)
             if (replicaSet == null) {
-                logger.warn { "Cannot reconcile Ingress for ${shinyProxyInstance.hashOfSpec} since it has no ReplicaSet - probably this resource is being deleted." }
+                logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot reconcile Ingress since it has no ReplicaSet - probably this resource is being deleted." }
                 return
             }
             if (!Readiness.isReady(replicaSet)) {
-                logger.warn { "Cannot reconcile Ingress for ${shinyProxyInstance.hashOfSpec} since the corresponding ReplicaSet is not ready yet - it is probably being created." }
+                logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot reconcile Ingress since the corresponding ReplicaSet is not ready yet - it is probably being created." }
                 return
             }
             // ReplicaSet exists and is ready -> time to create ingress

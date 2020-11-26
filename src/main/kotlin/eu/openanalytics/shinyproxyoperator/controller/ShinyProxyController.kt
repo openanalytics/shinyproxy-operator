@@ -126,7 +126,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         val existingInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec)
 
         if (existingInstance != null && existingInstance.isLatestInstance) {
-            logger.warn { "Trying to create new instance which already exists and is the latest instance" }
+            logger.warn { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is the latest instance" }
             return existingInstance
         } else if (existingInstance != null && !existingInstance.isLatestInstance) {
             // make the old existing instance again the latest instance
@@ -190,23 +190,23 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     }
 
     private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        logger.info { "ReconcileSingleShinyProxy: ${shinyProxy.metadata.name} ${shinyProxyInstance.hashOfSpec}" }
+        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ReconcileSingleShinyProxy" }
 
         if (!shinyProxy.status.instances.contains(shinyProxyInstance)) {
-            logger.info { "Cannot reconcile ShinProxyInstance ${shinyProxyInstance.hashOfSpec} because it is begin deleted." }
+            logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot reconcile ShinProxyInstance because it is begin deleted." }
             return
         }
 
         val configMaps = resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (configMaps.isEmpty()) {
-            logger.debug { "0 ConfigMaps found -> creating ConfigMap" }
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} 0 ConfigMaps found -> creating ConfigMap" }
             configMapFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
 
         val replicaSets = resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (replicaSets.isEmpty()) {
-            logger.debug { "0 ReplicaSets found -> creating ReplicaSet" }
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} 0 ReplicaSets found -> creating ReplicaSet" }
             replicaSetFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
@@ -216,13 +216,13 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
-        logger.debug { "${shinyProxyInstance.hashOfSpec} ReplicaSet is ready -> proceed with reconcile" }
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} ReplicaSet is ready -> proceed with reconcile" }
 
         updateLatestMarker(shinyProxy, shinyProxyInstance)
 
         val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (services.isEmpty()) {
-            logger.debug { "0 Services found -> creating Service" }
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} 0 Services found -> creating Service" }
             serviceFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
@@ -247,13 +247,13 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                     val pods = podRetriever.getPodsForShinyProxyInstance(shinyProxy, shinyProxyInstance)
 
                     if (pods.isEmpty()) {
-                        logger.info { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has no running apps and is not the latest version => removing this instance" }
+                        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has no running apps and is not the latest version => removing this instance" }
                         deleteSingleShinyProxyInstance(shinyProxy, shinyProxyInstance)
                         updateStatus(shinyProxy) {
                             it.status.instances.remove(shinyProxyInstance)
                         }
                     } else {
-                        logger.debug { "ShinyProxyInstance ${shinyProxyInstance.hashOfSpec} has ${pods.size} running apps => not removing this instance" }
+                        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has ${pods.size} running apps => not removing this instance" }
                     }
                 }
             }
@@ -269,7 +269,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     }
 
     private fun deleteSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        logger.info { "DeleteSingleShinyProxyInstance: ${shinyProxy.metadata.name} ${shinyProxyInstance.hashOfSpec}" }
+        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance" }
         for (service in resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
             kubernetesClient.resource(service).delete()
         }

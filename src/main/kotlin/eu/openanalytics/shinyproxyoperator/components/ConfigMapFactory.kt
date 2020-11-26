@@ -35,7 +35,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
 
     fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         if (shinyProxy.hashOfCurrentSpec != shinyProxyInstance.hashOfSpec) {
-            logger.warn { "Cannot re-create ConfigMap for old instance" }
+            logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot re-create ConfigMap for old instance" }
             return
         }
 

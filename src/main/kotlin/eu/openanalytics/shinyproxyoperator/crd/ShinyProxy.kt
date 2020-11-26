@@ -122,4 +122,8 @@ data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyPr
         return@lazy specAsYaml.sha1()
     }
 
+    fun logPrefix(shinyProxyInstance: ShinyProxyInstance): String {
+        return "[${metadata.name}/${shinyProxyInstance.hashOfSpec}]"
+    }
+
 }
