@@ -152,7 +152,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         Mode.NAMESPACED -> this.client.inNamespace(namespace).customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
     }
     private val channel = Channel<ShinyProxyEvent>(10000)
-    private val sendChannel: SendChannel<ShinyProxyEvent> = channel
+    val sendChannel: SendChannel<ShinyProxyEvent> = channel // public for tests
 
     /**
      * Listers

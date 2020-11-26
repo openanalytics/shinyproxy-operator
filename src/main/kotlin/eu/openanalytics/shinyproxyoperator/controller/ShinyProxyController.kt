@@ -216,7 +216,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
-        logger.debug { "ReplicaSet is ready -> proceed with reconcile" }
+        logger.debug { "${shinyProxyInstance.hashOfSpec} ReplicaSet is ready -> proceed with reconcile" }
 
         updateLatestMarker(shinyProxy, shinyProxyInstance)
 

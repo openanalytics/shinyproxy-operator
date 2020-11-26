@@ -22,6 +22,8 @@
 package eu.openanalytics.shinyproxyoperator
 
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
+import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
+import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
 import io.fabric8.kubernetes.api.model.IntOrString
@@ -612,6 +614,74 @@ class MainIntegrationTest : IntegrationTestBase() {
                 "zalando.org/skipper-predicate" to "True()",
                 "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec};  Path=/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec};  Path=/")"""
         ), ingress.metadata.annotations)
+
+        job.cancel()
+    }
+
+    /**
+     *  Test whether bug #23804 is sovled.
+     */
+    @Test
+    fun `reconcile of old instance should not update latestermarker and therefore delete old instance`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+        // 1. create a SP instance
+        val spTestInstanceOriginal = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
+        spTestInstanceOriginal.create()
+
+        // 2. start the operator and let it do it's work
+        val job = GlobalScope.launch {
+            operator.prepare()
+            operator.run()
+        }
+
+        // 3. wait until instance is created
+        spTestInstanceOriginal.waitForOneReconcile()
+
+        // 4. assert correctness
+        spTestInstanceOriginal.assertInstanceIsCorrect()
+
+        val sp = spTestInstanceOriginal.retrieveInstance()
+        val originalSpInstance = sp.status.instances.first()
+
+        // 5. update ShinyProxy instance
+        logger.debug { "Base instance created -> updating it" }
+        val spTestInstanceUpdated = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_updated.yaml", reconcileListener)
+        spTestInstanceUpdated.create()
+        logger.debug { "Base instance created -> updated" }
+
+        // 6. wait until the Operator added the new instance to the statuses
+        while (true) {
+            val sp = spTestInstanceOriginal.retrieveInstance()
+            if (sp.status.instances.size == 2) {
+                break
+            }
+        }
+
+        // 7. insert Reconcile of old instance
+        operator.sendChannel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, spTestInstanceOriginal.retrieveInstance(), originalSpInstance))
+        logger.debug { "Inserted reconcile" }
+
+        // 8. wait for reconcile of old instance
+        spTestInstanceOriginal.waitForOneReconcile()
+
+        // 9. assert that status still points to old instance (the bug)
+        val freshSP = spTestInstanceOriginal.retrieveInstance()
+        assertEquals(2, freshSP.status.instances.size)
+        assertTrue(freshSP.status.instances.firstOrNull { it.hashOfSpec == originalSpInstance.hashOfSpec }?.isLatestInstance == true)
+        assertTrue(freshSP.status.instances.firstOrNull { it.hashOfSpec != originalSpInstance.hashOfSpec }?.isLatestInstance == false)
+
+        // 6. wait until instance is created
+        spTestInstanceUpdated.waitForOneReconcile()
+
+        // 7. wait for delete to happen
+        delay(5000)
+
+        // 8. assert correctness
+        spTestInstanceUpdated.assertInstanceIsCorrect()
+
+        // 9. assert older instance does not exists anymore
+        assertThrows<IllegalStateException>("Instance not found") {
+            spTestInstanceOriginal.retrieveInstance()
+        }
 
         job.cancel()
     }
