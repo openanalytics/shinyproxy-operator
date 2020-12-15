@@ -45,437 +45,545 @@ class MainIntegrationTest : IntegrationTestBase() {
     private val logger = KotlinLogging.logger { }
 
     @Test
-    fun `ingress should not be created before ReplicaSet is ready`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
-        spTestInstance.create()
+    fun `ingress should not be created before ReplicaSet is ready`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
 
-        // 2. prepare the operator
-        operator.prepare()
+            // 2. prepare the operator
+            operator.prepare()
 
-        // 3. check whether the controller waits until the ReplicaSet is ready before creating other resources
-        var checked = false
-        while (true) {
-            // let the operator handle one event
-            operator.shinyProxyController.receiveAndHandleEvent()
+            // 3. check whether the controller waits until the ReplicaSet is ready before creating other resources
+            var checked = false
+            while (true) {
+                // let the operator handle one event
+                operator.shinyProxyController.receiveAndHandleEvent()
 
-            val replicaSets = namespacedClient.apps().replicaSets().list().items
-            if (replicaSets.size == 0) {
-                // if replicaset is not created -> continue handling events
-                continue
+                val replicaSets = namespacedClient.apps().replicaSets().list().items
+                if (replicaSets.size == 0) {
+                    // if replicaset is not created -> continue handling events
+                    continue
+                }
+                assertEquals(1, replicaSets.size)
+                val replicaSet = replicaSets[0]
+                // replicaset exists -> perform our checks, operator is paused
+
+                if (!Readiness.isReady(replicaSet)) {
+                    // replicaset not ready
+                    // -> Service should not yet be created
+                    assertEquals(0, namespacedClient.services().list().items.size)
+
+                    // -> Ingress should not yet be created
+                    assertEquals(0, namespacedClient.network().ingresses().list().items.size)
+
+                    // -> Latest marker should not yet be set
+                    val sp = spTestInstance.retrieveInstance()
+                    assertEquals(1, sp.status.instances.size)
+                    println("${sp.status.instances[0].isLatestInstance} => ${Readiness.isReady(replicaSet)}")
+                    assertFalse(sp.status.instances[0].isLatestInstance)
+                    checked = true
+                } else {
+                    // ReplicaSet is Ready -> break
+                    break
+                }
             }
+
+            assertTrue(checked) // actually checked that ingress wasn't created when the ReplicaSet wasn't ready yet
+
+            val job = GlobalScope.launch {
+                // let the operator finish its business
+                operator.run()
+            }
+
+            // 4. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 5. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+            job.cancel()
+        }
+
+    @Test
+    fun `simple test namespaces`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+            job.cancel()
+        }
+
+    @Test
+    fun `operator should re-create removed resources`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstance.create()
+
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+            logger.info { "Fuly created instance." }
+
+            // 4. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 5. Delete Replicaset -> reconcile -> assert it is still ok
+            executeAsyncAfter100ms {
+                namespacedClient.apps().replicaSets()
+                    .withName("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63)).delete()
+                logger.info { "Deleted ReplicaSet" }
+            }
+            spTestInstance.waitForOneReconcile()
+            logger.info { "Reconciled after deleting RS" }
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 6. Delete ConfigMap -> reconcile -> assert it is still ok
+            executeAsyncAfter100ms {
+                namespacedClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63))
+                    .delete()
+                logger.info { "Deleted ConfigMap" }
+            }
+            spTestInstance.waitForOneReconcile()
+            logger.info { "Reconciled after deleting CM" }
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 7. Delete Service -> reconcile -> assert it is still ok
+            executeAsyncAfter100ms {
+                namespacedClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstance.hash}".take(63))
+                    .delete()
+                logger.info { "Deleted Service" }
+            }
+            spTestInstance.waitForOneReconcile()
+            logger.info { "Reconciled after deleting SVC" }
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 8. Delete Ingress -> reconcile -> assert it is still ok
+            executeAsyncAfter100ms {
+                namespacedClient.network().ingress()
+                    .withName("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63)).delete()
+                logger.info { "Deleted Ingress" }
+            }
+            spTestInstance.waitForOneReconcile()
+            spTestInstance.assertInstanceIsCorrect()
+            logger.info { "Reconciled after deleting Ingress" }
+
+            job.cancel()
+            logger.info { "Operator stopped" }
+        }
+
+    @Test
+    fun `sp in other namespaced should be ignored when using namespaced mode`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance in other namespace
+            val spTestInstance = ShinyProxyTestInstance(
+                "itest-2",
+                namespacedClient.inNamespace("itest-2"),
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait a bit
+            delay(20000)
+
+            // assert that there are no ReplicaSets created
+            assertEquals(0, namespacedClient.apps().replicaSets().list().items.size)
+
+            job.cancel()
+        }
+
+    @Test
+    fun `simple test with PodTemplateSpec patches`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance in other namespace
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_with_patches.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstance.create()
+
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+
+            // 4. assertions
+            val retrievedSp = spTestInstance.retrieveInstance()
+            assertNotNull(retrievedSp)
+            val instance = retrievedSp.status.instances[0]
+            assertNotNull(instance)
+            assertTrue(instance.isLatestInstance)
+
+            // check configmap
+            spTestInstance.assertConfigMapIsCorrect(sp)
+
+            // check replicaset
+            val replicaSets = namespacedClient.inNamespace(namespace).apps().replicaSets().list().items
             assertEquals(1, replicaSets.size)
             val replicaSet = replicaSets[0]
-            // replicaset exists -> perform our checks, operator is paused
+            val templateSpec = replicaSet.spec.template.spec
+            assertEquals(1, templateSpec.containers.size)
+            assertEquals("shinyproxy", templateSpec.containers[0].name)
 
-            if (!Readiness.isReady(replicaSet)) {
-                // replicaset not ready
-                // -> Service should not yet be created
-                assertEquals(0, namespacedClient.services().list().items.size)
+            assertEquals(1, templateSpec.containers[0].livenessProbe.periodSeconds)
+            assertEquals(30, templateSpec.containers[0].livenessProbe.initialDelaySeconds) // changed by patch
+            assertEquals("/actuator/health/liveness", templateSpec.containers[0].livenessProbe.httpGet.path)
+            assertEquals(IntOrString(8080), templateSpec.containers[0].livenessProbe.httpGet.port)
 
-                // -> Ingress should not yet be created
-                assertEquals(0, namespacedClient.network().ingresses().list().items.size)
+            assertEquals(1, templateSpec.containers[0].readinessProbe.periodSeconds)
+            assertEquals(30, templateSpec.containers[0].readinessProbe.initialDelaySeconds) // changed by patch
+            assertEquals("/actuator/health/readiness", templateSpec.containers[0].readinessProbe.httpGet.path)
+            assertEquals(IntOrString(8080), templateSpec.containers[0].readinessProbe.httpGet.port)
 
-                // -> Latest marker should not yet be set
-                val sp = spTestInstance.retrieveInstance()
-                assertEquals(1, sp.status.instances.size)
-                println("${sp.status.instances[0].isLatestInstance} => ${Readiness.isReady(replicaSet)}")
-                assertFalse(sp.status.instances[0].isLatestInstance)
-                checked = true
-            } else {
-                // ReplicaSet is Ready -> break
-                break
+            assertEquals(null, templateSpec.containers[0].startupProbe) // changed by patch
+
+            assertEquals(4, templateSpec.containers[0].env.size) // changed by patch
+            assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
+            assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
+            assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" })
+            assertEquals("TEST_VALUE", templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" }?.value)
+            assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
+            assertEquals(
+                sp.metadata.name,
+                templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value
+            )
+
+            // check service
+            spTestInstance.assertServiceIsCorrect(sp)
+
+            // check ingress
+            spTestInstance.assertIngressIsCorrect(sp)
+
+            job.cancel()
+        }
+
+    @Test
+    fun `update without apps running`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstanceOriginal = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            spTestInstanceOriginal.create()
+
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
             }
+
+            // 3. wait until instance is created
+            spTestInstanceOriginal.waitForOneReconcile()
+
+            // 4. assert correctness
+            spTestInstanceOriginal.assertInstanceIsCorrect()
+
+            // 5. update ShinyProxy instance
+            logger.debug { "Base instance created -> updating it" }
+            val spTestInstanceUpdated = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_updated.yaml",
+                reconcileListener
+            )
+            spTestInstanceUpdated.create()
+            logger.debug { "Base instance created -> updated" }
+
+            // 6. wait until instance is created
+            spTestInstanceUpdated.waitForOneReconcile()
+
+            // 7. wait for delete to happen
+            delay(5000)
+
+            // 8. assert correctness
+            spTestInstanceUpdated.assertInstanceIsCorrect()
+
+            // 9. assert older instance does not exists anymore
+            assertThrows<IllegalStateException>("Instance not found") {
+                spTestInstanceOriginal.retrieveInstance()
+            }
+
+            job.cancel()
         }
-
-        assertTrue(checked) // actually checked that ingress wasn't created when the ReplicaSet wasn't ready yet
-
-        val job = GlobalScope.launch {
-            // let the operator finish its business
-            operator.run()
-        }
-
-        // 4. wait until instance is created
-        spTestInstance.waitForOneReconcile()
-
-        // 5. assert correctness
-        spTestInstance.assertInstanceIsCorrect()
-        job.cancel()
-    }
 
     @Test
-    fun `simple test namespaces`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
-        spTestInstance.create()
+    fun `update with apps running`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstanceOriginal = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstanceOriginal.create()
 
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait until instance is created
+            spTestInstanceOriginal.waitForOneReconcile()
+
+            // 4. assert correctness
+            spTestInstanceOriginal.assertInstanceIsCorrect()
+
+            // 5. launch an app
+            runCurlRequest("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63), namespace)
+            delay(10_000) // give the app some time to properly boot
+
+            // 6. update ShinyProxy instance
+            logger.debug { "Base instance created -> updating it" }
+            val spTestInstanceUpdated = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_updated.yaml",
+                reconcileListener
+            )
+            val spUpdated = spTestInstanceUpdated.create()
+            logger.debug { "Base instance created -> updated" }
+
+            // 7. wait until instance is created
+            spTestInstanceUpdated.waitForOneReconcile()
+
+            // 7. wait for delete to not happen
+            delay(5000)
+
+            // 8. assert that two instances are correctly working
+            spTestInstanceOriginal.assertInstanceIsCorrect(2, false)
+            spTestInstanceUpdated.assertInstanceIsCorrect(2, true)
+
+            // 9. kill app on older instance
+            namespacedClient.pods().delete(getPodsForInstance(spTestInstanceOriginal.hash)?.items)
+
+            // 10. wait for delete to happen
+            while (getPodsForInstance(spTestInstanceOriginal.hash)?.items?.isNotEmpty() == true
+                || namespacedClient.pods().withName("sp-${spUpdated.metadata.name}-pod-${spUpdated.hashOfCurrentSpec}")
+                    .get() != null
+            ) {
+                delay(1000)
+                println("Pod still exists!")
+            }
+            // 11. give operator time to clenaup
+            delay(5000)
+
+            // 11. assert older instance does not exists anymore
+            assertThrows<IllegalStateException>("Instance not found") {
+                spTestInstanceOriginal.retrieveInstance()
+            }
+
+            spTestInstanceUpdated.assertInstanceIsCorrect(1, true)
+
+            job.cancel()
+
         }
-
-        // 3. wait until instance is created
-        spTestInstance.waitForOneReconcile()
-
-        // 4. assert correctness
-        spTestInstance.assertInstanceIsCorrect()
-        job.cancel()
-    }
 
     @Test
-    fun `operator should re-create removed resources`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
-        val sp = spTestInstance.create()
+    fun `apps running in different namespaces`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_multiple_namespaces.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstance.create()
 
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert namespaces are correctly loaded
+            assertEquals(setOf("my-namespace", "itest"), operator.podRetriever.getNamespaces())
+
+            // 5. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 6. remove instance
+            shinyProxyClient.inNamespace(namespace).delete(sp)
+
+            // 7. wait for delete to not happen
+            delay(5000)
+
+            // 8. assert namespaces are still watched
+            assertEquals(setOf("my-namespace", "itest"), operator.podRetriever.getNamespaces())
+
+            job.cancel()
+
         }
-
-        // 3. wait until instance is created
-        spTestInstance.waitForOneReconcile()
-        logger.info { "Fuly created instance." }
-
-        // 4. assert correctness
-        spTestInstance.assertInstanceIsCorrect()
-
-        // 5. Delete Replicaset -> reconcile -> assert it is still ok
-        executeAsyncAfter100ms {
-            namespacedClient.apps().replicaSets().withName("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63)).delete()
-            logger.info { "Deleted ReplicaSet" }
-        }
-        spTestInstance.waitForOneReconcile()
-        logger.info { "Reconciled after deleting RS" }
-        spTestInstance.assertInstanceIsCorrect()
-
-        // 6. Delete ConfigMap -> reconcile -> assert it is still ok
-        executeAsyncAfter100ms {
-            namespacedClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63)).delete()
-            logger.info { "Deleted ConfigMap" }
-        }
-        spTestInstance.waitForOneReconcile()
-        logger.info { "Reconciled after deleting CM" }
-        spTestInstance.assertInstanceIsCorrect()
-
-        // 7. Delete Service -> reconcile -> assert it is still ok
-        executeAsyncAfter100ms {
-            namespacedClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstance.hash}".take(63)).delete()
-            logger.info { "Deleted Service" }
-        }
-        spTestInstance.waitForOneReconcile()
-        logger.info { "Reconciled after deleting SVC" }
-        spTestInstance.assertInstanceIsCorrect()
-
-        // 8. Delete Ingress -> reconcile -> assert it is still ok
-        executeAsyncAfter100ms {
-            namespacedClient.network().ingress().withName("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63)).delete()
-            logger.info { "Deleted Ingress" }
-        }
-        spTestInstance.waitForOneReconcile()
-        spTestInstance.assertInstanceIsCorrect()
-        logger.info { "Reconciled after deleting Ingress" }
-
-        job.cancel()
-        logger.info { "Operator stopped" }
-    }
 
     @Test
-    fun `sp in other namespaced should be ignored when using namespaced mode`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance in other namespace
-        val spTestInstance = ShinyProxyTestInstance("itest-2", namespacedClient.inNamespace("itest-2"), shinyProxyClient, "simple_config.yaml", reconcileListener)
-        spTestInstance.create()
+    fun `simple test clustered`() =
+        setup(Mode.CLUSTERED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
 
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 5. create instance in other namespace
+            val spTestInstance2 = ShinyProxyTestInstance(
+                "itest-2",
+                namespacedClient.inNamespace("itest-2"),
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            spTestInstance2.create()
+
+            // 6. wait until instance is created
+            spTestInstance2.waitForOneReconcile()
+
+            // 7. assert correctness
+            spTestInstance2.assertInstanceIsCorrect()
+
+            job.cancel()
         }
-
-        // 3. wait a bit
-        delay(20000)
-
-        // assert that there are no ReplicaSets created
-        assertEquals(0, namespacedClient.apps().replicaSets().list().items.size)
-
-        job.cancel()
-    }
 
     @Test
-    fun `simple test with PodTemplateSpec patches`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance in other namespace
-        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_with_patches.yaml", reconcileListener)
-        val sp = spTestInstance.create()
+    fun `configuration with subpath not ending in slash`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_subpath1.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
 
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            assertCorrectnessWithSubPath(spTestInstance, namespacedClient, namespace)
+
+            job.cancel()
         }
-
-        // 3. wait until instance is created
-        spTestInstance.waitForOneReconcile()
-
-
-        // 4. assertions
-        val retrievedSp = spTestInstance.retrieveInstance()
-        assertNotNull(retrievedSp)
-        val instance = retrievedSp.status.instances[0]
-        assertNotNull(instance)
-        assertTrue(instance.isLatestInstance)
-
-        // check configmap
-        spTestInstance.assertConfigMapIsCorrect(sp)
-
-        // check replicaset
-        val replicaSets = namespacedClient.inNamespace(namespace).apps().replicaSets().list().items
-        assertEquals(1, replicaSets.size)
-        val replicaSet = replicaSets[0]
-        val templateSpec = replicaSet.spec.template.spec
-        assertEquals(1, templateSpec.containers.size)
-        assertEquals("shinyproxy", templateSpec.containers[0].name)
-
-        assertEquals(1, templateSpec.containers[0].livenessProbe.periodSeconds)
-        assertEquals(30, templateSpec.containers[0].livenessProbe.initialDelaySeconds) // changed by patch
-        assertEquals("/actuator/health/liveness", templateSpec.containers[0].livenessProbe.httpGet.path)
-        assertEquals(IntOrString(8080), templateSpec.containers[0].livenessProbe.httpGet.port)
-
-        assertEquals(1, templateSpec.containers[0].readinessProbe.periodSeconds)
-        assertEquals(30, templateSpec.containers[0].readinessProbe.initialDelaySeconds) // changed by patch
-        assertEquals("/actuator/health/readiness", templateSpec.containers[0].readinessProbe.httpGet.path)
-        assertEquals(IntOrString(8080), templateSpec.containers[0].readinessProbe.httpGet.port)
-
-        assertEquals(null, templateSpec.containers[0].startupProbe) // changed by patch
-
-        assertEquals(4, templateSpec.containers[0].env.size) // changed by patch
-        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
-        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
-        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" })
-        assertEquals("TEST_VALUE", templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" }?.value)
-        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
-        assertEquals(sp.metadata.name, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
-
-        // check service
-        spTestInstance.assertServiceIsCorrect(sp)
-
-        // check ingress
-        spTestInstance.assertIngressIsCorrect(sp)
-
-        job.cancel()
-    }
 
     @Test
-    fun `update without apps running`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstanceOriginal = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
-        spTestInstanceOriginal.create()
+    fun `configuration with subpath ending in slash`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_subpath2.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
 
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            assertCorrectnessWithSubPath(spTestInstance, namespacedClient, namespace)
+
+            job.cancel()
         }
 
-        // 3. wait until instance is created
-        spTestInstanceOriginal.waitForOneReconcile()
-
-        // 4. assert correctness
-        spTestInstanceOriginal.assertInstanceIsCorrect()
-
-        // 5. update ShinyProxy instance
-        logger.debug { "Base instance created -> updating it" }
-        val spTestInstanceUpdated = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_updated.yaml", reconcileListener)
-        spTestInstanceUpdated.create()
-        logger.debug { "Base instance created -> updated" }
-
-        // 6. wait until instance is created
-        spTestInstanceUpdated.waitForOneReconcile()
-
-        // 7. wait for delete to happen
-        delay(5000)
-
-        // 8. assert correctness
-        spTestInstanceUpdated.assertInstanceIsCorrect()
-
-        // 9. assert older instance does not exists anymore
-        assertThrows<IllegalStateException>("Instance not found") {
-            spTestInstanceOriginal.retrieveInstance()
-        }
-
-        job.cancel()
-    }
-
-    @Test
-    fun `update with apps running`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstanceOriginal = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
-        val sp = spTestInstanceOriginal.create()
-
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
-        }
-
-        // 3. wait until instance is created
-        spTestInstanceOriginal.waitForOneReconcile()
-
-        // 4. assert correctness
-        spTestInstanceOriginal.assertInstanceIsCorrect()
-
-        // 5. launch an app
-        runCurlRequest("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63), namespace)
-        delay(10_000) // give the app some time to properly boot
-
-        // 6. update ShinyProxy instance
-        logger.debug { "Base instance created -> updating it" }
-        val spTestInstanceUpdated = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_updated.yaml", reconcileListener)
-        val spUpdated = spTestInstanceUpdated.create()
-        logger.debug { "Base instance created -> updated" }
-
-        // 7. wait until instance is created
-        spTestInstanceUpdated.waitForOneReconcile()
-
-        // 7. wait for delete to not happen
-        delay(5000)
-
-        // 8. assert that two instances are correctly working
-        spTestInstanceOriginal.assertInstanceIsCorrect(2, false)
-        spTestInstanceUpdated.assertInstanceIsCorrect(2, true)
-
-        // 9. kill app on older instance
-        namespacedClient.pods().delete(getPodsForInstance(spTestInstanceOriginal.hash)?.items)
-
-        // 10. wait for delete to happen
-        while (getPodsForInstance(spTestInstanceOriginal.hash)?.items?.isNotEmpty() == true
-                || namespacedClient.pods().withName("sp-${spUpdated.metadata.name}-pod-${spUpdated.hashOfCurrentSpec}").get() != null) {
-            delay(1000)
-            println("Pod still exists!")
-        }
-        // 11. give operator time to clenaup
-        delay(5000)
-
-        // 11. assert older instance does not exists anymore
-        assertThrows<IllegalStateException>("Instance not found") {
-            spTestInstanceOriginal.retrieveInstance()
-        }
-
-        spTestInstanceUpdated.assertInstanceIsCorrect(1, true)
-
-        job.cancel()
-
-    }
-
-    @Test
-    fun `apps running in different namespaces`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_multiple_namespaces.yaml", reconcileListener)
-        val sp = spTestInstance.create()
-
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
-        }
-
-        // 3. wait until instance is created
-        spTestInstance.waitForOneReconcile()
-
-        // 4. assert namespaces are correctly loaded
-        assertEquals(setOf("my-namespace", "itest"), operator.podRetriever.getNamespaces())
-
-        // 5. assert correctness
-        spTestInstance.assertInstanceIsCorrect()
-
-        // 6. remove instance
-        shinyProxyClient.inNamespace(namespace).delete(sp)
-
-        // 7. wait for delete to not happen
-        delay(5000)
-
-        // 8. assert namespaces are still watched
-        assertEquals(setOf("my-namespace", "itest"), operator.podRetriever.getNamespaces())
-
-        job.cancel()
-
-    }
-
-    @Test
-    fun `simple test clustered`() = setup(Mode.CLUSTERED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
-        spTestInstance.create()
-
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
-        }
-
-        // 3. wait until instance is created
-        spTestInstance.waitForOneReconcile()
-
-        // 4. assert correctness
-        spTestInstance.assertInstanceIsCorrect()
-
-        // 5. create instance in other namespace
-        val spTestInstance2 = ShinyProxyTestInstance("itest-2", namespacedClient.inNamespace("itest-2"), shinyProxyClient, "simple_config.yaml", reconcileListener)
-        spTestInstance2.create()
-
-        // 6. wait until instance is created
-        spTestInstance2.waitForOneReconcile()
-
-        // 7. assert correctness
-        spTestInstance2.assertInstanceIsCorrect()
-
-        job.cancel()
-    }
-
-    @Test
-    fun `configuration with subpath not ending in slash`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_subpath1.yaml", reconcileListener)
-        spTestInstance.create()
-
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
-        }
-
-        // 3. wait until instance is created
-        spTestInstance.waitForOneReconcile()
-
-        // 4. assert correctness
-        assertCorrectnessWithSubPath(spTestInstance, namespacedClient, namespace)
-
-        job.cancel()
-    }
-
-    @Test
-    fun `configuration with subpath ending in slash`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_subpath2.yaml", reconcileListener)
-        spTestInstance.create()
-
-        // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
-        }
-
-        // 3. wait until instance is created
-        spTestInstance.waitForOneReconcile()
-
-        // 4. assert correctness
-        assertCorrectnessWithSubPath(spTestInstance, namespacedClient, namespace)
-
-        job.cancel()
-    }
-
-    private fun assertCorrectnessWithSubPath(spTestInstance: ShinyProxyTestInstance, namespacedClient: NamespacedKubernetesClient, namespace: String) {
+    private fun assertCorrectnessWithSubPath(
+        spTestInstance: ShinyProxyTestInstance,
+        namespacedClient: NamespacedKubernetesClient,
+        namespace: String
+    ) {
         val sp = spTestInstance.retrieveInstance()
         assertNotNull(sp)
         val instance = sp.status.instances.firstOrNull { it.hashOfSpec == spTestInstance.hash }
@@ -489,7 +597,8 @@ class MainIntegrationTest : IntegrationTestBase() {
         // b. check replicaset
         val replicaSets = namespacedClient.inNamespace(namespace).apps().replicaSets().list().items
         assertEquals(1, replicaSets.size)
-        val replicaSet = replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
+        val replicaSet =
+            replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
         assertNotNull(replicaSet)
         assertEquals(1, replicaSet.status.replicas)
         assertEquals(1, replicaSet.status.readyReplicas)
@@ -508,7 +617,10 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
-        assertEquals(sp.metadata.name, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
+        assertEquals(
+            sp.metadata.name,
+            templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value
+        )
 
         assertEquals(1, templateSpec.containers[0].volumeMounts.size)
         assertEquals("config-volume", templateSpec.containers[0].volumeMounts[0].name)
@@ -530,7 +642,10 @@ class MainIntegrationTest : IntegrationTestBase() {
 
         assertEquals(1, templateSpec.volumes.size)
         assertEquals("config-volume", templateSpec.volumes[0].name)
-        assertEquals("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63), templateSpec.volumes[0].configMap.name)
+        assertEquals(
+            "sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63),
+            templateSpec.volumes[0].configMap.name
+        )
 
         assertTrue(Readiness.isReady(replicaSet))
 
@@ -544,24 +659,31 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertNotNull(ingress)
         assertEquals("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63), ingress.metadata.name)
 
-        assertEquals(mapOf(
+        assertEquals(
+            mapOf(
                 LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
                 LabelFactory.NAME_LABEL to sp.metadata.name,
                 LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
                 LabelFactory.INGRESS_IS_LATEST to "true"
-        ), ingress.metadata.labels)
+            ), ingress.metadata.labels
+        )
 
         assertEquals(1, ingress.metadata.ownerReferences.size)
         assertTrue(ingress.metadata.ownerReferences[0].controller)
         assertEquals("ReplicaSet", ingress.metadata.ownerReferences[0].kind)
         assertEquals("v1", ingress.metadata.ownerReferences[0].apiVersion)
-        assertEquals("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63), ingress.metadata.ownerReferences[0].name)
+        assertEquals(
+            "sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63),
+            ingress.metadata.ownerReferences[0].name
+        )
 
-        assertEquals(mapOf(
+        assertEquals(
+            mapOf(
                 "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to "True()",
                 "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/sub-path/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/sub-path/")"""
-        ), ingress.metadata.annotations)
+            ), ingress.metadata.annotations
+        )
 
         assertEquals(1, ingress.spec.rules.size)
         val rule = ingress.spec.rules[0]
@@ -575,9 +697,18 @@ class MainIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `simple test namespaces non-secure cookie`() = setup(Mode.NAMESPACED, disableSecureCookies = true) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `simple test namespaces non-secure cookie`() = setup(
+        Mode.NAMESPACED,
+        disableSecureCookies = true
+    ) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance
-        val spTestInstance = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
+        val spTestInstance = ShinyProxyTestInstance(
+            namespace,
+            namespacedClient,
+            shinyProxyClient,
+            "simple_config.yaml",
+            reconcileListener
+        )
         val sp = spTestInstance.create()
 
         // 2. start the operator and let it do it's work
@@ -596,24 +727,31 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertNotNull(ingress)
         assertEquals("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63), ingress.metadata.name)
 
-        assertEquals(mapOf(
+        assertEquals(
+            mapOf(
                 LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
                 LabelFactory.NAME_LABEL to sp.metadata.name,
                 LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
                 LabelFactory.INGRESS_IS_LATEST to "true"
-        ), ingress.metadata.labels)
+            ), ingress.metadata.labels
+        )
 
         assertEquals(1, ingress.metadata.ownerReferences.size)
         assertTrue(ingress.metadata.ownerReferences[0].controller)
         assertEquals("ReplicaSet", ingress.metadata.ownerReferences[0].kind)
         assertEquals("v1", ingress.metadata.ownerReferences[0].apiVersion)
-        assertEquals("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63), ingress.metadata.ownerReferences[0].name)
+        assertEquals(
+            "sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63),
+            ingress.metadata.ownerReferences[0].name
+        )
 
-        assertEquals(mapOf(
+        assertEquals(
+            mapOf(
                 "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to "True()",
                 "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec};  Path=/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec};  Path=/")"""
-        ), ingress.metadata.annotations)
+            ), ingress.metadata.annotations
+        )
 
         job.cancel()
     }
@@ -622,10 +760,100 @@ class MainIntegrationTest : IntegrationTestBase() {
      *  Test whether bug #23804 is sovled.
      */
     @Test
-    fun `reconcile of old instance should not update latestermarker and therefore delete old instance`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `reconcile of old instance should not update latestermarker and therefore delete old instance`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstanceOriginal = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            spTestInstanceOriginal.create()
+
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 3. wait until instance is created
+            spTestInstanceOriginal.waitForOneReconcile()
+
+            // 4. assert correctness
+            spTestInstanceOriginal.assertInstanceIsCorrect()
+
+            val sp = spTestInstanceOriginal.retrieveInstance()
+            val originalSpInstance = sp.status.instances.first()
+
+            // 5. update ShinyProxy instance
+            logger.debug { "Base instance created -> updating it" }
+            val spTestInstanceUpdated = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_updated.yaml",
+                reconcileListener
+            )
+            spTestInstanceUpdated.create()
+            logger.debug { "Base instance created -> updated" }
+
+            // 6. wait until the Operator added the new instance to the statuses
+            while (true) {
+                val sp = spTestInstanceOriginal.retrieveInstance()
+                if (sp.status.instances.size == 2) {
+                    break
+                }
+            }
+
+            // 7. insert Reconcile of old instance
+            operator.sendChannel.send(
+                ShinyProxyEvent(
+                    ShinyProxyEventType.RECONCILE,
+                    spTestInstanceOriginal.retrieveInstance(),
+                    originalSpInstance
+                )
+            )
+            logger.debug { "Inserted reconcile" }
+
+            // 8. wait for reconcile of old instance
+            spTestInstanceOriginal.waitForOneReconcile()
+
+            // 9. assert that status still points to old instance (the bug)
+            val freshSP = spTestInstanceOriginal.retrieveInstance()
+            assertEquals(2, freshSP.status.instances.size)
+            assertTrue(freshSP.status.instances.firstOrNull { it.hashOfSpec == originalSpInstance.hashOfSpec }?.isLatestInstance == true)
+            assertTrue(freshSP.status.instances.firstOrNull { it.hashOfSpec != originalSpInstance.hashOfSpec }?.isLatestInstance == false)
+
+            // 6. wait until instance is created
+            spTestInstanceUpdated.waitForOneReconcile()
+
+            // 7. wait for delete to happen
+            delay(5000)
+
+            // 8. assert correctness
+            spTestInstanceUpdated.assertInstanceIsCorrect()
+
+            // 9. assert older instance does not exists anymore
+            assertThrows<IllegalStateException>("Instance not found") {
+                spTestInstanceOriginal.retrieveInstance()
+            }
+
+            job.cancel()
+        }
+
+    @Test
+    fun `may no re-create instance after remove`() = setup(Mode.NAMESPACED, disableSecureCookies = true) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance
-        val spTestInstanceOriginal = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config.yaml", reconcileListener)
-        spTestInstanceOriginal.create()
+        val spTestInstance = ShinyProxyTestInstance(
+            namespace,
+            namespacedClient,
+            shinyProxyClient,
+            "simple_config.yaml",
+            reconcileListener
+        )
+        spTestInstance.create()
 
         // 2. start the operator and let it do it's work
         val job = GlobalScope.launch {
@@ -634,56 +862,32 @@ class MainIntegrationTest : IntegrationTestBase() {
         }
 
         // 3. wait until instance is created
-        spTestInstanceOriginal.waitForOneReconcile()
+        spTestInstance.waitForOneReconcile()
 
-        // 4. assert correctness
-        spTestInstanceOriginal.assertInstanceIsCorrect()
+        // 4. stop the operator
+        job.cancel()
 
-        val sp = spTestInstanceOriginal.retrieveInstance()
-        val originalSpInstance = sp.status.instances.first()
+        // take copy of old ShiynProxy, which still contains the (soon to be) deleted instance
+        val sp = spTestInstance.retrieveInstance()
+        val instance = spTestInstance.retrieveInstance().status.instances.first()
 
-        // 5. update ShinyProxy instance
-        logger.debug { "Base instance created -> updating it" }
-        val spTestInstanceUpdated = ShinyProxyTestInstance(namespace, namespacedClient, shinyProxyClient, "simple_config_updated.yaml", reconcileListener)
-        spTestInstanceUpdated.create()
-        logger.debug { "Base instance created -> updated" }
-
-        // 6. wait until the Operator added the new instance to the statuses
-        while (true) {
-            val sp = spTestInstanceOriginal.retrieveInstance()
-            if (sp.status.instances.size == 2) {
-                break
+        // 5. schedule reconcile directly after deleting
+        GlobalScope.launch {
+            repeat(10) {
+                delay(10)
+                logger.debug { "Trying to trigger bug, by triggering renoncile with old status" }
+                operator.shinyProxyController.reconcileSingleShinyProxyInstance(sp, instance)
             }
         }
 
-        // 7. insert Reconcile of old instance
-        operator.sendChannel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, spTestInstanceOriginal.retrieveInstance(), originalSpInstance))
-        logger.debug { "Inserted reconcile" }
+        // 6. force delete the instance
+        operator.shinyProxyController.deleteSingleShinyProxyInstance(sp, instance)
 
-        // 8. wait for reconcile of old instance
-        spTestInstanceOriginal.waitForOneReconcile()
+        // let it all work a bit
+        delay(2500)
 
-        // 9. assert that status still points to old instance (the bug)
-        val freshSP = spTestInstanceOriginal.retrieveInstance()
-        assertEquals(2, freshSP.status.instances.size)
-        assertTrue(freshSP.status.instances.firstOrNull { it.hashOfSpec == originalSpInstance.hashOfSpec }?.isLatestInstance == true)
-        assertTrue(freshSP.status.instances.firstOrNull { it.hashOfSpec != originalSpInstance.hashOfSpec }?.isLatestInstance == false)
-
-        // 6. wait until instance is created
-        spTestInstanceUpdated.waitForOneReconcile()
-
-        // 7. wait for delete to happen
-        delay(5000)
-
-        // 8. assert correctness
-        spTestInstanceUpdated.assertInstanceIsCorrect()
-
-        // 9. assert older instance does not exists anymore
-        assertThrows<IllegalStateException>("Instance not found") {
-            spTestInstanceOriginal.retrieveInstance()
-        }
-
-        job.cancel()
+        val replicaSets = namespacedClient.inNamespace(namespace).apps().replicaSets().list().items
+        assertEquals(0, replicaSets.size)
     }
 
 }

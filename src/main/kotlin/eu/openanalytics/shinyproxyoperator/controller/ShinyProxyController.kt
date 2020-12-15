@@ -189,11 +189,13 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    private suspend fun reconcileSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+    suspend fun reconcileSingleShinyProxyInstance(_shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        val shinyProxy = refreshShinyProxy(_shinyProxy) // refresh shinyproxy to ensure status is always up to date
+
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ReconcileSingleShinyProxy" }
 
         if (!shinyProxy.status.instances.contains(shinyProxyInstance)) {
-            logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot reconcile ShinProxyInstance because it is begin deleted." }
+            logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot reconcile ShinProxyInstance because it is being deleted." }
             return
         }
 
@@ -249,9 +251,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                     if (pods.isEmpty()) {
                         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has no running apps and is not the latest version => removing this instance" }
                         deleteSingleShinyProxyInstance(shinyProxy, shinyProxyInstance)
-                        updateStatus(shinyProxy) {
-                            it.status.instances.remove(shinyProxyInstance)
-                        }
                     } else {
                         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has ${pods.size} running apps => not removing this instance" }
                     }
@@ -268,8 +267,12 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    private fun deleteSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+    fun deleteSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance" }
+        // Important: update status BEFORE deleting, otherwise we will start reconciling this instance, before it's completely deleted
+        updateStatus(shinyProxy) {
+            it.status.instances.remove(shinyProxyInstance)
+        }
         for (service in resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
             kubernetesClient.resource(service).delete()
         }
