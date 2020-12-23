@@ -21,4 +21,9 @@ It can run in either `clustered` scope or `namespaced` mode. In the former the o
 
 See the [docs/deployment](docs/deployment) folder for more information.
 
+## Supported Versions
 
+| ShinyProxy Version | Operator 20201215.112635 or older | Operator 23/12/2020 or newer |
+| ------------------ | --------------------------------- | ---------------------------- |
+| 2.4.2 or older     | Compatible                        | Not Compatible               | 
+| 2.4.3 or newer     | Not Compatible                    | Compatible                   |
