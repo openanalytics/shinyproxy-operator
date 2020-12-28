@@ -8,7 +8,8 @@ jobs:
     strategy:
       matrix:
         java: [ 11 ]
-        kubernetes: [ 'v1.20.1', 'v1.19.6', 'v1.18.14', 'v1.17.16', 'v1.16.14']
+        kubernetes: [ 'v1.19.6', 'v1.18.14', 'v1.17.16', 'v1.16.14']
+#        kubernetes: [ 'v1.20.1', 'v1.19.6', 'v1.18.14', 'v1.17.16', 'v1.16.14']
 
     steps:
       - uses: actions/checkout@v2

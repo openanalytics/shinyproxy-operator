@@ -144,7 +144,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     }
 
     fun assertConfigMapIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {
-        val configMaps = client.inNamespace(namespace).configMaps().list().items
+        val configMaps = client.inNamespace(namespace).configMaps().list().items.filter { it.metadata.name != "kube-root-ca.crt" }
         assertEquals(numInstancesRunning, configMaps.size)
         val configMap = configMaps.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
         assertNotNull(configMap)

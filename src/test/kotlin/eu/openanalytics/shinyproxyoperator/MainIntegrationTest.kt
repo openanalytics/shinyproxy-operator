@@ -423,7 +423,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 delay(1000)
                 logger.debug { "Pod still exists!" }
             }
-            // 11. give operator time to clenaup
+            // 11. give operator time to cleanup
             delay(5000)
 
             // 11. assert older instance does not exists anymore
