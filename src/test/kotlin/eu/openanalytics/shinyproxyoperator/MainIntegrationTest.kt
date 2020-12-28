@@ -86,7 +86,6 @@ class MainIntegrationTest : IntegrationTestBase() {
                     // -> Latest marker should not yet be set
                     val sp = spTestInstance.retrieveInstance()
                     assertEquals(1, sp.status.instances.size)
-                    println("${sp.status.instances[0].isLatestInstance} => ${Readiness.isReady(replicaSet)}")
                     assertFalse(sp.status.instances[0].isLatestInstance)
                     checked = true
                 } else {
@@ -422,7 +421,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                     .get() != null
             ) {
                 delay(1000)
-                println("Pod still exists!")
+                logger.debug { "Pod still exists!" }
             }
             // 11. give operator time to clenaup
             delay(5000)
@@ -844,7 +843,10 @@ class MainIntegrationTest : IntegrationTestBase() {
         }
 
     @Test
-    fun `may no re-create instance after remove`() = setup(Mode.NAMESPACED, disableSecureCookies = true) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+    fun `may no re-create instance after remove`() = setup(
+        Mode.NAMESPACED,
+        disableSecureCookies = true
+    ) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
         // 1. create a SP instance
         val spTestInstance = ShinyProxyTestInstance(
             namespace,

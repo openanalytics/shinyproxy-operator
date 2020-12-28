@@ -4,7 +4,7 @@ metadata:
   name: example-shinyproxy
 spec:
     fqdn: itest.local
-    image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20200930.145654
+    image: openanalytics/shinyproxy-snapshot:2.4.3-SNAPSHOT-20201228.090125
     proxy:
       title: Open Analytics Shiny Proxy 2
       logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
