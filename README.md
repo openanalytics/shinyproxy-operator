@@ -19,11 +19,15 @@ The build will result in a single `.jar` file: `target/target/shinyproxy-operato
 The operator should be run in Kubernetes using the [docker image](https://hub.docker.com/r/openanalytics/shinyproxy-operator-snapshot).
 It can run in either `clustered` scope or `namespaced` mode. In the former the operator looks for ShinyProxy instances in all namespaces while in the latter it only manages ShinyProxy instances in its own namespace.
 
-See the [docs/deployment](docs/deployment) folder for more information.
+See the [docs/deployment](docs/deployment) folder for more information.Operator 23/12/2020 or newer
 
 ## Supported Versions
 
-| ShinyProxy Version | Operator 20201215.112635 or older | Operator 23/12/2020 or newer |
-| ------------------ | --------------------------------- | ---------------------------- |
-| 2.4.2 or older     | Compatible                        | Not Compatible               | 
-| 2.4.3 or newer     | Not Compatible                    | Compatible                   |
+| ShinyProxy Version | Operator 0.0.1-20201215.112635 or older | Operator 0.0.1-SNAPSHOT-20201223.135820 or newer |
+| ------------------ | --------------------------------------- | ------------------------------------------------ |
+| 2.4.2 or older     | Compatible                              | Not Compatible                                   | 
+| 2.4.3 or newer     | Not Compatible                          | Compatible                                       |
+
+## Java Version
+
+This project requires JDK 11.
