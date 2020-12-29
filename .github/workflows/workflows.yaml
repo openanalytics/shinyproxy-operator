@@ -27,7 +27,7 @@ jobs:
         uses: manusa/actions-setup-minikube@v2.3.0
         with:
           minikube version: 'v1.16.0'
-          kubernetes version: 'v1.20.1'
+          kubernetes version:  ${{ matrix.kubernetes }}
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
       - name: Build with Maven
