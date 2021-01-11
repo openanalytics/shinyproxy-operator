@@ -93,7 +93,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(1, ingress.metadata.ownerReferences.size)
         assertTrue(ingress.metadata.ownerReferences[0].controller)
         assertEquals("ReplicaSet", ingress.metadata.ownerReferences[0].kind)
-        assertEquals("v1", ingress.metadata.ownerReferences[0].apiVersion)
+        assertEquals("apps/v1", ingress.metadata.ownerReferences[0].apiVersion)
         assertEquals("sp-${sp.metadata.name}-rs-${hash}".take(63), ingress.metadata.ownerReferences[0].name)
 
         if (isLatest) {

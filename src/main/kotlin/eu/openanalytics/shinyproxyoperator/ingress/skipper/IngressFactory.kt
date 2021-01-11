@@ -82,7 +82,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ReplicaSet")
-                        .withApiVersion("v1")
+                        .withApiVersion("apps/v1")
                         .withName(ResourceNameFactory.createNameForReplicaSet(shinyProxy, shinyProxyInstance))
                         .withNewUid(replicaSet.metadata.uid)
                     .endOwnerReference()
