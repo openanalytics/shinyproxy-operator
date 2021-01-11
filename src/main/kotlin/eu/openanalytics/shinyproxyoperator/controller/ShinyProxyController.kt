@@ -128,12 +128,8 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             logger.warn { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is the latest instance" }
             return existingInstance
         } else if (existingInstance != null && !existingInstance.isLatestInstance) {
-            // make the old existing instance again the latest instance
-            updateStatus(shinyProxy) {
-                it.status.instances.forEach { inst -> inst.isLatestInstance = false }
-                existingInstance.isLatestInstance = true
-            }
-            ingressController.reconcile(shinyProxy)
+            logger.info { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is not the latest instance. Therefore this instance wiill become the latest again" }
+            // reconcile will take care of making this the latest instance again
             return existingInstance
         }
 
@@ -167,6 +163,11 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         return shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
     }
 
+    private fun refreshShinyProxy(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Pair<ShinyProxy, ShinyProxyInstance?> {
+        val sp = shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
+        return sp to sp.status.getInstanceByHash(shinyProxyInstance.hashOfSpec)
+    }
+
     private fun updateLatestMarker(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         val latestInstance = shinyProxy.status.instances.firstOrNull { it.hashOfSpec == shinyProxy.hashOfCurrentSpec }
                 ?: return
@@ -188,8 +189,13 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    suspend fun reconcileSingleShinyProxyInstance(_shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        val shinyProxy = refreshShinyProxy(_shinyProxy) // refresh shinyproxy to ensure status is always up to date
+    suspend fun reconcileSingleShinyProxyInstance(_shinyProxy: ShinyProxy, _shinyProxyInstance: ShinyProxyInstance) {
+        val (shinyProxy, shinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance) // refresh shinyproxy to ensure status is always up to date
+
+        if (shinyProxyInstance == null) {
+            logger.info { "${shinyProxy.logPrefix(_shinyProxyInstance)} Cannot reconcile ShinProxyInstance because this instance does not exists." }
+            return
+        }
 
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ReconcileSingleShinyProxy" }
 
