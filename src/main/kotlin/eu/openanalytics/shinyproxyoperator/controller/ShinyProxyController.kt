@@ -84,8 +84,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         return
                     }
                     val newInstance = createNewInstance(event.shinyProxy)
-                    val freshShinyProxy = refreshShinyProxy(event.shinyProxy)
-                    reconcileSingleShinyProxyInstance(freshShinyProxy, newInstance)
+                    reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
                 }
                 ShinyProxyEventType.UPDATE_SPEC -> {
                     if (event.shinyProxy == null) {
@@ -93,8 +92,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         return
                     }
                     val newInstance = createNewInstance(event.shinyProxy)
-                    val freshShinyProxy = refreshShinyProxy(event.shinyProxy)
-                    reconcileSingleShinyProxyInstance(freshShinyProxy, newInstance)
+                    reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
                 }
                 ShinyProxyEventType.DELETE -> {
                     // DELETE is not needed
@@ -122,7 +120,8 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    private fun createNewInstance(shinyProxy: ShinyProxy): ShinyProxyInstance {
+    private fun createNewInstance(_shinyProxy: ShinyProxy): ShinyProxyInstance {
+        val shinyProxy = refreshShinyProxy(_shinyProxy) // refresh shinyproxy to ensure status is always up to date
         val existingInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec)
 
         if (existingInstance != null && existingInstance.isLatestInstance) {
