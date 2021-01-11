@@ -6,6 +6,7 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         java: [ 11 ]
         kubernetes: [ 'v1.19.6', 'v1.18.14', 'v1.17.16', 'v1.16.14']

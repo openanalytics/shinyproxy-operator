@@ -26,6 +26,7 @@ import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
+import eu.openanalytics.shinyproxyoperator.helpers.isStartupProbesSupported
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
@@ -634,10 +635,13 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertEquals("/sub-path/actuator/health/readiness", templateSpec.containers[0].readinessProbe.httpGet.path)
         assertEquals(IntOrString(8080), templateSpec.containers[0].readinessProbe.httpGet.port)
 
-        assertEquals(5, templateSpec.containers[0].startupProbe.periodSeconds)
-        assertEquals(6, templateSpec.containers[0].startupProbe.failureThreshold)
-        assertEquals("/sub-path/actuator/health/liveness", templateSpec.containers[0].startupProbe.httpGet.path)
-        assertEquals(IntOrString(8080), templateSpec.containers[0].startupProbe.httpGet.port)
+        if (namespacedClient.isStartupProbesSupported()) {
+            // only check for startup probes if it supported
+            assertEquals(5, templateSpec.containers[0].startupProbe.periodSeconds)
+            assertEquals(6, templateSpec.containers[0].startupProbe.failureThreshold)
+            assertEquals("/sub-path/actuator/health/liveness", templateSpec.containers[0].startupProbe.httpGet.path)
+            assertEquals(IntOrString(8080), templateSpec.containers[0].startupProbe.httpGet.port)
+        }
 
         assertEquals(1, templateSpec.volumes.size)
         assertEquals("config-volume", templateSpec.volumes[0].name)
