@@ -199,10 +199,13 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals("/actuator/health/readiness", templateSpec.containers[0].readinessProbe.httpGet.path)
         assertEquals(IntOrString(8080), templateSpec.containers[0].readinessProbe.httpGet.port)
 
-        assertEquals(5, templateSpec.containers[0].startupProbe.periodSeconds)
-        assertEquals(6, templateSpec.containers[0].startupProbe.failureThreshold)
-        assertEquals("/actuator/health/liveness", templateSpec.containers[0].startupProbe.httpGet.path)
-        assertEquals(IntOrString(8080), templateSpec.containers[0].startupProbe.httpGet.port)
+        if (client.isStartupProbesSupported()) {
+            // only check for startup probes if it supported
+            assertEquals(5, templateSpec.containers[0].startupProbe.periodSeconds)
+            assertEquals(6, templateSpec.containers[0].startupProbe.failureThreshold)
+            assertEquals("/actuator/health/liveness", templateSpec.containers[0].startupProbe.httpGet.path)
+            assertEquals(IntOrString(8080), templateSpec.containers[0].startupProbe.httpGet.port)
+        }
 
         assertEquals(1, templateSpec.volumes.size)
         assertEquals("config-volume", templateSpec.volumes[0].name)

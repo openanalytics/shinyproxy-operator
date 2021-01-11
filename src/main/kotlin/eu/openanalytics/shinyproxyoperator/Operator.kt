@@ -45,18 +45,23 @@ import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
+import java.lang.IllegalStateException
 
 
 class Operator(client: NamespacedKubernetesClient? = null,
                mode: Mode? = null,
                disableSecureCookies: Boolean? = null,
-               private val reconcileListener: IReconcileListener? = null) {
+               private val reconcileListener: IReconcileListener? = null,
+               probeInitialDelay: Int? = null,
+               probeFailureThreshold: Int? = null) {
 
     private val logger = KotlinLogging.logger {}
     private val client: NamespacedKubernetesClient
     val mode: Mode
     val namespace: String
     val disableSecureCookies: Boolean
+    val probeInitialDelay: Int
+    val probeFailureThreshold: Int
 
     private val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
             .withVersion("v1alpha1")
@@ -73,7 +78,6 @@ class Operator(client: NamespacedKubernetesClient? = null,
     private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>
     val podRetriever: PodRetriever
 
-
     /**
      * Initialize mode, client, namespace and informers
      */
@@ -86,29 +90,14 @@ class Operator(client: NamespacedKubernetesClient? = null,
             this.client = DefaultKubernetesClient()
         }
 
-        if (mode != null) {
-            this.mode = mode
-        } else {
-            val modeEnv = System.getenv("SPO_MODE")
-            this.mode = when {
-                modeEnv?.toLowerCase() == "clustered" -> {
-                    Mode.CLUSTERED
-                }
-                modeEnv?.toLowerCase() == "namespaced" -> {
-                    Mode.NAMESPACED
-                }
-                else -> {
-                    Mode.CLUSTERED
-                }
-            }
-        }
-
-        if (disableSecureCookies != null) {
-            this.disableSecureCookies = disableSecureCookies
-        } else {
-            val secureEnv = System.getenv("SPO_DISABLE_SECURE_COOKIES")
-            this.disableSecureCookies = secureEnv != null
-        }
+        this.mode = readConfigValue(mode, Mode.CLUSTERED, "SPO_MODE", { when (it.toLowerCase()) {
+                "clustered" -> Mode.CLUSTERED
+                "namespaced" -> Mode.NAMESPACED
+                else -> error("Unsupported operator mode: $it")
+        }})
+        this.disableSecureCookies = readConfigValue(disableSecureCookies, false, "SPO_DISABLE_SECURE_COOKIES", { true })
+        this.probeInitialDelay = readConfigValue(probeInitialDelay, 0, "SPO_PROBE_INITIAL_DELAY", String::toInt)
+        this.probeFailureThreshold = readConfigValue(probeFailureThreshold, 0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
 
         logger.info { "Running in ${this.mode} mode" }
 
@@ -203,7 +192,32 @@ class Operator(client: NamespacedKubernetesClient? = null,
     }
 
     companion object {
-        var operatorInstance: Operator? = null
+        private var _operatorInstance: Operator? = null
+
+        fun setOperatorInstance(operator: Operator) {
+            this._operatorInstance = operator
+       }
+
+        fun getOperatorInstance(): Operator {
+            _operatorInstance.let {
+                if (it == null) {
+                    throw IllegalStateException("Cannot query for operatorInstance when it is not set")
+                } else {
+                    return it
+                }
+            }
+        }
+    }
+
+    private fun<T> readConfigValue(constructorValue: T?, default: T, envVarName: String, convertor: (String) -> T): T {
+        val e = System.getenv(envVarName)
+        val res = when {
+            constructorValue != null -> constructorValue
+            e != null -> convertor(e)
+            else -> default
+        }
+        logger.info { "Using $res for property $envVarName" }
+        return res
     }
 
 }

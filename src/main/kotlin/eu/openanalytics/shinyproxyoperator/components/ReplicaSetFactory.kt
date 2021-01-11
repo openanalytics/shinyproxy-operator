@@ -53,7 +53,7 @@ class ReplicaSetFactory(private val kubeClient: KubernetesClient) {
                     .endOwnerReference()
                 .endMetadata()
                 .withNewSpec()
-                    .withReplicas(1)
+                    .withReplicas(shinyProxy.replicas)
                     .withNewSelector()
                        .withMatchLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                     .endSelector()

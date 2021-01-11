@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
@@ -77,8 +78,14 @@ abstract class IntegrationTestBase {
 
             // 3. create the operator
             val reconcileListener = ReconcileListener()
-            val operator = Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener)
-            Operator.operatorInstance = operator
+
+            val operator = if (client.isStartupProbesSupported()) {
+                Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener)
+            } else {
+                Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener, 40, 2)
+            }
+
+            Operator.setOperatorInstance(operator)
 
             val shinyProxyClient = client.inNamespace(namespace).customResources(customResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
 
@@ -102,6 +109,7 @@ abstract class IntegrationTestBase {
 
     }
 
+
     private fun createNamespaces() {
         for (managedNamespace in managedNamespaces) {
             client.namespaces().create(NamespaceBuilder()
@@ -114,7 +122,7 @@ abstract class IntegrationTestBase {
 
     private suspend fun deleteNamespaces() {
         for (managedNamespace in managedNamespaces) {
-            val ns = client.namespaces().withName(managedNamespace).get() ?: return
+            val ns = client.namespaces().withName(managedNamespace).get() ?: continue
             client.namespaces().delete(ns)
             while (client.namespaces().withName(managedNamespace).get() != null) {
                 delay(1000)
@@ -167,4 +175,8 @@ abstract class IntegrationTestBase {
         )).list()
     }
 
+}
+
+fun KubernetesClient.isStartupProbesSupported(): Boolean {
+    return version.major == "1" && version.minor >= "18"
 }

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.components
 
+import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.*
@@ -30,6 +31,8 @@ class PodTemplateSpecFactory {
     private val podTemplatePatcher = PodTemplateSpecPatcher()
 
     fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): PodTemplateSpec {
+
+        val operator = Operator.getOperatorInstance()
 
         //@formatter:off
         val template = PodTemplateSpecBuilder()
@@ -74,22 +77,26 @@ class PodTemplateSpecFactory {
                                 .withPath(Paths.get(shinyProxy.subPath, "/actuator/health/liveness").toString())
                                 .withPort(IntOrString(8080))
                             .endHttpGet()
-                            .withPeriodSeconds(1) // TODO
+                            .withPeriodSeconds(1)
+                            .withInitialDelaySeconds(operator.probeInitialDelay)
+                            .withFailureThreshold(operator.probeFailureThreshold)
                         .endLivenessProbe()
                         .withNewReadinessProbe()
                             .withNewHttpGet()
                                 .withPath(Paths.get(shinyProxy.subPath, "/actuator/health/readiness").toString())
                                 .withNewPort(8080) // string instead of int because of quirks in the library
                             .endHttpGet()
-                            .withPeriodSeconds(1) // TODO
+                            .withPeriodSeconds(1)
+                            .withInitialDelaySeconds(operator.probeInitialDelay)
+                            .withFailureThreshold(operator.probeFailureThreshold)
                         .endReadinessProbe()
                         .withNewStartupProbe()
                             .withNewHttpGet()
                                 .withPath(Paths.get(shinyProxy.subPath, "/actuator/health/liveness").toString())
                                 .withNewPort(8080) // string instead of int because of quirks in the library
                                 .endHttpGet()
-                            .withFailureThreshold(6) // TODO
-                            .withPeriodSeconds(5) // TODO configurable?
+                            .withFailureThreshold(6)
+                            .withPeriodSeconds(5)
                         .endStartupProbe()
                     .endContainer()
                     .withVolumes(VolumeBuilder()

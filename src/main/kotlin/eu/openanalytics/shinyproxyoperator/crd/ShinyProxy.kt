@@ -59,6 +59,15 @@ data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyPr
     }
 
     @get:JsonIgnore
+    val replicas: Int by lazy {
+        if (spec.get("replicas")?.isInt == true) {
+            val replicas = spec.get("replicas").intValue()
+            return@lazy replicas
+        }
+        return@lazy 1
+    }
+
+    @get:JsonIgnore
     val namespacesOfCurrentInstance: List<String> by lazy {
         val namespaces = arrayListOf<String>()
 
@@ -121,6 +130,7 @@ data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyPr
     val hashOfCurrentSpec: String by lazy {
         return@lazy specAsYaml.sha1()
     }
+
 
     fun logPrefix(shinyProxyInstance: ShinyProxyInstance): String {
         return "[${metadata.name}/${shinyProxyInstance.hashOfSpec}]"

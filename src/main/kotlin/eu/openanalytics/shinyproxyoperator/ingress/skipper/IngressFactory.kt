@@ -50,7 +50,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
             "/"
         }
 
-        val security = if (Operator.operatorInstance!!.disableSecureCookies) {
+        val security = if (Operator.getOperatorInstance().disableSecureCookies) {
             ""
         } else {
             "Secure;"
