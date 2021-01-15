@@ -21,12 +21,39 @@ It can run in either `clustered` scope or `namespaced` mode. In the former the o
 
 See the [docs/deployment](docs/deployment) folder for more information.Operator 23/12/2020 or newer
 
+## Configuration
+
+We try to keep the configuration of the Operator itself as minimum as possible.
+Furthermore we want the operator to work without configuration in most cases.
+Nevertheless, for some specific cases some configuration options are available.
+For now these options are specified using environment variables.
+All variables start with the `SPO` prefix, meaning **S**hiny**P**roxy**O**perator.
+
+ - `SPO_MODE`: can either be `namespaced` or `clustered` (default). This specifies whether the operator should only look in its own namespace for ShinyProxy configurations or in all namespaces.
+ - `SPO_DISABLE_SECURE_COOKIES`: when set to any value, this disables the `secure` flag on all cookies used by the Operator.
+ - `SPO_PROBE_INITIAL_DELAY`: specifies the initial delay of the Readiness and Liveness probes. This is useful when the used Kubernetes version does not support startup probes.
+ - `SPO_PROBE_FAILURE_THRESHOLD`: specifies the failure threshold of the Readiness and Liveness probes. This is useful when the used Kubernetes version does not support startup probes.
+
+Note: in our deployments we have good experience with setting the `SPO_PROBE_INITIAL_DELAY` to `40` and `SPO_PROBE_FAILURE_THRESHOLD` to `2`.
+However, this may depend on the performance of the cluster.
+
 ## Supported Versions
 
-| ShinyProxy Version | Operator 0.0.1-20201215.112635 or older | Operator 0.0.1-SNAPSHOT-20201223.135820 or newer |
-| ------------------ | --------------------------------------- | ------------------------------------------------ |
-| 2.4.2 or older     | Compatible                              | Not Compatible                                   | 
-| 2.4.3 or newer     | Not Compatible                          | Compatible                                       |
+| ShinyProxy Version              | Operator 0.0.1-20201215.112635 or older | Operator 0.0.1-SNAPSHOT-20201223.135820 or newer |
+| ------------------------------  | --------------------------------------- | ------------------------------------------------ |
+| 2.4.3 or older                  | Compatible                              | Not Compatible                                   |
+| 2.4.4 or newer (to be released) | Not Compatible                          | Compatible                                       |
+
+## Kubernetes versions
+
+
+| Kubernetes Version | Minimal required operator version      | Notes                                                                                                          |
+| ------------------ | -------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| v1.16              | Any version                            | Requires the use of `SPO_PROBE_INITIAL_DELAY` and `SPO_PROBE_FAILURE_THRESHOL` due to lack of startup probes.  |
+| v1.17              | Any version                            | Requires the use of `SPO_PROBE_INITIAL_DELAY` and `SPO_PROBE_FAILURE_THRESHOL` due to lack of startup probes.  |
+| v1.18              | Any version                            | Includes startup probes (as beta).                                                                             |
+| v1.19              | Any version                            |                                                                                                                |
+| v1.20              | 0.0.1-SNAPSHOT-20210113.083121         |                                                                                                                |
 
 ## Java Version
 
