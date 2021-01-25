@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.controller.*
 import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
@@ -45,6 +47,7 @@ import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
+import org.slf4j.LoggerFactory
 import java.lang.IllegalStateException
 
 
@@ -53,7 +56,8 @@ class Operator(client: NamespacedKubernetesClient? = null,
                disableSecureCookies: Boolean? = null,
                private val reconcileListener: IReconcileListener? = null,
                probeInitialDelay: Int? = null,
-               probeFailureThreshold: Int? = null) {
+               probeFailureThreshold: Int? = null,
+               logLevel: Level? = null) {
 
     private val logger = KotlinLogging.logger {}
     private val client: NamespacedKubernetesClient
@@ -98,6 +102,9 @@ class Operator(client: NamespacedKubernetesClient? = null,
         this.disableSecureCookies = readConfigValue(disableSecureCookies, false, "SPO_DISABLE_SECURE_COOKIES", { true })
         this.probeInitialDelay = readConfigValue(probeInitialDelay, 0, "SPO_PROBE_INITIAL_DELAY", String::toInt)
         this.probeFailureThreshold = readConfigValue(probeFailureThreshold, 0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
+
+        val rootLogger = LoggerFactory.getILoggerFactory().getLogger(Logger.ROOT_LOGGER_NAME) as Logger
+        rootLogger.level = readConfigValue(logLevel, Level.DEBUG, "SPO_LOG_LEVEL", { Level.toLevel(it) })
 
         logger.info { "Running in ${this.mode} mode" }
 
