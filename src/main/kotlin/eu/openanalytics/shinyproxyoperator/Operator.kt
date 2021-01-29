@@ -54,7 +54,7 @@ import java.lang.IllegalStateException
 class Operator(client: NamespacedKubernetesClient? = null,
                mode: Mode? = null,
                disableSecureCookies: Boolean? = null,
-               private val reconcileListener: IReconcileListener? = null,
+               reconcileListener: IReconcileListener? = null,
                probeInitialDelay: Int? = null,
                probeFailureThreshold: Int? = null,
                probeTimeout: Int? = null,
