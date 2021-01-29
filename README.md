@@ -33,6 +33,7 @@ All variables start with the `SPO` prefix, meaning **S**hiny**P**roxy**O**perato
  - `SPO_DISABLE_SECURE_COOKIES`: when set to any value, this disables the `secure` flag on all cookies used by the Operator.
  - `SPO_PROBE_INITIAL_DELAY`: specifies the initial delay of the Readiness and Liveness probes. This is useful when the used Kubernetes version does not support startup probes.
  - `SPO_PROBE_FAILURE_THRESHOLD`: specifies the failure threshold of the Readiness and Liveness probes. This is useful when the used Kubernetes version does not support startup probes.
+ - `SPO_PROBE_TIMEOUT`: specifies the timeout in seconds of the Readiness and Liveness probes. This is useful when the used Kubernetes version does not support startup probes.
  - `SPO_LOG_LEVEL`: configures the log level of the operator, may be one of the following:
    - `OFF`: disables logging
    - `ERROR`
@@ -43,8 +44,10 @@ All variables start with the `SPO` prefix, meaning **S**hiny**P**roxy**O**perato
    - `ALL`: enables all logging
 
 
-Note: in our deployments we have good experience with setting the `SPO_PROBE_INITIAL_DELAY` to `40` and `SPO_PROBE_FAILURE_THRESHOLD` to `2`.
-However, this may depend on the performance of the cluster.
+Note: in our deployments where startup probes aren't supported we have success with the following configuration:
+ - `SPO_PROBE_INITIAL_DELAY` to something between 40 and 140 depending on the performance of the cluster.
+ - `SPO_PROBE_FAILURE_THRESHOLD` to `2`
+ - `SPO_PROBE_TIMEOUT` to `3`
 
 ## Supported Versions
 
