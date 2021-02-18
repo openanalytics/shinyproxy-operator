@@ -26,22 +26,53 @@ spec:
       internal-networking: true
     authentication: simple
     users:
-    - name: jack
-      password: password
-      groups: scientists, admin
-    - name: jeff
-      password: password
-      groups: mathematicians
+      - name: bart
+        password: epviczcc
+        groups: pulmonologists, specialist
+      - name: thomas
+        password: epviczcc
+        groups: cardiologists
+      - name: john
+        password: epviczcc
+        groups: cardiol
     specs:
-    - id: 01_hello
-      displayName: Hello Application
-      description: Application which demonstrates the basics of a Shiny app
-      containerCmd: ["R", "-e", "shinyproxy::run_01_hello()"]
-      containerImage: openanalytics/shinyproxy-demo
-    - id: 06_tabsets
-      container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
-      container-image: openanalytics/shinyproxy-demo
-      description: Some Tabset Description 42
+      - id: rstudio
+        container-image: openanalytics/shinyproxy-rstudio-ide-demo
+        container-env:
+          DISABLE_AUTH: true
+        port: 8787
+      - id: 01_hello
+        display-name: Hello Application
+        description: Application which demonstrates the basics of a Shiny app
+        container-cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        container-image: openanalytics/shinyproxy-demo
+      - id: 06_tabsets
+        container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
+        container-image: openanalytics/shinyproxy-demo
+      - id: phaedra
+        container-image: openanalytics/shinyproxy-desktop-app-demo:phaedra
+        container-env:
+          RELATIVE_URL_ROOT: app_direct/phaedra
+        port: 80
+      - id: vscode
+        container-image: openanalytics/shinyproxy-desktop-app-demo:vscode
+        container-env:
+          RELATIVE_URL_ROOT: app_direct/phaedra
+        port: 80
+      - id: dash-demo
+        display-name: Dash Demo Application
+        port: 8050
+        container-cmd: [ "python", "app.py" ]
+        container-image: openanalytics/shinyproxy-dash-demo
+      - id: zeppelin
+        display-name: Apache Zeppelin
+        container-image: apache/zeppelin:0.8.1
+        port: 8080
+      - id: data_tables
+        displayName: Data Tables
+        description: Application which demonstrates Datat Tables
+        containerCmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        containerImage: ledfan/shinyproxy-datatables
   kubernetesPodTemplateSpecPatches: |
     - op: add
       path: /spec/containers/0/env/-

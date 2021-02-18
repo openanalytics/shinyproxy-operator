@@ -21,10 +21,17 @@ spec:
     spec:
       containers:
         - name: shinyproxy-operator
-          image: openanalytics/shinyproxy-operator-snapshot:0.0.1-SNAPSHOT-20201005.090146
+          image: openanalytics/shinyproxy-operator-snapshot:0.0.1-SNAPSHOT-20210129.115928
           imagePullPolicy: Always
           env:
             - name: SPO_MODE
               value: clustered
+#            - name: SPO_LOG_LEVEL
+#              value: WARN
+#            - name: SPO_PROBE_INITIAL_DELAY
+#              value: "60"
+#            - name: SPO_PROBE_FAILURE_THRESHOLD
+#              value: "2"
+#            - name: SPO_PROBE_TIMEOUT
+#              value: "3"
       serviceAccountName: shinyproxy-operator-sa
-
