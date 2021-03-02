@@ -79,7 +79,7 @@ class PodTemplateSpecFactory {
                             .build()))
                         .withVolumeMounts(VolumeMountBuilder()
                             .withName("config-volume")
-                            .withMountPath("/etc/shinyproxy/application.yml")
+                            .withMountPath("/opt/shinyproxy/application.yml")
                             .withSubPath("application.yml")
                         .build())
                         .withNewLivenessProbe()
