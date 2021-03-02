@@ -114,7 +114,7 @@ spec:
       value:
         name: TEST_VAR
         value: TEST_VALUE
-  image: openanalytics/shinyproxy:2.4.3
+  image: openanalytics/shinyproxy:2.5.0
   imagePullPolicy: Always
   fqdn: shinyproxy-demo.local
   replicas: 1

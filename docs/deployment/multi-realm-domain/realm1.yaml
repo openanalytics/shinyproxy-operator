@@ -60,6 +60,6 @@ spec:
       value:
         name: TEST_VAR
         value: TEST_VALUE
-  image: openanalytics/shinyproxy-snapshot:2.3.2-SNAPSHOT-20201002.120450
+  image: openanalytics/shinyproxy:2.5.0
   fqdn: realm1.shinyproxy-demo.local
 

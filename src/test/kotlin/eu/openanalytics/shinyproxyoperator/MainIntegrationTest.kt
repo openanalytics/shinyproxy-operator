@@ -280,12 +280,12 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertEquals(1, templateSpec.containers[0].livenessProbe.periodSeconds)
             assertEquals(30, templateSpec.containers[0].livenessProbe.initialDelaySeconds) // changed by patch
             assertEquals("/actuator/health/liveness", templateSpec.containers[0].livenessProbe.httpGet.path)
-            assertEquals(IntOrString(8080), templateSpec.containers[0].livenessProbe.httpGet.port)
+            assertEquals(IntOrString(9090), templateSpec.containers[0].livenessProbe.httpGet.port)
 
             assertEquals(1, templateSpec.containers[0].readinessProbe.periodSeconds)
             assertEquals(30, templateSpec.containers[0].readinessProbe.initialDelaySeconds) // changed by patch
             assertEquals("/actuator/health/readiness", templateSpec.containers[0].readinessProbe.httpGet.path)
-            assertEquals(IntOrString(8080), templateSpec.containers[0].readinessProbe.httpGet.port)
+            assertEquals(IntOrString(9090), templateSpec.containers[0].readinessProbe.httpGet.port)
 
             assertEquals(null, templateSpec.containers[0].startupProbe) // changed by patch
 
@@ -625,23 +625,23 @@ class MainIntegrationTest : IntegrationTestBase() {
 
         assertEquals(1, templateSpec.containers[0].volumeMounts.size)
         assertEquals("config-volume", templateSpec.containers[0].volumeMounts[0].name)
-        assertEquals("/etc/shinyproxy/application.yml", templateSpec.containers[0].volumeMounts[0].mountPath)
+        assertEquals("/opt/shinyproxy/application.yml", templateSpec.containers[0].volumeMounts[0].mountPath)
         assertEquals("application.yml", templateSpec.containers[0].volumeMounts[0].subPath)
 
         assertEquals(1, templateSpec.containers[0].livenessProbe.periodSeconds)
         assertEquals("/sub-path/actuator/health/liveness", templateSpec.containers[0].livenessProbe.httpGet.path)
-        assertEquals(IntOrString(8080), templateSpec.containers[0].livenessProbe.httpGet.port)
+        assertEquals(IntOrString(9090), templateSpec.containers[0].livenessProbe.httpGet.port)
 
         assertEquals(1, templateSpec.containers[0].readinessProbe.periodSeconds)
         assertEquals("/sub-path/actuator/health/readiness", templateSpec.containers[0].readinessProbe.httpGet.path)
-        assertEquals(IntOrString(8080), templateSpec.containers[0].readinessProbe.httpGet.port)
+        assertEquals(IntOrString(9090), templateSpec.containers[0].readinessProbe.httpGet.port)
 
         if (namespacedClient.isStartupProbesSupported()) {
             // only check for startup probes if it supported
             assertEquals(5, templateSpec.containers[0].startupProbe.periodSeconds)
             assertEquals(6, templateSpec.containers[0].startupProbe.failureThreshold)
             assertEquals("/sub-path/actuator/health/liveness", templateSpec.containers[0].startupProbe.httpGet.path)
-            assertEquals(IntOrString(8080), templateSpec.containers[0].startupProbe.httpGet.port)
+            assertEquals(IntOrString(9090), templateSpec.containers[0].startupProbe.httpGet.port)
         }
 
         assertEquals(1, templateSpec.volumes.size)

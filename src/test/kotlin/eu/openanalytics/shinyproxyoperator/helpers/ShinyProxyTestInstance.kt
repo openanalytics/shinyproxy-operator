@@ -28,6 +28,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
+import kotlinx.coroutines.withTimeout
 import java.lang.IllegalStateException
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -52,7 +53,9 @@ class ShinyProxyTestInstance(private val namespace: String,
     }
 
     suspend fun waitForOneReconcile(): ShinyProxyInstance? {
-        return reconcileListener.waitForNextReconcile(hash).await()
+        return withTimeout(120_000) {
+            reconcileListener.waitForNextReconcile(hash).await()
+        }
     }
 
     fun assertInstanceIsCorrect(numInstancesRunning: Int = 1, isLatest: Boolean = true) {
@@ -188,23 +191,23 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         assertEquals(1, templateSpec.containers[0].volumeMounts.size)
         assertEquals("config-volume", templateSpec.containers[0].volumeMounts[0].name)
-        assertEquals("/etc/shinyproxy/application.yml", templateSpec.containers[0].volumeMounts[0].mountPath)
+        assertEquals("/opt/shinyproxy/application.yml", templateSpec.containers[0].volumeMounts[0].mountPath)
         assertEquals("application.yml", templateSpec.containers[0].volumeMounts[0].subPath)
 
         assertEquals(1, templateSpec.containers[0].livenessProbe.periodSeconds)
         assertEquals("/actuator/health/liveness", templateSpec.containers[0].livenessProbe.httpGet.path)
-        assertEquals(IntOrString(8080), templateSpec.containers[0].livenessProbe.httpGet.port)
+        assertEquals(IntOrString(9090), templateSpec.containers[0].livenessProbe.httpGet.port)
 
         assertEquals(1, templateSpec.containers[0].readinessProbe.periodSeconds)
         assertEquals("/actuator/health/readiness", templateSpec.containers[0].readinessProbe.httpGet.path)
-        assertEquals(IntOrString(8080), templateSpec.containers[0].readinessProbe.httpGet.port)
+        assertEquals(IntOrString(9090), templateSpec.containers[0].readinessProbe.httpGet.port)
 
         if (client.isStartupProbesSupported()) {
             // only check for startup probes if it supported
             assertEquals(5, templateSpec.containers[0].startupProbe.periodSeconds)
             assertEquals(6, templateSpec.containers[0].startupProbe.failureThreshold)
             assertEquals("/actuator/health/liveness", templateSpec.containers[0].startupProbe.httpGet.path)
-            assertEquals(IntOrString(8080), templateSpec.containers[0].startupProbe.httpGet.port)
+            assertEquals(IntOrString(9090), templateSpec.containers[0].startupProbe.httpGet.port)
         }
 
         assertEquals(1, templateSpec.volumes.size)
