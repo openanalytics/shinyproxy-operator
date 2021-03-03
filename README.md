@@ -27,8 +27,7 @@ See the [docs/deployment](docs/deployment) folder for more information.Operator 
 
 We try to keep the configuration of the Operator itself as minimum as possible. Furthermore we want the operator to work
 without configuration in most cases. Nevertheless, for some specific cases some configuration options are available. For
-now these options are specified using environment variables. All variables start with the `SPO` prefix, meaning **S**
-hiny**P**roxy**O**perator.
+now these options are specified using environment variables. All variables start with the `SPO` prefix, meaning **S**hiny**P**roxy**O**perator.
 
 - `SPO_MODE`: can either be `namespaced` or `clustered` (default). This specifies whether the operator should only look
   in its own namespace for ShinyProxy configurations or in all namespaces.
@@ -57,10 +56,10 @@ Note: in our deployments where startup probes aren't supported we have success w
 
 ## Supported Versions
 
-| ShinyProxy Version  | Operator 0.0.1-20201215.112635 or older | Operator 0.0.1-SNAPSHOT-20201223.135820 or newer        |
+| ShinyProxy Version  | Operator 0.0.1-20201215.112635 or older | Operator 0.0.1-SNAPSHOT-20210302.095930 or newer        |
 | ------------------- | --------------------------------------- | ------------------------------------------------------- |
 | 2.4.3 or older      | Compatible                              | Not Compatible                                          |
-| 2.5.0 or newer      | Not Compatible                          | Compatible (0.0.1-SNAPSHOT-20210302.095930 recommended) |
+| 2.5.0 or newer      | Not Compatible                          | Compatible                                              |
 
 ## Kubernetes versions
 
