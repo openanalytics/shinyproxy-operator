@@ -34,17 +34,11 @@ spec:
           containerPort: 9999
         - name: debug-port
           containerPort: 9992
-        env:
-          - name: KUBE_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
         args:
           - "skipper"
           - "-kubernetes"
           - "-kubernetes-in-cluster"
           - "-kubernetes-path-mode=path-prefix"
-          - "-kubernetes-namespace=$(KUBE_NAMESPACE)"
           - "-kubernetes-https-redirect=false"
           - "-address=:9999"
           - "-wait-first-route-load"
