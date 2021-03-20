@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: shinyproxy-operator
-          image: openanalytics/shinyproxy-operator-snapshot:0.0.1-SNAPSHOT-20210129.115928
+          image: openanalytics/shinyproxy-operator-snapshot:0.0.1-SNAPSHOT-20210302.095930
           imagePullPolicy: Always
           env:
             - name: SPO_MODE
