@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: traefik-to-skipper-ingress
+  namespace: shinyproxy
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+    #nginx.ingress.kubernetes.io/proxy-body-size: 5000m
+    #nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
+    #nginx.ingress.kubernetes.io/proxy-send-timeout: "180"
+#    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    #nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - host: shinyproxy-demo.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: skipper-ingress
+            port:
+              number: 9999
