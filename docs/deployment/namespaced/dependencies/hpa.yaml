@@ -3,7 +3,7 @@ apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
   name: skipper-ingress
-  namespace: kube-system
+  namespace: shinyproxy
   labels:
     application: skipper-ingress
 spec:

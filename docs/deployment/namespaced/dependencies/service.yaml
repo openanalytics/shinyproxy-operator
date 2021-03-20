@@ -3,7 +3,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: skipper-ingress
-  namespace: kube-system
+  namespace: shinyproxy
   labels:
     application: skipper-ingress
   annotations:
