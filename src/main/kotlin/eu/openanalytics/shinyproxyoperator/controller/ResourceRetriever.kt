@@ -49,7 +49,7 @@ class ResourceRetriever(private val replicaSetLister: Lister<ReplicaSet>,
 
     fun getReplicaSetByLabels(labels: Map<String, String>, namespace: String): ArrayList<ReplicaSet> {
         val replicaSets = arrayListOf<ReplicaSet>()
-        logger.debug { "Looking for Repliacas with labels: $labels" }
+        logger.debug { "Looking for ReplicaSets with labels: $labels" }
         for (replicaSet in replicaSetLister.namespace(namespace).list()) {
             if (replicaSet?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
                 replicaSets.add(replicaSet)

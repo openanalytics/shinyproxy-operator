@@ -171,7 +171,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     private fun updateLatestMarker(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         val latestInstance = shinyProxy.status.instances.firstOrNull { it.hashOfSpec == shinyProxy.hashOfCurrentSpec }
                 ?: return
-
         if (latestInstance.isLatestInstance) {
             // already updated marker
             return
@@ -182,6 +181,9 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             // this update could be triggered by an older instance while the latest instance is not ready yet
             return
         }
+
+        // Extra check, if this check is positive we have some bug, see #24986
+        logger.warn(Throwable()) { "${shinyProxy.logPrefix(shinyProxyInstance)} Updating latest marker to ${latestInstance.hashOfSpec}, status: ${shinyProxy.status}" }
 
         updateStatus(shinyProxy) {
             it.status.instances.forEach { inst -> inst.isLatestInstance = false }
@@ -218,8 +220,16 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
+        // Extra check, if this check is positive we have some bug, see #24986
+        if (replicaSets.size > 1) {
+            logger.error(Throwable()) {
+                "${shinyProxy.logPrefix(shinyProxyInstance)} Trying to reconcile but detected more than one ReplicaSet which matches the labels for a single instance. ${replicaSets.map { it.metadata.name }} ${replicaSets.map { Readiness.isReady(it) }}"
+            }
+        }
+
         if (!Readiness.isReady(replicaSets[0])) {
             // do no proceed until replicaset is ready
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} ReplicaSet is not ready -> not proceeding with reconcile" }
             return
         }
 
