@@ -4,6 +4,29 @@ This directory both contains a set of bases that can directly be used to deploy
 the ShinyProxy Operator. It also contains some example deployments in the
 `overlays` directory.
 
+## Component and dependencies
+
+Before showing how to deploy the operator, this section describes the components and dependencies of the operator.
+
+- **Operator**: the operator itself which manages the different ShinyProxy servers.
+- **ShinyProxy**: the ShinyProxy servers, these host the Shiny apps. You do not
+  need to create these servers manually, since these are created by the operator.
+  Instead you define which servers to create and the operator creates all
+  necessary Kubernetes resources, without affecting any existing server or
+  causing downtime.
+- **Redis**: Redis is used by ShinyProxy (not by the operator) to implement
+  session persistence. This ensures that when a ShinyProxy server is replaced,
+  the user is still logged in. This provides a smooth transition when the
+  operator replaces a ShinyProxy server.
+- **Skipper**: Skipper is used as an ingress controller. Currently this is the
+  only ingress controller supported by the operator. The reason is that the
+  ingress controller is responsible for routing users to the correct ShinyProxy
+  server. Skipper is the only ingress controller we found suitable for this
+  feature. However, this does not mean you will have to replace your existing
+  ingress solution. You can deploy Skipper as an "intermediate" ingress
+  controller and forward your existing ingress controller to the Skipper
+  service. In fact, all example in this repository assume this way of working.
+
 ## Tutorial using minikube
 
 This section provides an step-by-step tutorial on the basic deployment of the
@@ -18,14 +41,14 @@ ShinyProxy operator on minikube.
 2. Start minikube:
 
    ```bash
-   minikube start --addon=ingress
+   minikube start --addons=metrics-server,ingress
    ````
 
 3. Clone this repository and change the working directory:
 
    ```bash
    git clone https://github.com/openanalytics/shinyproxy-operator
-   cd shinyproxy-operator/docs/deployments/overlays/1-namespaced-hpa
+   cd shinyproxy-operator/docs/deployment/overlays/1-namespaced-hpa
    ```
 
 4. Apply all resources
@@ -51,10 +74,10 @@ ShinyProxy operator on minikube.
 
 6. Once all deployments are finished, you can access ShinyProxy at `shinyproxy-demo.local`.
 7. Try to launch an application and keep this application running.
-8. Change something in the `shinyproxy.yaml` file and then run:
+8. Change something in the `shinyproxy/shinyproxy.yaml` file and then run:
 
    ```bash
-   kubectl apply -f deployment.yaml
+   kubectl apply -f shinyproxy.yaml
    ```
 
    The operator now deploys a new ShinyProxy instance. As long as the old instance is being used (i.e. apps are running on it), the old instance will be kept intact.
@@ -95,7 +118,7 @@ tried to make some examples of what is possible:
   pods according to the load of these pods. When properly configured, this
   ensures that Skipper has enough resources to do its work, while not waisting
   resources.
-  
+
 - *3-clustered-hpa*:
   - Operator-mode: `clustered`
   - Operator-namespace: `shinyproxy-operator`
@@ -155,7 +178,7 @@ tried to make some examples of what is possible:
     - `https://shinyproxy-demo.local/shinyproxy1/`
     - `https://shinyproxy-demo.local/shinyproxy2/`
     - `https://shinyproxy-demo.local/shinyproxy3/`
-  
+
   Based on example 2, this example shows how multi-tenancy can be achieved using
   sub-paths instead of multiple domain-names. Each ShinyProxy server is made
   available at the same domainname but at a different path under that domainname.
