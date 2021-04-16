@@ -8,6 +8,11 @@
     <artifactId>shinyproxy-operator</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 
+    <organization>
+        <name>Open Analytics NV</name>
+        <url>https://www.shinyproxy.io/</url>
+    </organization>
+
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.release>11</maven.compiler.release>
@@ -167,6 +172,7 @@
                             <archive>
                                 <manifest>
                                     <mainClass>eu.openanalytics.shinyproxyoperator.MainKt</mainClass>
+                                    <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                                 </manifest>
                             </archive>
                             <descriptorRefs>
