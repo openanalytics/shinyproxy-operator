@@ -1,0 +1,19 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: skipper-ingress
+  labels:
+    application: skipper-ingress
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9999
+      targetPort: 9999
+      protocol: TCP
+      name: http
+    - port: 9922
+      targetPort: 9922
+      protocol: TCP
+      name: debug
+  selector:
+    application: skipper-ingress

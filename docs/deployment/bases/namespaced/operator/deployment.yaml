@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shinyproxy-operator
+  labels:
+    app: shinyproxy-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shinyproxy-operator
+  strategy:
+    # There may be only one Operator instance at a time! Otherwise bad things will happen!
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: shinyproxy-operator
+    spec:
+      containers:
+        - name: shinyproxy-operator
+          image: openanalytics/shinyproxy-operator-snapshot:latest
+          imagePullPolicy: Always
+          env:
+            - name: SPO_MODE
+              value: namespaced
+          #   - name: SPO_PROBE_INITIAL_DELAY
+          #     value: "80"
+          #   - name: SPO_PROBE_FAILURE_THRESHOLD
+          #     value: "5"
+            - name: SPO_PROBE_TIMEOUT
+              value: "3"
+          #   - name: SPO_DISABLE_SECURE_COOKIES
+          #     value: "TRUE"
+          #   - name: "SPO_LOG_LEVEL"
+          #     VALUE: "DEBUG"
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+      serviceAccountName: shinyproxy-operator-sa

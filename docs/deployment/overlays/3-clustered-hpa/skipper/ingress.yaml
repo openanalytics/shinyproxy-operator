@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ngingx-to-skipper-ingress
+  namespace: skipper
+  annotations:
+    nginx.ingress.kubernetes.io/affinity: cookie
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "420"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "420"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
+    nginx.ingress.kubernetes.io/session-cookie-name: rout
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+  - host: shinyproxy-demo.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:  
+            name: skipper-ingress
+            port:
+              name: http
+  - host: shinyproxy-demo2.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service: 
+            name: skipper-ingress
+            port:
+              name: http
