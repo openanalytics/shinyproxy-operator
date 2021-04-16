@@ -108,6 +108,7 @@ class PodTemplateSpecFactory {
                                 .withNewPort(9090)
                                 .endHttpGet()
                             .withTimeoutSeconds(operator.probeTimeout)
+                            .withInitialDelaySeconds(operator.startupProbeInitialDelay)
                             .withFailureThreshold(6)
                             .withPeriodSeconds(5)
                         .endStartupProbe()

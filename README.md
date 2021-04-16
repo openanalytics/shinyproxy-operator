@@ -39,6 +39,7 @@ now these options are specified using environment variables. All variables start
   when the used Kubernetes version does not support startup probes.
 - `SPO_PROBE_TIMEOUT`: specifies the timeout in seconds of the Readiness and Liveness probes. This is useful when the
   used Kubernetes version does not support startup probes.
+- `SPO_STARTUP_PROBE_INITIAL_DELAY`: specifies the initial delay of the StartUp probe. By default this is 60 seconds.
 - `SPO_LOG_LEVEL`: configures the log level of the operator, may be one of the following:
     - `OFF`: disables logging
     - `ERROR`

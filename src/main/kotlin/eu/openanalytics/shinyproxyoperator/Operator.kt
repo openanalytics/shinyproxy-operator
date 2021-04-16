@@ -58,6 +58,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
                probeInitialDelay: Int? = null,
                probeFailureThreshold: Int? = null,
                probeTimeout: Int? = null,
+               startupProbeInitialDelay: Int? = null,
                logLevel: Level? = null) {
 
     private val logger = KotlinLogging.logger {}
@@ -68,6 +69,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
     val probeInitialDelay: Int
     val probeFailureThreshold: Int
     val probeTimeout: Int
+    val startupProbeInitialDelay: Int
 
     private val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
             .withVersion("v1alpha1")
@@ -105,6 +107,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         this.probeInitialDelay = readConfigValue(probeInitialDelay, 0, "SPO_PROBE_INITIAL_DELAY", String::toInt)
         this.probeFailureThreshold = readConfigValue(probeFailureThreshold, 0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
         this.probeTimeout = readConfigValue(probeTimeout, 1, "SPO_PROBE_TIMEOUT", String::toInt)
+        this.startupProbeInitialDelay = readConfigValue(startupProbeInitialDelay, 60, "SPO_STARTUP_PROBE_INITIAL_DELAY", String::toInt)
 
         val rootLogger = LoggerFactory.getILoggerFactory().getLogger(Logger.ROOT_LOGGER_NAME) as Logger
         rootLogger.level = readConfigValue(logLevel, Level.DEBUG, "SPO_LOG_LEVEL", { Level.toLevel(it) })
