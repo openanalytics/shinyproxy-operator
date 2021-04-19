@@ -134,7 +134,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertLabelsAreCorrect(service, sp)
         assertOwnerReferenceIsCorrect(service, sp)
 
-        assertEquals("NodePort", service.spec.type)
+        assertEquals("ClusterIP", service.spec.type)
         assertEquals(1, service.spec.ports.size)
         assertEquals(80, service.spec.ports[0].port)
         assertEquals(IntOrString(8080), service.spec.ports[0].targetPort)

@@ -48,7 +48,7 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
                     .endOwnerReference()
                 .endMetadata()
                 .withNewSpec()
-                    .withType("NodePort")
+                    .withType("ClusterIP")
                     .addNewPort()
                         .withPort(80)
                         .withTargetPort(IntOrString(8080))
