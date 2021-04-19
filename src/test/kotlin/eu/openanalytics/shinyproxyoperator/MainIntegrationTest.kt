@@ -761,7 +761,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     }
 
     /**
-     *  Test whether bug #23804 is sovled.
+     *  Test whether bug #23804 is solved.
      */
     @Test
     fun `reconcile of old instance should not update latestermarker and therefore delete old instance`() =
@@ -1054,4 +1054,35 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     }
 
+
+    // see #25161
+    @Test
+    fun `operator should properly handle 409 conflicts by replacing the resource`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create conflicting resources
+            namespacedClient.load(this.javaClass.getResourceAsStream("/configs/conflict.yaml")).createOrReplace()
+
+            // 2. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            // 3. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.prepare()
+                operator.run()
+            }
+
+            // 4. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 5. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+            job.cancel()
+        }
 }

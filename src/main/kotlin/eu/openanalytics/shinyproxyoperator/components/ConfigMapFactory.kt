@@ -56,18 +56,8 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                 .addToData("application.yml", shinyProxy.specAsYaml)
                 .build()
         //@formatter:on
-        try {
-            val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).create(configMapDefinition)
-            logger.debug { "Created ConfigMap with name ${createdConfigMap.metadata.name}" }
-        } catch (e: KubernetesClientException) {
-            if (e.code == 409) {
-                // Kubernetes reported a conflict -> the resource is probably already begin created -> ignore
-                // In the case that something else happened, kubernetes will create an event
-                logger.debug { "Conflict during creating of resource, ignoring." }
-            } else {
-                throw e
-            }
-        }
+        val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).createOrReplace(configMapDefinition)
+        logger.debug { "Created ConfigMap with name ${createdConfigMap.metadata.name}" }
     }
 
 }
