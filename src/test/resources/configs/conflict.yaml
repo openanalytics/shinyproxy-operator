@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sp-example-shinyproxy-cm-ffe378e0c083a033ee86a2473ff0a3d125dfaa
+  namespace: itest
+data:
+  application.yml: |
+    myconfig: test
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sp-example-shinyproxy-svc-ffe378e0c083a033ee86a2473ff0a3d125dfa
+  namespace: itest
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: myname
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: sp-example-shinyproxy-ing-ffe378e0c083a033ee86a2473ff0a3d125dfa
+  namespace: itest
+spec:
+  rules:
+    - host: my-host-name
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: my-service-name
+              servicePort: 8081
