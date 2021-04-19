@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2020 Open Analytics
+ * Copyright (C) 2021 Open Analytics
  *
  * ===========================================================================
  *
@@ -18,7 +18,6 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-
 package eu.openanalytics.shinyproxyoperator
 
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
