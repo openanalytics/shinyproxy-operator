@@ -235,8 +235,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} ReplicaSet is ready -> proceed with reconcile" }
 
-        updateLatestMarker(shinyProxy, shinyProxyInstance)
-
         val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (services.isEmpty()) {
             logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} 0 Services found -> creating Service" }
@@ -244,7 +242,11 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} Service is ready -> proceed with reconcile (updating latestMarker and creating ingress)" }
+
+        updateLatestMarker(shinyProxy, shinyProxyInstance)
         ingressController.reconcile(shinyProxy)
+
         podRetriever.addNamespaces(shinyProxy.namespacesOfCurrentInstance)
         reconcileListener?.onInstanceFullyReconciled(shinyProxy, shinyProxyInstance)
     }

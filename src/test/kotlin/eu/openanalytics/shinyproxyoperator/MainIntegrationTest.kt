@@ -983,6 +983,75 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             job.cancel()
 
-        }
+    }
+
+    // see #25154
+    @Test
+    fun `latest marker and ingress should be created in a single, atomic step`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, operator, reconcileListener ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            // 2. prepare the operator
+            operator.prepare()
+
+            // 3. run the operator until the ReplicaSet is ready
+            while (true) {
+                // let the operator handle one event
+                operator.shinyProxyController.receiveAndHandleEvent()
+
+                val replicaSets = namespacedClient.apps().replicaSets().list().items
+                if (replicaSets.size == 0) {
+                    // if replicaset is not created -> continue handling events
+                    continue
+                }
+                assertEquals(1, replicaSets.size)
+                val replicaSet = replicaSets[0]
+                if (!Readiness.isReady(replicaSet)) {
+                    // if replicaset is not ready -> continue handling events
+                    continue
+                }
+
+                break
+            }
+
+        // 4. check state
+        // A) when the ReplicaSet is ready, the service should already exist
+        val services = namespacedClient.services().list().items
+        assertEquals(1, services.size)
+
+        // B) at this point the latestMarker should not be set yet
+        var sp = shinyProxyClient.inNamespace(namespace).list().items[0]
+        assertNotNull(sp)
+        assertEquals(1, sp.status.instances.size)
+        assertEquals(false, sp.status.instances[0].isLatestInstance)
+
+        // C) at this point the ingress should not exist yet
+        var ingresses = namespacedClient.inNamespace(namespace).network().ingresses().list().items
+        assertEquals(0, ingresses.size)
+
+        // Test starts here:
+
+        // 5. handle one more event -> should set the latest marker and create the ingress in one step
+        operator.shinyProxyController.receiveAndHandleEvent()
+
+        // 6. check state:
+        // A) at this point the latestMarker should be set
+        sp = shinyProxyClient.inNamespace(namespace).list().items[0]
+        assertNotNull(sp)
+        assertEquals(1, sp.status.instances.size)
+        assertEquals(true, sp.status.instances[0].isLatestInstance)
+
+        // B) at this point the ingress should exist
+        ingresses = namespacedClient.inNamespace(namespace).network().ingresses().list().items
+        assertEquals(1, ingresses.size)
+
+    }
 
 }
