@@ -47,7 +47,7 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
 
             override fun onUpdate(resource: T, newResource: T) {
                 logger.debug { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
-                runBlocking { enqueuResource(resource) }
+                runBlocking { enqueuResource(newResource) }
             }
 
             override fun onDelete(resource: T, b: Boolean) {
