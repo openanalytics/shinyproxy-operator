@@ -245,10 +245,14 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} Service is ready -> proceed with reconcile (updating latestMarker and creating ingress)" }
 
         updateLatestMarker(shinyProxy, shinyProxyInstance)
-        ingressController.reconcile(shinyProxy)
+        // refresh the ShinyProxy variables after updating the latest marker
+        val (updatedShinyProxy, updatedShinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance)
+        ingressController.reconcile(updatedShinyProxy)
 
         podRetriever.addNamespaces(shinyProxy.namespacesOfCurrentInstance)
-        reconcileListener?.onInstanceFullyReconciled(shinyProxy, shinyProxyInstance)
+        if (updatedShinyProxyInstance != null) {
+            reconcileListener?.onInstanceFullyReconciled(updatedShinyProxy, updatedShinyProxyInstance)
+        }
     }
 
     private fun checkForObsoleteInstances() {
