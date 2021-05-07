@@ -37,6 +37,7 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import io.fabric8.kubernetes.client.dsl.base.OperationContext
@@ -46,9 +47,11 @@ import io.fabric8.kubernetes.client.informers.cache.Lister
 import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.delay
 import mu.KotlinLogging
 import org.slf4j.LoggerFactory
 import java.lang.IllegalStateException
+import kotlin.system.exitProcess
 
 
 class Operator(client: NamespacedKubernetesClient? = null,
@@ -98,11 +101,13 @@ class Operator(client: NamespacedKubernetesClient? = null,
             this.client = DefaultKubernetesClient()
         }
 
-        this.mode = readConfigValue(mode, Mode.CLUSTERED, "SPO_MODE", { when (it.toLowerCase()) {
+        this.mode = readConfigValue(mode, Mode.CLUSTERED, "SPO_MODE") {
+            when (it.toLowerCase()) {
                 "clustered" -> Mode.CLUSTERED
                 "namespaced" -> Mode.NAMESPACED
                 else -> error("Unsupported operator mode: $it")
-        }})
+            }
+        }
         this.disableSecureCookies = readConfigValue(disableSecureCookies, false, "SPO_DISABLE_SECURE_COOKIES", { true })
         this.probeInitialDelay = readConfigValue(probeInitialDelay, 0, "SPO_PROBE_INITIAL_DELAY", String::toInt)
         this.probeFailureThreshold = readConfigValue(probeFailureThreshold, 0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
@@ -187,6 +192,19 @@ class Operator(client: NamespacedKubernetesClient? = null,
 
 
     fun prepare() {
+        if (client.customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get() == null) {
+            println()
+            println()
+            println("ERROR: the CustomResourceDefinition (CRD) of the Operator does not exist!")
+            println("The name of the CRD is 'shinyproxies.openanalytics.eu'")
+            println("Create the CRD first, before starting the operator")
+            println()
+            println("Exiting in 10 seconds because of the above error")
+            Thread.sleep(10000) // sleep 10 seconds to make it easier to find this error by an sysadmin
+
+            exitProcess(2)
+        }
+
         informerFactory.startAllRegisteredInformers()
 
         informerFactory.addSharedInformerEventListener {
@@ -197,6 +215,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         while (!replicaSetInformer.hasSynced() || !shinyProxyInformer.hasSynced()) {
             // Wait till Informer syncs
         }
+
     }
 
     suspend fun run() {
