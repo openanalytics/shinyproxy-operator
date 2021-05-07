@@ -27,6 +27,7 @@ import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
+import io.fabric8.kubernetes.client.dsl.base.OperationContext
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import mu.KotlinLogging
 
@@ -40,8 +41,11 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
             return
         }
 
-        val informer = client.inNamespace(namespace).informers()
-                .sharedIndexInformerFor(Pod::class.java, PodList::class.java, 10 * 60 * 1000.toLong())
+        val operationContext = OperationContext()
+            .withNamespace(namespace)
+            .withLabels(mapOf(LabelFactory.PROXIED_APP to "true")) // only look for ShinyProxy apps
+
+        val informer = client.informers().sharedIndexInformerFor(Pod::class.java, PodList::class.java, operationContext, 10 * 60 * 1000.toLong())
         informer.run()
         informers[namespace] = informer
         logger.debug { "Now watching pods in the $namespace namespace." }
