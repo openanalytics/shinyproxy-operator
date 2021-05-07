@@ -69,7 +69,7 @@ data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyPr
 
     @get:JsonIgnore
     val namespacesOfCurrentInstance: List<String> by lazy {
-        val namespaces = arrayListOf<String>()
+        val namespaces = hashSetOf<String>()
 
         val kubernetesNamespace = spec.get("proxy")?.get("kubernetes")?.get("namespace")?.textValue()
         if (kubernetesNamespace != null) {
@@ -86,7 +86,7 @@ data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyPr
             }
         }
 
-        return@lazy namespaces
+        return@lazy namespaces.toList()
     }
 
     @get:JsonIgnore
