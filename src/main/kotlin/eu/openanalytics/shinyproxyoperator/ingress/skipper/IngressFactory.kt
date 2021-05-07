@@ -39,8 +39,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
     fun createOrReplaceIngress(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, replicaSet: ReplicaSet) {
         val hashOfSpec = shinyProxyInstance.hashOfSpec
 
-        // TODO this should use shinyProxyInstance.isLatestInstance ?
-        val isLatest = hashOfSpec == shinyProxy.hashOfCurrentSpec
+        val isLatest = shinyProxyInstance.isLatestInstance
 
         val cookiePath = if (shinyProxy.subPath != "") {
             shinyProxy.subPath
