@@ -37,7 +37,6 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
-import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import io.fabric8.kubernetes.client.dsl.base.OperationContext
@@ -47,7 +46,6 @@ import io.fabric8.kubernetes.client.informers.cache.Lister
 import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.delay
 import mu.KotlinLogging
 import org.slf4j.LoggerFactory
 import java.lang.IllegalStateException
