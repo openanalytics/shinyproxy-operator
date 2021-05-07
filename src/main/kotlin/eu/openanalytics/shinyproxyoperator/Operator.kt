@@ -106,7 +106,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
                 else -> error("Unsupported operator mode: $it")
             }
         }
-        this.disableSecureCookies = readConfigValue(disableSecureCookies, false, "SPO_DISABLE_SECURE_COOKIES", { true })
+        this.disableSecureCookies = readConfigValue(disableSecureCookies, false, "SPO_DISABLE_SECURE_COOKIES") { true }
         this.probeInitialDelay = readConfigValue(probeInitialDelay, 0, "SPO_PROBE_INITIAL_DELAY", String::toInt)
         this.probeFailureThreshold = readConfigValue(probeFailureThreshold, 0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
         this.probeTimeout = readConfigValue(probeTimeout, 1, "SPO_PROBE_TIMEOUT", String::toInt)

@@ -72,22 +72,41 @@ ShinyProxy operator on minikube.
    MINIKUBE_IP       shinyproxy-demo2.local
    ```
 
-6. Once all deployments are finished, you can access ShinyProxy at `shinyproxy-demo.local`.
-7. Try to launch an application and keep this application running.
-8. Change something in the `shinyproxy/shinyproxy.yaml` file and then run:
+6. Once all deployments are finished, you can access ShinyProxy at
+   `shinyproxy-demo.local`.
+7. Wait until the ShinyProxy instance is fully started. (before you will see a
+   `Not Found` page).
+8. Try to launch an application and keep this application running.
+9. Change something in the `shinyproxy/shinyproxy.yaml` file and then run:
 
    ```bash
    kubectl apply -f shinyproxy.yaml
    ```
 
-   The operator now deploys a new ShinyProxy instance. As long as the old instance is being used (i.e. apps are running on it), the old instance will be kept intact.
-   Users using the old instance, will stay on the old instance.
-   The old instance will automatically be removed once no apps are running on it.
+   The operator now deploys a new ShinyProxy instance. As long as the old
+   instance is being used (i.e. apps are running on it), the old instance will
+   be kept intact. Users using the old instance, will stay on the old instance.
+   The old instance will automatically be removed once no apps are running on
+   it.
+10. Try the other examples:
+
+  ```bash
+  kubectl delete namespace/shinyproxy
+  kubectl delete namespace/shinyproxy-operator                 # may fail
+  kubectl delete namespace/shinyproxy-dept2                    # may fail
+  kubectl delete namespace/my-namespace                        # may fail
+  kubectl delete namespace/redis                               # may fail
+  kubectl delete namespace/skipper                             # may fail
+  kubectl delete -n default ingress/ngingx-to-skipper-ingress  # may fail
+  kubectl delete -n skipper ingress/ngingx-to-skipper-ingress  # may fail
+  cd directory_of_example
+  kustomize build .  | k apply -f -
+  ```
 
 ## Overview of examples
 
-The Operator is designed to be flexible and fit many type of deployments. We
-tried to make some examples of what is possible:
+The Operator is designed to be flexible and fit many type of deployments. This
+repository includes examples for many kind of deployments:
 
 - *1-namespaced-hpa*:
   - Operator-mode: `namespaced`
@@ -139,7 +158,7 @@ tried to make some examples of what is possible:
   ShinyProxy server runs in its own namespace, isolated from the other servers.
   However, they are managed by a single operator.
 
-- *4-clustered-hpa*:
+- *4-clustered-ds*:
   - Operator-mode: `clustered`
   - Operator-namespace: `shinyproxy-operator`
   - Skipper-namespace: `skipper`
@@ -180,7 +199,7 @@ tried to make some examples of what is possible:
     - `https://shinyproxy-demo.local/shinyproxy3/`
 
   Based on example 2, this example shows how multi-tenancy can be achieved using
-  sub-paths instead of multiple domain-names. Each ShinyProxy server is made
+  sub-paths instead of multiple domainnames. Each ShinyProxy server is made
   available at the same domainname but at a different path under that domainname.
 
 ## ShinyProxy CRD
