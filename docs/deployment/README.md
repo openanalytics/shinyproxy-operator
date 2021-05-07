@@ -1,8 +1,8 @@
 # Deployment of ShinyProxy operator
 
-This directory both contains a set of bases that can directly be used to deploy
-the ShinyProxy Operator. It also contains some example deployments in the
-`overlays` directory.
+This directory contains a set of bases that can directly be used to deploy the
+ShinyProxy Operator. It also contains some example deployments in the `overlays`
+directory.
 
 ## Component and dependencies
 
