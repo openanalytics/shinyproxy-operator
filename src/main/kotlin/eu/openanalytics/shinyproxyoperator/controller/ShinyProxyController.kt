@@ -149,13 +149,25 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     }
 
     private fun updateStatus(shinyProxy: ShinyProxy, updater: (ShinyProxy) -> Unit) {
-        val freshShinyProxy = refreshShinyProxy(shinyProxy)
-        updater(freshShinyProxy)
-        try {
+        /**
+         * Tries to update the status, once, in a single step.
+         * @throws KubernetesClientException
+         */
+        fun tryUpdateStatus() {
+            val freshShinyProxy = refreshShinyProxy(shinyProxy)
+            updater(freshShinyProxy)
             shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(freshShinyProxy)
-        } catch (e: KubernetesClientException) {
-            // TODO handle this
-            throw e
+        }
+
+        for (i in 1..5) {
+            try {
+                logger.debug { "${shinyProxy.logPrefix()} Trying to update status (attempt ${i}/5)." }
+                tryUpdateStatus()
+                logger.debug { "${shinyProxy.logPrefix()} Status successfully updated." }
+                break
+            } catch (e: KubernetesClientException) {
+                logger.warn { "${shinyProxy.logPrefix()} Update of status not succeeded (attempt ${i}/5)." }
+            }
         }
     }
 
