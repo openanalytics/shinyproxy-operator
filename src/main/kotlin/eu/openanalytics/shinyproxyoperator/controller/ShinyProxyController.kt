@@ -165,12 +165,15 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 logger.debug { "${shinyProxy.logPrefix()} Trying to update status (attempt ${i}/5)." }
                 tryUpdateStatus()
                 logger.debug { "${shinyProxy.logPrefix()} Status successfully updated." }
-                break
+                return
             } catch (e: KubernetesClientException) {
                 logger.warn { "${shinyProxy.logPrefix()} Update of status not succeeded (attempt ${i}/5)." }
             }
         }
+        throw RuntimeException("${shinyProxy.logPrefix()} Unable to update Status of ShinyProxy object after 5 attempts (event will be re-processed)")
     }
+
+
 
     private fun refreshShinyProxy(shinyProxy: ShinyProxy): ShinyProxy {
         return shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
@@ -203,6 +206,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             it.status.instances.first { inst -> inst.hashOfSpec == latestInstance.hashOfSpec }.isLatestInstance = true
         }
     }
+
 
     suspend fun reconcileSingleShinyProxyInstance(_shinyProxy: ShinyProxy, _shinyProxyInstance: ShinyProxyInstance) {
         val (shinyProxy, shinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance) // refresh shinyproxy to ensure status is always up to date
