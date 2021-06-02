@@ -117,6 +117,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             exitProcess(1)
         } catch (e: Exception) {
             logger.warn(e) { "Caught an exception while processing event $event. Continuing processing other events." }
+            channel.send(event); // re-process event
         }
     }
 
