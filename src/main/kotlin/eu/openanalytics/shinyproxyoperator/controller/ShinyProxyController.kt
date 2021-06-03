@@ -73,9 +73,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     }
 
     suspend fun receiveAndHandleEvent() {
-        val event = channel.receive()
-
-        try {
+        suspend fun tryReceiveAndHandleEvent(event: ShinyProxyEvent) {
             when (event.eventType) {
                 ShinyProxyEventType.ADD -> {
                     if (event.shinyProxy == null) {
@@ -111,13 +109,18 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                     checkForObsoleteInstances()
                 }
             }
-        } catch (e: KubernetesClientException) {
-            logger.warn(e) { "Caught KubernetesClientException while processing event $event. Exiting process." }
-            exitProcess(1)
-        } catch (e: Exception) {
-            logger.warn(e) { "Caught an exception while processing event $event. Continuing processing other events." }
-            channel.send(event); // re-process event
         }
+
+        val event = channel.receive()
+        for (i in 1..5) {
+            try {
+                tryReceiveAndHandleEvent(event)
+                return
+            } catch (e: Exception) {
+                logger.warn(e) { "Caught an exception while processing event. [Attempt $i/5]" }
+            }
+        }
+        logger.warn { "Caught an exception while processing event $event. [Attempt 5/5] Not re-processing this event." }
     }
 
     private fun createNewInstance(_shinyProxy: ShinyProxy): ShinyProxyInstance {
@@ -139,8 +142,11 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         val newInstance = ShinyProxyInstance(shinyProxy.hashOfCurrentSpec, false)
         updateStatus(shinyProxy) {
             // Extra check, if this check is positive we have some bug
-            if (it.status.instances.firstOrNull { instance -> instance.hashOfSpec == newInstance.hashOfSpec } != null) {
-                logger.error(Throwable()) { "Tried to add new instance with hash ${newInstance.hashOfSpec}, while status already contains an instance with that hash, this should not happen! New: $newInstance, status: ${it.status} " }
+            val checkExistingInstance = it.status.instances.firstOrNull { instance -> instance.hashOfSpec == newInstance.hashOfSpec }
+            if (checkExistingInstance != null) {
+                // status has already been updated (e.g. after an HTTP 409 Conflict response)
+                // remove the existing instance and add the new one, to ensure that all values are correct.
+                it.status.instances.remove(checkExistingInstance)
             }
             it.status.instances.add(newInstance)
         }
@@ -166,7 +172,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 logger.debug { "${shinyProxy.logPrefix()} Status successfully updated" }
                 return
             } catch (e: KubernetesClientException) {
-                logger.warn { "${shinyProxy.logPrefix()} Update of status not succeeded (attempt ${i}/5)" }
+                logger.warn(e) { "${shinyProxy.logPrefix()} Update of status not succeeded (attempt ${i}/5)" }
             }
         }
         throw RuntimeException("${shinyProxy.logPrefix()} Unable to update Status of ShinyProxy object after 5 attempts (event will be re-processed)")
@@ -179,7 +185,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     }
 
     private fun refreshShinyProxy(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Pair<ShinyProxy, ShinyProxyInstance?> {
-        val sp = shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
+        val sp = shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get() ?: error("ShinyProxy not found")
         return sp to sp.status.getInstanceByHash(shinyProxyInstance.hashOfSpec)
     }
 
