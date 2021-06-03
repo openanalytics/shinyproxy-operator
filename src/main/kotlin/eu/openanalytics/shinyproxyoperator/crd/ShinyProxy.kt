@@ -133,11 +133,11 @@ data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyPr
 
 
     fun logPrefix(shinyProxyInstance: ShinyProxyInstance): String {
-        return "[${metadata.name}/${shinyProxyInstance.hashOfSpec}]"
+        return "[${metadata.namespace}/${metadata.name}/${shinyProxyInstance.hashOfSpec}]"
     }
 
     fun logPrefix(): String {
-        return "[${metadata.name}/global]"
+        return "[${metadata.namespace}/${metadata.name}/global]"
     }
 
 }

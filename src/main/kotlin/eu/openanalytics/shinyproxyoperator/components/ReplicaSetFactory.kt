@@ -59,7 +59,7 @@ class ReplicaSetFactory(private val kubeClient: KubernetesClient) {
         //@formatter:on
 
         val createdReplicaSet = kubeClient.apps().replicaSets().inNamespace(shinyProxy.metadata.namespace).createOrReplace(replicaSetDefinition)
-        logger.debug { "Created ReplicaSet with name ${createdReplicaSet.metadata.name}" }
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/ReplicaSet] Created ${createdReplicaSet.metadata.name}" }
     }
 
 }

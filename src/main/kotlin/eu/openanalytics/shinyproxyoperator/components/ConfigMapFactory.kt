@@ -57,7 +57,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                 .build()
         //@formatter:on
         val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).createOrReplace(configMapDefinition)
-        logger.debug { "Created ConfigMap with name ${createdConfigMap.metadata.name}" }
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/ConfigMap] Created ${createdConfigMap.metadata.name}" }
     }
 
 }

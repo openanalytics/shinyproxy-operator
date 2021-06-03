@@ -68,7 +68,7 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
         // TODO namespace
         val replicaSet = kubernetesClient.apps().replicaSets().inNamespace(resource.metadata.namespace).withName(replicaSetOwnerReference.name).get()
         if (replicaSet == null) {
-            logger.warn { "Cannot find ReplicaSet (owner) of resource ${resource.kind}/${resource.metadata.name}, probably the resource is being deleted." }
+            logger.warn { "[${resource.kind}] [${resource.metadata.namespace}/${resource.metadata.name}] Cannot find owner (ReplicaSet) for this resource - probably the resource is being deleted" }
             return
         }
         val ownerReference = getShinyProxyOwnerRefByKind(replicaSet, "ShinyProxy") ?: return
@@ -77,13 +77,13 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
         if (!isInManagedNamespace(shinyProxy)) return
         val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL]
         if (hashOfInstance == null) {
-            logger.warn { "Cannot find hash of instance for resource ${resource.kind}/${resource.metadata.name}, probably some labels are wrong." }
+            logger.warn { "[${resource.kind}] [${resource.metadata.namespace}/${resource.metadata.name}] Cannot find hash of instance for this resource - probably some labels are wrong" }
             return
         }
 
         val shinyProxyInstance = shinyProxy.status.getInstanceByHash(hashOfInstance)
         if (shinyProxyInstance == null) {
-            logger.warn { "Cannot find instance based on hash for resource ${resource.kind}/${resource.metadata.name}, probably some labels are wrong." }
+            logger.warn { "[${resource.kind}] [${resource.metadata.namespace}/${resource.metadata.name}] Cannot find hash of instance for this resource - probably some labels are wrong" }
             return
         }
 

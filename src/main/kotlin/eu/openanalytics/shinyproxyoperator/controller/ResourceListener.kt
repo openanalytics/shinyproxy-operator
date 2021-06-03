@@ -41,41 +41,40 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
     init {
         informer.addEventHandler(object : ResourceEventHandler<T> {
             override fun onAdd(resource: T) {
-                logger.debug { "${resource.kind}::OnAdd ${resource.metadata.name}" }
-                runBlocking { enqueuResource(resource) }
+                logger.trace { "${resource.kind}::OnAdd ${resource.metadata.name}" }
+                runBlocking { enqueueResource(resource) }
             }
 
             override fun onUpdate(resource: T, newResource: T) {
-                logger.debug { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
-                runBlocking { enqueuResource(newResource) }
+                logger.trace { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
+                runBlocking { enqueueResource(newResource) }
             }
 
             override fun onDelete(resource: T, b: Boolean) {
-                logger.debug { "${resource.kind}::OnDelete ${resource.metadata.name}" }
-                runBlocking {
-                    enqueuResource(resource)
-                }
+                logger.trace { "${resource.kind}::OnDelete ${resource.metadata.name}" }
+                runBlocking { enqueueResource(resource) }
             }
         })
     }
 
-    private suspend fun enqueuResource(resource: T) {
+    private suspend fun enqueueResource(resource: T) {
         val ownerReference = getShinyProxyOwnerRef(resource) ?: return
 
         val shinyProxy = shinyProxyLister.namespace(resource.metadata.namespace)[ownerReference.name] ?: return
         if (!isInManagedNamespace(shinyProxy)) return
         val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL]
         if (hashOfInstance == null) {
-            logger.warn { "Cannot find hash of instance for resource ${resource.kind}/${resource.metadata.name}, probably some labels are wrong." }
+            logger.warn { "[${resource.kind}] [${resource.metadata.namespace}/${resource.metadata.name}] Cannot find hash of instance for this resource - probably the resource is being deleted" }
             return
         }
 
         val shinyProxyInstance = shinyProxy.status.getInstanceByHash(hashOfInstance)
         if (shinyProxyInstance == null) {
-            logger.warn { "Cannot find instance based on hash for resource ${resource.kind}/${resource.metadata.name}, probably some labels are wrong." }
+            logger.warn { "[${resource.kind}] [${resource.metadata.namespace}/${resource.metadata.name}] Cannot find hash of instance for this resource - probably the resource is being deleted" }
             return
         }
 
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Event/Update of component] [Component/${resource.kind}]" }
         channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance))
     }
 

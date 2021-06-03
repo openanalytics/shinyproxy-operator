@@ -39,34 +39,35 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>,
     init {
         informer.addEventHandler(object : ResourceEventHandler<ShinyProxy> {
             override fun onAdd(shinyProxy: ShinyProxy) {
-                logger.debug { "ShinyProxy::OnAdd ${shinyProxy.metadata.name} in namespace ${shinyProxy.metadata.namespace}" }
                 if (!isInManagedNamespace(shinyProxy)) return
+                logger.debug { "${shinyProxy.logPrefix()} [Event/Add]" }
                 runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.ADD, shinyProxy, null)) }
             }
 
             override fun onUpdate(shinyProxy: ShinyProxy, newShinyProxy: ShinyProxy) {
-                logger.debug { "ShinyProxy::OnUpdate ${shinyProxy.metadata.name} in namespace ${shinyProxy.metadata.namespace}: old hash ${shinyProxy.hashOfCurrentSpec}, new hash: ${newShinyProxy.hashOfCurrentSpec}" }
                 if (!isInManagedNamespace(shinyProxy)) return
 
                 if (shinyProxy.hashOfCurrentSpec == newShinyProxy.hashOfCurrentSpec) {
                     val shinyProxyInstance = newShinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec)
                     if (shinyProxyInstance == null) {
-                        logger.warn { "Received update of latest ShinyProxyInstance but did not found such an instance (looking for ${shinyProxy.hashOfCurrentSpec}, status: ${shinyProxy.status})." }
+                        logger.warn { "${shinyProxy.logPrefix()} Received update of latest ShinyProxyInstance but did not found such an instance (looking for ${shinyProxy.hashOfCurrentSpec}, status: ${shinyProxy.status})." }
                         return
                     }
+                    logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Event/Update]" }
                     runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance)) }
                 } else {
                     if (shinyProxy.subPath != newShinyProxy.subPath) {
-                        logger.warn { "Cannot update subpath of an existing ShinyProxy Instance ${shinyProxy.metadata.name}" }
+                        logger.warn { "${shinyProxy.logPrefix()} Cannot update subpath of an existing ShinyProxy Instance ${shinyProxy.metadata.name}" }
                         return
                     }
+                    logger.debug { "${shinyProxy.logPrefix()} [Event/Update of spec] old hash ${shinyProxy.hashOfCurrentSpec}, new hash: ${newShinyProxy.hashOfCurrentSpec}" }
 
                     runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE_SPEC, newShinyProxy, null)) }
                 }
             }
 
             override fun onDelete(shinyProxy: ShinyProxy, b: Boolean) {
-                logger.debug { "ShinyProxy::OnDelete ${shinyProxy.metadata.name} in namespace ${shinyProxy.metadata.namespace}" }
+                logger.debug { "${shinyProxy.logPrefix()} [Event/Delete]" }
                 if (!isInManagedNamespace(shinyProxy)) return
                 runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.DELETE, shinyProxy, null)) }
             }

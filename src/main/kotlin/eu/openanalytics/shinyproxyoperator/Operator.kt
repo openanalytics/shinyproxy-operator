@@ -190,6 +190,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
 
 
     fun prepare() {
+        logger.info("Starting ShinyProxy Operator")
         if (client.customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get() == null) {
             println()
             println()

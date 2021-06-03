@@ -71,14 +71,14 @@ class IngressController(
         }
 
         if (mustBeUpdated) {
-            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} Reconciling ingress" }
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Reconciling" }
             val replicaSet = getReplicaSet(shinyProxy, shinyProxyInstance)
             if (replicaSet == null) {
-                logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot reconcile Ingress since it has no ReplicaSet - probably this resource is being deleted." }
+                logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Cannot reconcile Ingress since it has no ReplicaSet - probably this resource is being deleted" }
                 return
             }
             if (!Readiness.isReady(replicaSet)) {
-                logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot reconcile Ingress since the corresponding ReplicaSet is not ready yet - it is probably being created." }
+                logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Cannot reconcile Ingress since the corresponding ReplicaSet is not ready yet - it is probably being created" }
                 return
             }
             // ReplicaSet exists and is ready -> time to create ingress

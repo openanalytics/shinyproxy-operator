@@ -61,7 +61,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     private val logger = KotlinLogging.logger {}
 
     suspend fun run() {
-        logger.info("Starting ShinyProxy Operator")
         GlobalScope.launch { scheduleAdditionalEvents() }
         while (true) {
             try {
@@ -162,12 +161,12 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         for (i in 1..5) {
             try {
-                logger.debug { "${shinyProxy.logPrefix()} Trying to update status (attempt ${i}/5)." }
+                logger.debug { "${shinyProxy.logPrefix()} Trying to update status (attempt ${i}/5)" }
                 tryUpdateStatus()
-                logger.debug { "${shinyProxy.logPrefix()} Status successfully updated." }
+                logger.debug { "${shinyProxy.logPrefix()} Status successfully updated" }
                 return
             } catch (e: KubernetesClientException) {
-                logger.warn { "${shinyProxy.logPrefix()} Update of status not succeeded (attempt ${i}/5)." }
+                logger.warn { "${shinyProxy.logPrefix()} Update of status not succeeded (attempt ${i}/5)" }
             }
         }
         throw RuntimeException("${shinyProxy.logPrefix()} Unable to update Status of ShinyProxy object after 5 attempts (event will be re-processed)")
@@ -207,7 +206,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-
     suspend fun reconcileSingleShinyProxyInstance(_shinyProxy: ShinyProxy, _shinyProxyInstance: ShinyProxyInstance) {
         val (shinyProxy, shinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance) // refresh shinyproxy to ensure status is always up to date
 
@@ -216,7 +214,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
-        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ReconcileSingleShinyProxy" }
+        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 0/$amountOfSteps: Ok] ReconcileSingleShinyProxy" }
 
         if (!shinyProxy.status.instances.contains(shinyProxyInstance)) {
             logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot reconcile ShinProxyInstance because it is being deleted." }
@@ -225,17 +223,21 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         val configMaps = resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (configMaps.isEmpty()) {
-            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} 0 ConfigMaps found -> creating ConfigMap" }
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 1/$amountOfSteps: Reconciling] [Component/ConfigMap] 0 ConfigMaps found -> creating ConfigMap" }
             configMapFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
 
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 1/$amountOfSteps: Ok] [Component/ConfigMap]" }
+
         val replicaSets = resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (replicaSets.isEmpty()) {
-            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} 0 ReplicaSets found -> creating ReplicaSet" }
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 2/$amountOfSteps: Reconciling] [Component/ReplicaSet] 0 ReplicaSets found -> creating ReplicaSet" }
             replicaSetFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
+
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 2/$amountOfSteps: Ok] [Component/ReplicaSet]" }
 
         // Extra check, if this check is positive we have some bug, see #24986
         if (replicaSets.size > 1) {
@@ -246,25 +248,30 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         if (!Readiness.isReady(replicaSets[0])) {
             // do no proceed until replicaset is ready
-            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} ReplicaSet is not ready -> not proceeding with reconcile" }
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 3/$amountOfSteps: Waiting] [Component/ReplicaSet] ReplicaSet not ready" }
             return
         }
 
-        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} ReplicaSet is ready -> proceed with reconcile" }
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 3/$amountOfSteps: Ok] [Component/ReplicaSet] ReplicaSet ready" }
 
         val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (services.isEmpty()) {
-            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} 0 Services found -> creating Service" }
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 4/$amountOfSteps: Reconciling] [Component/Service] 0 Services found -> creating Service" }
             serviceFactory.create(shinyProxy, shinyProxyInstance)
             return
         }
 
-        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} Service is ready -> proceed with reconcile (updating latestMarker and creating ingress)" }
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 4/$amountOfSteps: Ok] [Component/Service]" }
 
         updateLatestMarker(shinyProxy, shinyProxyInstance)
+
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 5/$amountOfSteps: Ok] [Status/LatestMarker]" }
+
         // refresh the ShinyProxy variables after updating the latest marker
         val (updatedShinyProxy, updatedShinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance)
         ingressController.reconcile(updatedShinyProxy)
+
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 6/$amountOfSteps: Ok] [Component/Ingress]" }
 
         podRetriever.addNamespaces(shinyProxy.namespacesOfCurrentInstance)
         if (updatedShinyProxyInstance != null) {
@@ -320,6 +327,10 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         for (configMap in resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
             kubernetesClient.resource(configMap).delete()
         }
+    }
+
+    companion object {
+        const val amountOfSteps: Int = 6
     }
 
 

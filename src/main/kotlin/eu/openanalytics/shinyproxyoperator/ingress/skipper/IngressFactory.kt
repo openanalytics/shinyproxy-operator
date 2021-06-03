@@ -97,7 +97,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
         //@formatter:on
 
         val createdIngress = kubeClient.network().ingress().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
-        logger.debug { "Created Ingress with name ${createdIngress.metadata.name} (latest=$isLatest)" }
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Created ${createdIngress.metadata.name} [latest=$isLatest]" }
     }
 
     private fun createPath(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): HTTPIngressPath {

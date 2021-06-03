@@ -59,7 +59,7 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
         //@formatter:on
 
         val createdService = kubeClient.services().inNamespace(shinyProxy.metadata.namespace).createOrReplace(serviceDefinition)
-        logger.debug { "Created Service with name ${createdService.metadata.name}" }
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Service] Created ${createdService.metadata.name}" }
     }
 
 }

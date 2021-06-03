@@ -1,13 +1,33 @@
-<configuration debug="false">
+<configuration debug="true" >
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%highlight(%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n)</pattern>
+            <pattern>%highlight(%d{HH:mm:ss.SSS} [%-15.15thread] %-5level %-36logger{36} - %msg%n)</pattern>
         </encoder>
     </appender>
 
     <root level="DEBUG">
         <appender-ref ref="STDOUT" />
     </root>
+
+    <logger name="io.fabric8.kubernetes.client.informers.cache" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="eu.openanalytics.shinyproxyoperator.controller.PodRetriever" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="io.fabric8.kubernetes.client.dsl.internal.WatchConnectionManager" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="eu.openanalytics.shinyproxyoperator.ingress.skipper.IngressListener" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
 
 </configuration>
