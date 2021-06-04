@@ -51,12 +51,17 @@ class IngressController(
     private val ingressListener = IngressListener(channel, kubernetesClient, ingressInformer, shinyProxyListener)
 
     override fun reconcile(shinyProxy: ShinyProxy) {
+        var failed = false
         for (instance in shinyProxy.status.instances) {
             try {
                 reconcileSingleInstance(shinyProxy, instance)
             } catch (e: Exception) {
                 logger.warn(e) { "${shinyProxy.logPrefix(instance)} Unable to reconcile Ingress" }
+                failed = true
             }
+        }
+        if (failed) {
+            throw RuntimeException("One or more ingresses failed to reconcile")
         }
     }
 
