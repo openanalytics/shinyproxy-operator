@@ -184,9 +184,9 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         return shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
     }
 
-    private fun refreshShinyProxy(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Pair<ShinyProxy, ShinyProxyInstance?> {
-        val sp = shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get() ?: error("ShinyProxy not found")
-        return sp to sp.status.getInstanceByHash(shinyProxyInstance.hashOfSpec)
+    private fun refreshShinyProxy(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Pair<ShinyProxy?, ShinyProxyInstance?> {
+        val sp = shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
+        return sp to sp?.status?.getInstanceByHash(shinyProxyInstance.hashOfSpec)
     }
 
     private fun updateLatestMarker(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
@@ -215,8 +215,8 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     suspend fun reconcileSingleShinyProxyInstance(_shinyProxy: ShinyProxy, _shinyProxyInstance: ShinyProxyInstance) {
         val (shinyProxy, shinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance) // refresh shinyproxy to ensure status is always up to date
 
-        if (shinyProxyInstance == null) {
-            logger.info { "${shinyProxy.logPrefix(_shinyProxyInstance)} Cannot reconcile ShinProxyInstance because this instance does not exists." }
+        if (shinyProxy == null || shinyProxyInstance == null) {
+            logger.info { "${_shinyProxy.logPrefix(_shinyProxyInstance)} Cannot reconcile ShinProxyInstance because this instance does not exists." }
             return
         }
 
@@ -275,6 +275,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         // refresh the ShinyProxy variables after updating the latest marker
         val (updatedShinyProxy, updatedShinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance)
+        if (updatedShinyProxy == null) return
         ingressController.reconcile(updatedShinyProxy)
 
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 6/$amountOfSteps: Ok] [Component/Ingress]" }
