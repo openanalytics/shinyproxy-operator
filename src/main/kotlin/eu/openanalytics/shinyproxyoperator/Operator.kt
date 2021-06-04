@@ -37,6 +37,7 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import io.fabric8.kubernetes.client.dsl.base.OperationContext
@@ -191,17 +192,26 @@ class Operator(client: NamespacedKubernetesClient? = null,
 
     fun prepare() {
         logger.info("Starting ShinyProxy Operator")
-        if (client.customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get() == null) {
-            println()
-            println()
-            println("ERROR: the CustomResourceDefinition (CRD) of the Operator does not exist!")
-            println("The name of the CRD is 'shinyproxies.openanalytics.eu'")
-            println("Create the CRD first, before starting the operator")
-            println()
-            println("Exiting in 10 seconds because of the above error")
-            Thread.sleep(10000) // sleep 10 seconds to make it easier to find this error by an sysadmin
+        try {
+            if (client.customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get() == null) {
+                println()
+                println()
+                println("ERROR: the CustomResourceDefinition (CRD) of the Operator does not exist!")
+                println("The name of the CRD is 'shinyproxies.openanalytics.eu'")
+                println("Create the CRD first, before starting the operator")
+                println()
+                println("Exiting in 10 seconds because of the above error")
+                Thread.sleep(10000) // sleep 10 seconds to make it easier to find this error by an sysadmin
 
-            exitProcess(2)
+                exitProcess(2)
+            }
+        } catch (e: KubernetesClientException) {
+            println()
+            println()
+            println("Warning: could not check whether ShinyProxy CRD does not exits.")
+            println("This is normal when the ServiceAccount of the operator does not have permission to access CRDs (at cluster scope).")
+            println("If you get an unexpected erorr after this message, make sure that the CRD exists.")
+            println()
         }
 
         informerFactory.startAllRegisteredInformers()
