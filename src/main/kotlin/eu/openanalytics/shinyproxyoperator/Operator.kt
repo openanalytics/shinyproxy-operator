@@ -208,9 +208,10 @@ class Operator(client: NamespacedKubernetesClient? = null,
         } catch (e: KubernetesClientException) {
             println()
             println()
-            println("Warning: could not check whether ShinyProxy CRD does not exits.")
+            println("Warning: could not check whether ShinyProxy CRD exits.")
             println("This is normal when the ServiceAccount of the operator does not have permission to access CRDs (at cluster scope).")
-            println("If you get an unexpected erorr after this message, make sure that the CRD exists.")
+            println("If you get an unexpected error after this message, make sure that the CRD exists.")
+            println()
             println()
         }
 
