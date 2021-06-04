@@ -1,8 +1,9 @@
-<configuration debug="true" >
+<configuration debug="false">
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%highlight(%d{HH:mm:ss.SSS} [%-15.15thread] %-5level %-36logger{36} - %msg%n)</pattern>
+            <pattern>(%d{HH:mm:ss.SSS} [%-15.15thread] %-5level %-36logger{36} - %msg%n</pattern>
+            <!--<pattern>%highlight(%d{HH:mm:ss.SSS} [%-15.15thread] %-5level %-36logger{36} - %msg%n)</pattern>-->
         </encoder>
     </appender>
 
