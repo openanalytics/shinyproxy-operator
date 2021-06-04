@@ -28,16 +28,12 @@ import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
-import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodList
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
-import io.fabric8.kubernetes.client.KubernetesClient
-import io.fabric8.kubernetes.client.KubernetesClientException
-import io.fabric8.kubernetes.client.NamespacedKubernetesClient
+import io.fabric8.kubernetes.client.*
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder
+import io.fabric8.kubernetes.client.utils.HttpClientUtils.createHttpClient
 import kotlinx.coroutines.*
-import java.util.*
 
 
 abstract class IntegrationTestBase {
@@ -51,15 +47,23 @@ abstract class IntegrationTestBase {
 
     private val namespace = "itest"
     private val managedNamespaces = listOf("itest", "itest-2")
-    private val client = DefaultKubernetesClient()
 
-    protected fun setup(mode: Mode, disableSecureCookies: Boolean = false, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, Operator, ReconcileListener) -> Unit) {
+    protected val chaosEnabled = System.getenv("SPO_TEST_CHAOS") != null
+
+    private val stableClient = DefaultKubernetesClient()
+    private val chaosClient: DefaultKubernetesClient = if (chaosEnabled) {
+        ChaosInterceptor.createChaosKubernetesClient()
+    } else {
+        DefaultKubernetesClient()
+    }
+
+    protected fun setup(mode: Mode, disableSecureCookies: Boolean = false, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, NamespacedKubernetesClient, Operator, ReconcileListener) -> Unit) {
         runBlocking {
 
             Runtime.getRuntime().addShutdownHook(Thread {
                 runBlocking {
                     deleteNamespaces()
-                    deleteCRD(client)
+                    deleteCRD(stableClient)
                 }
             })
 
@@ -68,18 +72,18 @@ abstract class IntegrationTestBase {
             createNamespaces()
             setupServiceAccount()
 
-            val namespacedKubernetesClient = client.inNamespace(namespace)
+            val namespacedKubernetesClient = chaosClient.inNamespace(namespace)
 
             // 2. create the CRD
-            if (!crdExists(client)) {
-                val crd = client.customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
-                client.customResourceDefinitions().createOrReplace(crd)
+            if (!crdExists()) {
+                val crd = stableClient.customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
+                stableClient.customResourceDefinitions().createOrReplace(crd)
             }
 
             // 3. create the operator
             val reconcileListener = ReconcileListener()
 
-            val operator = if (client.isStartupProbesSupported()) {
+            val operator = if (stableClient.isStartupProbesSupported()) {
                 Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener)
             } else {
                 Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener, 40, 2)
@@ -87,11 +91,12 @@ abstract class IntegrationTestBase {
 
             Operator.setOperatorInstance(operator)
 
-            val shinyProxyClient = client.inNamespace(namespace).customResources(customResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
+            // TODO stable or chaos?
+            val shinyProxyClient = stableClient.inNamespace(namespace).customResources(customResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
 
             try {
                 // 4. run test
-                block(namespace, shinyProxyClient, namespacedKubernetesClient, operator, reconcileListener)
+                block(namespace, shinyProxyClient, namespacedKubernetesClient, stableClient, operator, reconcileListener)
             } finally {
                 // 5. remove all instances
                 try {
@@ -112,7 +117,7 @@ abstract class IntegrationTestBase {
 
     private fun createNamespaces() {
         for (managedNamespace in managedNamespaces) {
-            client.namespaces().create(NamespaceBuilder()
+            stableClient.namespaces().create(NamespaceBuilder()
                     .withNewMetadata()
                     .withName(managedNamespace)
                     .endMetadata()
@@ -122,13 +127,13 @@ abstract class IntegrationTestBase {
 
     private suspend fun deleteNamespaces() {
         for (managedNamespace in managedNamespaces) {
-            val ns = client.namespaces().withName(managedNamespace).get() ?: continue
+            val ns = stableClient.namespaces().withName(managedNamespace).get() ?: continue
             try {
-                client.namespaces().delete(ns)
+                stableClient.namespaces().delete(ns)
             } catch (e: KubernetesClientException) {
                 // this namespace is probably all being deleted
             }
-            while (client.namespaces().withName(managedNamespace).get() != null) {
+            while (stableClient.namespaces().withName(managedNamespace).get() != null) {
                 delay(1000)
             }
         }
@@ -139,13 +144,13 @@ abstract class IntegrationTestBase {
         client.customResourceDefinitions().delete(crd)
         delay(2000)
 
-        while (crdExists(client)) {
+        while (crdExists()) {
             delay(1000)
         }
     }
 
-    private fun crdExists(client: DefaultKubernetesClient): Boolean {
-        return client.customResourceDefinitions().list().items.firstOrNull {
+    private fun crdExists(): Boolean {
+        return stableClient.customResourceDefinitions().list().items.firstOrNull {
             it.spec.group == "openanalytics.eu" && it.spec.names.plural == "shinyproxies"
         } != null
     }
@@ -158,7 +163,7 @@ abstract class IntegrationTestBase {
     }
 
     protected fun runCurlRequest(serviceName: String, namespace: String) {
-        client.run().inNamespace(namespace)
+        stableClient.run().inNamespace(namespace)
                 .withRunConfig(RunConfigBuilder()
                         .withName("itest-curl-helper")
                         .withImage("curlimages/curl")
@@ -169,11 +174,11 @@ abstract class IntegrationTestBase {
     }
 
     private fun setupServiceAccount() {
-        client.load(this.javaClass.getResourceAsStream("/configs/serviceaccount.yaml")).createOrReplace()
+        stableClient.load(this.javaClass.getResourceAsStream("/configs/serviceaccount.yaml")).createOrReplace()
     }
 
     protected fun getPodsForInstance(instanceHash: String): PodList? {
-        return client.pods().inNamespace(namespace).withLabels(mapOf(
+        return stableClient.pods().inNamespace(namespace).withLabels(mapOf(
                 LabelFactory.PROXIED_APP to "true",
                 LabelFactory.INSTANCE_LABEL to instanceHash
         )).list()
