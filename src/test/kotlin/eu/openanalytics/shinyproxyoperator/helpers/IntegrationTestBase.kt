@@ -96,7 +96,7 @@ abstract class IntegrationTestBase {
 
             try {
                 // 4. run test
-                block(namespace, shinyProxyClient, namespacedKubernetesClient, stableClient, operator, reconcileListener)
+                block(namespace, shinyProxyClient, namespacedKubernetesClient, stableClient.inNamespace(namespace), operator, reconcileListener)
             } finally {
                 // 5. remove all instances
                 try {
