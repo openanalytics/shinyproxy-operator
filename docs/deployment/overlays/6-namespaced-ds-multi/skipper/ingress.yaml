@@ -9,6 +9,7 @@ metadata:
     nginx.ingress.kubernetes.io/session-cookie-expires: "172800"
     nginx.ingress.kubernetes.io/session-cookie-max-age: "172800"
     nginx.ingress.kubernetes.io/session-cookie-name: rout
+    nginx.org/websocket-services: "skipper-ingress"
     kubernetes.io/ingress.class: "nginx"
 spec:
   rules:
