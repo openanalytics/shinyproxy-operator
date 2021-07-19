@@ -55,16 +55,28 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
 
         val annotations = if (isLatest) {
             mapOf(
-                    "kubernetes.io/ingress.class" to "skipper",
-                    "zalando.org/skipper-predicate" to "True()",
-                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=$hashOfSpec; $security Path=$cookiePath") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")"""
+                "kubernetes.io/ingress.class" to "skipper",
+                "zalando.org/skipper-predicate" to "True()",
+                "zalando.org/skipper-filter" to
+                        """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
+                        """ -> """ +
+                        """setRequestHeader("X-ShinyProxy-Latest-Instance", "${shinyProxy.hashOfCurrentSpec}")""" +
+                        """ -> """ +
+                        """appendResponseHeader("Set-Cookie", "sp-instance=$hashOfSpec; $security Path=$cookiePath")""" +
+                        """ -> """ +
+                        """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")"""
 
             )
         } else {
             mapOf(
-                    "kubernetes.io/ingress.class" to "skipper",
-                    "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hashOfSpec")""",
-                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")"""
+                "kubernetes.io/ingress.class" to "skipper",
+                "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hashOfSpec")""",
+                "zalando.org/skipper-filter" to
+                        """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
+                        """ -> """ +
+                        """setRequestHeader("X-ShinyProxy-Latest-Instance", "${shinyProxy.hashOfCurrentSpec}")""" +
+                        """ -> """ +
+                        """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")"""
             )
         }
 
@@ -96,7 +108,8 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                 .build()
         //@formatter:on
 
-        val createdIngress = kubeClient.network().ingress().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
+        val createdIngress =
+            kubeClient.network().ingress().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Created ${createdIngress.metadata.name} [latest=$isLatest]" }
     }
 

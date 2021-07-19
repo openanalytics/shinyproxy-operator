@@ -684,13 +684,18 @@ class MainIntegrationTest : IntegrationTestBase() {
             ingress.metadata.ownerReferences[0].name
         )
 
-        assertEquals(
-            mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
-                "zalando.org/skipper-predicate" to "True()",
-                "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/sub-path/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/sub-path/")"""
-            ), ingress.metadata.annotations
-        )
+        assertEquals(mapOf(
+            "kubernetes.io/ingress.class" to "skipper",
+            "zalando.org/skipper-predicate" to "True()",
+            "zalando.org/skipper-filter" to
+                    """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
+                    """ -> """ +
+                    """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
+                    """ -> """ +
+                    """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/sub-path/")""" +
+                    """ -> """ +
+                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/sub-path/")"""
+        ), ingress.metadata.annotations)
 
         assertEquals(1, ingress.spec.rules.size)
         val rule = ingress.spec.rules[0]
@@ -752,13 +757,18 @@ class MainIntegrationTest : IntegrationTestBase() {
             ingress.metadata.ownerReferences[0].name
         )
 
-        assertEquals(
-            mapOf(
+        assertEquals(mapOf(
                 "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to "True()",
-                "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec};  Path=/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec};  Path=/")"""
-            ), ingress.metadata.annotations
-        )
+                "zalando.org/skipper-filter" to
+                        """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
+                        """ -> """ +
+                        """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
+                        """ -> """ +
+                        """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec};  Path=/")""" +
+                        """ -> """ +
+                        """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec};  Path=/")"""
+            ), ingress.metadata.annotations)
 
         job.cancel()
     }

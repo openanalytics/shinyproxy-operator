@@ -101,15 +101,28 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         if (isLatest) {
             assertEquals(mapOf(
-                    "kubernetes.io/ingress.class" to "skipper",
-                    "zalando.org/skipper-predicate" to "True()",
-                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie",  "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/") -> appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
+                "kubernetes.io/ingress.class" to "skipper",
+                "zalando.org/skipper-predicate" to "True()",
+                "zalando.org/skipper-filter" to
+                        """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
+                        """ -> """ +
+                        """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
+                        """ -> """ +
+                        """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")""" +
+                        """ -> """ +
+                        """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
             ), ingress.metadata.annotations)
         } else {
             assertEquals(mapOf(
-                    "kubernetes.io/ingress.class" to "skipper",
-                    "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
-                    "zalando.org/skipper-filter" to """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
+                "kubernetes.io/ingress.class" to "skipper",
+                "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
+                "zalando.org/skipper-filter" to
+                        """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
+                        """ -> """ +
+                        """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
+                        """ -> """ +
+                        """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
+
             ), ingress.metadata.annotations)
         }
 
