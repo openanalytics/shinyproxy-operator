@@ -758,17 +758,17 @@ class MainIntegrationTest : IntegrationTestBase() {
         )
 
         assertEquals(mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
-                "zalando.org/skipper-predicate" to "True()",
-                "zalando.org/skipper-filter" to
-                        """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
-                        """ -> """ +
-                        """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
-                        """ -> """ +
-                        """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec};  Path=/")""" +
-                        """ -> """ +
-                        """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec};  Path=/")"""
-            ), ingress.metadata.annotations)
+            "kubernetes.io/ingress.class" to "skipper",
+            "zalando.org/skipper-predicate" to "True()",
+            "zalando.org/skipper-filter" to
+                    """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
+                    """ -> """ +
+                    """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
+                    """ -> """ +
+                    """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec};  Path=/")""" +
+                    """ -> """ +
+                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec};  Path=/")"""
+        ), ingress.metadata.annotations)
 
         job.cancel()
     }
@@ -914,7 +914,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `restore old config version`() =
-        // idea of test: launch instance A, update config to get instance B, and the update config again
+    // idea of test: launch instance A, update config to get instance B, and the update config again
         // using the same config as A, resulting in instance A' (which is the same instance as A, as A was never removed!)
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
             // 1. create a SP instance
@@ -998,44 +998,44 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             job.cancel()
 
-    }
+        }
 
     // see #25154
     @Test
     fun `latest marker and ingress should be created in a single, atomic step`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
-            if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
-            // 1. create a SP instance
-            val spTestInstance = ShinyProxyTestInstance(
-                namespace,
-                namespacedClient,
-                shinyProxyClient,
-                "simple_config.yaml",
-                reconcileListener
-            )
-            spTestInstance.create()
+        if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
+        // 1. create a SP instance
+        val spTestInstance = ShinyProxyTestInstance(
+            namespace,
+            namespacedClient,
+            shinyProxyClient,
+            "simple_config.yaml",
+            reconcileListener
+        )
+        spTestInstance.create()
 
-            // 2. prepare the operator
-            operator.prepare()
+        // 2. prepare the operator
+        operator.prepare()
 
-            // 3. run the operator until the ReplicaSet is ready
-            while (true) {
-                // let the operator handle one event
-                operator.shinyProxyController.receiveAndHandleEvent()
+        // 3. run the operator until the ReplicaSet is ready
+        while (true) {
+            // let the operator handle one event
+            operator.shinyProxyController.receiveAndHandleEvent()
 
-                val replicaSets = stableClient.apps().replicaSets().list().items
-                if (replicaSets.size == 0) {
-                    // if replicaset is not created -> continue handling events
-                    continue
-                }
-                assertEquals(1, replicaSets.size)
-                val replicaSet = replicaSets[0]
-                if (!Readiness.isReady(replicaSet)) {
-                    // if replicaset is not ready -> continue handling events
-                    continue
-                }
-
-                break
+            val replicaSets = stableClient.apps().replicaSets().list().items
+            if (replicaSets.size == 0) {
+                // if replicaset is not created -> continue handling events
+                continue
             }
+            assertEquals(1, replicaSets.size)
+            val replicaSet = replicaSets[0]
+            if (!Readiness.isReady(replicaSet)) {
+                // if replicaset is not ready -> continue handling events
+                continue
+            }
+
+            break
+        }
 
         // 4. check state
         // A) when the ReplicaSet is ready, the service should already exist

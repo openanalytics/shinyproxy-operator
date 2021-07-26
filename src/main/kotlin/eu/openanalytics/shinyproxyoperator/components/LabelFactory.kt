@@ -22,24 +22,23 @@ package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import java.lang.RuntimeException
 
 object LabelFactory {
 
     fun labelsForCurrentShinyProxyInstance(shinyProxy: ShinyProxy): Map<String, String> {
         return mapOf(
-                APP_LABEL to APP_LABEL_VALUE,
-                NAME_LABEL to shinyProxy.metadata.name,
-                INSTANCE_LABEL to shinyProxy.hashOfCurrentSpec
+            APP_LABEL to APP_LABEL_VALUE,
+            NAME_LABEL to shinyProxy.metadata.name,
+            INSTANCE_LABEL to shinyProxy.hashOfCurrentSpec
         )
     }
-    
+
     fun labelsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Map<String, String> {
         val hashOfSpec = shinyProxyInstance.hashOfSpec
         return mapOf(
-                APP_LABEL to APP_LABEL_VALUE,
-                NAME_LABEL to shinyProxy.metadata.name,
-                INSTANCE_LABEL to hashOfSpec
+            APP_LABEL to APP_LABEL_VALUE,
+            NAME_LABEL to shinyProxy.metadata.name,
+            INSTANCE_LABEL to hashOfSpec
         )
     }
 
@@ -47,7 +46,7 @@ object LabelFactory {
     const val APP_LABEL_VALUE = "shinyproxy"
     const val NAME_LABEL = "openanalytics.eu/sp-resource-name"
     const val INSTANCE_LABEL = "openanalytics.eu/sp-instance"
-    const val PROXIED_APP =  "openanalytics.eu/sp-proxied-app"
+    const val PROXIED_APP = "openanalytics.eu/sp-proxied-app"
     const val INGRESS_IS_LATEST = "openanalytics.eu/ingress-is-latest"
 
 }

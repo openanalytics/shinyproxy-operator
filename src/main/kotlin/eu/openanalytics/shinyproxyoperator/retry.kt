@@ -21,8 +21,7 @@
 package eu.openanalytics.shinyproxyoperator
 
 import kotlinx.coroutines.delay
-import java.lang.RuntimeException
-import java.util.function.IntPredicate;
+import java.util.function.IntPredicate
 
 suspend fun retry(tries: Int, waitTime: Long, job: IntPredicate): Boolean {
     return retry(tries, waitTime, false, job)

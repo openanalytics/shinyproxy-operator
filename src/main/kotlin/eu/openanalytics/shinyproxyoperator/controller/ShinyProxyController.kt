@@ -40,7 +40,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import mu.KotlinLogging
-import kotlin.system.exitProcess
 
 
 class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
@@ -179,7 +178,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     }
 
 
-
     private fun refreshShinyProxy(shinyProxy: ShinyProxy): ShinyProxy {
         return shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).withName(shinyProxy.metadata.name).get()
     }
@@ -191,7 +189,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
     private fun updateLatestMarker(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         val latestInstance = shinyProxy.status.instances.firstOrNull { it.hashOfSpec == shinyProxy.hashOfCurrentSpec }
-                ?: return
+            ?: return
         if (latestInstance.isLatestInstance) {
             // already updated marker
             return

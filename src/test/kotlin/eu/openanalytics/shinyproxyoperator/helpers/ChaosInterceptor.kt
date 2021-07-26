@@ -26,7 +26,8 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.utils.HttpClientUtils
 import mu.KotlinLogging
-import okhttp3.*
+import okhttp3.Interceptor
+import okhttp3.Response
 import java.net.HttpURLConnection
 import kotlin.random.Random
 
@@ -47,7 +48,7 @@ class ChaosInterceptor : Interceptor {
         }
 
         if ((request.method() == "POST" || request.method() == "PUT") && Random.nextInt(0, 10) < 5) {
-            val resp = chain.proceed(request)
+            chain.proceed(request)
             throw KubernetesClientException(
                 "Already exist",
                 HttpURLConnection.HTTP_CONFLICT,

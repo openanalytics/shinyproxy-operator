@@ -29,7 +29,6 @@ import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import eu.openanalytics.shinyproxyoperator.sha1
 import io.fabric8.kubernetes.api.model.Namespaced
 import io.fabric8.kubernetes.client.CustomResource
-import java.lang.IllegalStateException
 import javax.json.JsonPatch
 
 data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyProxyStatus()) : CustomResource(), Namespaced {

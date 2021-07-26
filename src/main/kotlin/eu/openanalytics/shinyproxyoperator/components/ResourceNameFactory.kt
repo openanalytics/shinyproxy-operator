@@ -23,7 +23,6 @@ package eu.openanalytics.shinyproxyoperator.components
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import mu.KotlinLogging
-import java.lang.IllegalStateException
 
 object ResourceNameFactory {
 

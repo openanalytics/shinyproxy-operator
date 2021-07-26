@@ -24,7 +24,6 @@ import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.*
-import java.nio.file.Paths
 
 class PodTemplateSpecFactory {
 

@@ -37,11 +37,11 @@ import kotlinx.coroutines.channels.Channel
 import mu.KotlinLogging
 
 class IngressController(
-        channel: Channel<ShinyProxyEvent>,
-        ingressInformer: SharedIndexInformer<Ingress>,
-        shinyProxyListener: Lister<ShinyProxy>,
-        kubernetesClient: KubernetesClient,
-        private val resourceRetriever: ResourceRetriever
+    channel: Channel<ShinyProxyEvent>,
+    ingressInformer: SharedIndexInformer<Ingress>,
+    shinyProxyListener: Lister<ShinyProxy>,
+    kubernetesClient: KubernetesClient,
+    private val resourceRetriever: ResourceRetriever
 ) : IIngressController {
 
     private val logger = KotlinLogging.logger {}

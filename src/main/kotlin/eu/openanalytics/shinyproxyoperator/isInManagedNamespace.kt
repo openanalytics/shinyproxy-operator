@@ -22,9 +22,8 @@ package eu.openanalytics.shinyproxyoperator
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import mu.KotlinLogging
-import java.lang.IllegalStateException
 
-val logger = KotlinLogging.logger {  }
+val logger = KotlinLogging.logger { }
 
 fun isInManagedNamespace(shinyProxy: ShinyProxy): Boolean {
     when (Operator.getOperatorInstance().mode) {

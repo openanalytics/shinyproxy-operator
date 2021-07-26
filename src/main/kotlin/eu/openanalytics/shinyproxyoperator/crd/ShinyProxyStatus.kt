@@ -29,7 +29,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource
 data class ShinyProxyStatus(val instances: ArrayList<ShinyProxyInstance> = arrayListOf()) : KubernetesResource {
 
     fun getInstanceByHash(hash: String): ShinyProxyInstance? {
-        return instances.find { it.hashOfSpec ==  hash}
+        return instances.find { it.hashOfSpec == hash }
     }
 
 }

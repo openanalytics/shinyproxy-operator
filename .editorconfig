@@ -1,0 +1,27 @@
+root = true
+
+[*]
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+ij_kotlin_call_parameters_new_line_after_left_paren = false
+ij_kotlin_call_parameters_right_paren_on_new_line = false
+ij_kotlin_method_parameters_new_line_after_left_paren = false
+ij_kotlin_method_parameters_right_paren_on_new_line = false
+ij_any_wrap_long_lines = false
+ij_formatter_off_tag = "@formatter:off"
+ij_formatter_on_tag = "@formatter:on"
+max_line_length = 256
+
+[*.{java,xml,yaml}]
+indent_style = space
+indent_size = 4
+charset = utf-8
+
+[*.gradle]
+indent_style = tab
+
+[Jenkinsfile}]
+indent_style = space
+indent_size = 4
+charset = utf-8

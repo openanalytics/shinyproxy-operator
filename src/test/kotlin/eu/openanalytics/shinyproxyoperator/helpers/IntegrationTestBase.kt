@@ -29,21 +29,23 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.api.model.PodList
-import io.fabric8.kubernetes.client.*
+import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder
-import io.fabric8.kubernetes.client.utils.HttpClientUtils.createHttpClient
 import kotlinx.coroutines.*
 
 
 abstract class IntegrationTestBase {
 
     private val customResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
-            .withVersion("v1alpha1")
-            .withScope("Namespaced")
-            .withGroup("openanalytics.eu")
-            .withPlural("shinyproxies")
-            .build()
+        .withVersion("v1alpha1")
+        .withScope("Namespaced")
+        .withGroup("openanalytics.eu")
+        .withPlural("shinyproxies")
+        .build()
 
     private val namespace = "itest"
     private val managedNamespaces = listOf("itest", "itest-2")
@@ -118,10 +120,10 @@ abstract class IntegrationTestBase {
     private fun createNamespaces() {
         for (managedNamespace in managedNamespaces) {
             stableClient.namespaces().create(NamespaceBuilder()
-                    .withNewMetadata()
-                    .withName(managedNamespace)
-                    .endMetadata()
-                    .build())
+                .withNewMetadata()
+                .withName(managedNamespace)
+                .endMetadata()
+                .build())
         }
     }
 
@@ -164,13 +166,13 @@ abstract class IntegrationTestBase {
 
     protected fun runCurlRequest(serviceName: String, namespace: String) {
         stableClient.run().inNamespace(namespace)
-                .withRunConfig(RunConfigBuilder()
-                        .withName("itest-curl-helper")
-                        .withImage("curlimages/curl")
-                        .withArgs("-X", "POST", "-u", "demo:demo", "${serviceName}/api/proxy/01_hello")
-                        .withRestartPolicy("Never")
-                        .build())
-                .done()
+            .withRunConfig(RunConfigBuilder()
+                .withName("itest-curl-helper")
+                .withImage("curlimages/curl")
+                .withArgs("-X", "POST", "-u", "demo:demo", "${serviceName}/api/proxy/01_hello")
+                .withRestartPolicy("Never")
+                .build())
+            .done()
     }
 
     private fun setupServiceAccount() {
@@ -179,8 +181,8 @@ abstract class IntegrationTestBase {
 
     protected fun getPodsForInstance(instanceHash: String): PodList? {
         return stableClient.pods().inNamespace(namespace).withLabels(mapOf(
-                LabelFactory.PROXIED_APP to "true",
-                LabelFactory.INSTANCE_LABEL to instanceHash
+            LabelFactory.PROXIED_APP to "true",
+            LabelFactory.INSTANCE_LABEL to instanceHash
         )).list()
     }
 

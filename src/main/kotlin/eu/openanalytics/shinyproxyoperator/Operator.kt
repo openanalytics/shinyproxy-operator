@@ -49,7 +49,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
 import org.slf4j.LoggerFactory
-import java.lang.IllegalStateException
 import kotlin.system.exitProcess
 
 
@@ -74,11 +73,11 @@ class Operator(client: NamespacedKubernetesClient? = null,
     val startupProbeInitialDelay: Int
 
     private val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
-            .withVersion("v1alpha1")
-            .withScope("Namespaced")
-            .withGroup("openanalytics.eu")
-            .withPlural("shinyproxies")
-            .build()
+        .withVersion("v1alpha1")
+        .withScope("Namespaced")
+        .withGroup("openanalytics.eu")
+        .withPlural("shinyproxies")
+        .build()
 
     private val informerFactory: SharedInformerFactory
     private val replicaSetInformer: SharedIndexInformer<ReplicaSet>
@@ -238,7 +237,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
 
         fun setOperatorInstance(operator: Operator) {
             this._operatorInstance = operator
-       }
+        }
 
         fun getOperatorInstance(): Operator {
             _operatorInstance.let {
@@ -251,7 +250,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         }
     }
 
-    private fun<T> readConfigValue(constructorValue: T?, default: T, envVarName: String, convertor: (String) -> T): T {
+    private fun <T> readConfigValue(constructorValue: T?, default: T, envVarName: String, convertor: (String) -> T): T {
         val e = System.getenv(envVarName)
         val res = when {
             constructorValue != null -> constructorValue

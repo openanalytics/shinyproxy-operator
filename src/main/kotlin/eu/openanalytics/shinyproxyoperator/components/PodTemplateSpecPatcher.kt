@@ -26,14 +26,13 @@ import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import io.fabric8.kubernetes.api.model.HTTPGetAction
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.api.model.PodTemplateSpec
-import io.fabric8.kubernetes.client.internal.SerializationUtils
 import mu.KotlinLogging
 import javax.json.JsonPatch
 import javax.json.JsonStructure
 
 class PodTemplateSpecPatcher {
     private val mapper = ObjectMapper(YAMLFactory())
-    private val logger = KotlinLogging.logger {  }
+    private val logger = KotlinLogging.logger { }
 
     init {
         mapper.registerModule(JSR353Module())

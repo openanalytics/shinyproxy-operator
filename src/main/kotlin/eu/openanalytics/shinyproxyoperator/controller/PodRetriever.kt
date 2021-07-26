@@ -25,7 +25,6 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodList
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.OperationContext
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
@@ -54,8 +53,8 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
     fun getPodsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): List<Pod> {
         val pods = arrayListOf<Pod>()
         val labels = mapOf(
-                LabelFactory.PROXIED_APP to "true",
-                LabelFactory.INSTANCE_LABEL to shinyProxyInstance.hashOfSpec
+            LabelFactory.PROXIED_APP to "true",
+            LabelFactory.INSTANCE_LABEL to shinyProxyInstance.hashOfSpec
         )
 
         val namespacesToCheck = if (shinyProxyInstance.isLatestInstance) {
