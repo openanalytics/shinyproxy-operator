@@ -34,11 +34,11 @@ latest server.
 the latest version.
 - a message on the main page of ShinyProxy is shown:
 
-  ![Message on the app page](../../.github/screenshots/message_main_page.png)
+  ![Message on the app page](../.github/screenshots/message_main_page.png)
 
 - a message on the app page of ShinyProxy is shown:
 
-  ![Message on the app page](../../.github/screenshots/message_app_page.png)
+  ![Message on the app page](../.github/screenshots/message_app_page.png)
 
 - after clicking the button on the message the user is transferred to the latest
   ShinyProxy server
@@ -97,7 +97,7 @@ server. This server will then redirect to the OpenID provider.
   the latest ShinyProxy server
 
 **Note:** this only works when the `proxy.operator.force-transfer` option is set
-to `true` (in the ShinyProxy configuration).
+to `true` (in the ShinyProxy configuration). By default this option is disabled.
 
 ### Scenario 5: Starting an app
 

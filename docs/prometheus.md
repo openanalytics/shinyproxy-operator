@@ -9,13 +9,13 @@ Before diving into the details, have a look at the setup of Prometheus
 monitoring with ShinyProxy in a [regular deployment](https://shinyproxy.io/documentation/usage-statistics/#micrometer).
 
 Because the operator is meant to dynamically create ShinyProxy servers, it does
-not suffice to configure static list of ShinyProxy servers in Prometheus.
-Fortunately, Prometheus has the concept of [Service Discover](https://prometheus.io/docs/prometheus/latest/configuration/configuration/),
+not suffice to configure a static list of ShinyProxy servers in Prometheus.
+Fortunately, Prometheus has the concept of [Service Discovery](https://prometheus.io/docs/prometheus/latest/configuration/configuration/),
 which allows Prometheus to automatically *discover* ShinyProxy servers. We
 assume here that Prometheus is running in the same Kubernetes cluster as the
 ShinyProxy operator.
 
-What follows is an example configuration of Prometheus:
+Example Prometheus configuration:
 
 ```yaml
 scrape_configs:
