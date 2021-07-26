@@ -1,0 +1,128 @@
+apiVersion: openanalytics.eu/v1alpha1
+kind: ShinyProxy
+metadata:
+  name: shinyproxy1
+  namespace: shinyproxy-operator
+spec:
+  server:
+    forward-headers-strategy: native
+    servlet:
+      context-path: /shinyproxy1
+  spring:
+    session:
+      store-type: redis
+      redis:
+        configure-action: none
+    redis:
+      host: redis
+      password: ${REDIS_PASSWORD}
+  management:
+    metrics:
+      export:
+        prometheus:
+          enabled: true
+  logging:
+    level:
+      eu:
+        openanalytics:
+          containerproxy:
+            service:
+              session: DEBUG
+  proxy:
+    defaultMaxInstances: -1
+    usage-stats-url: micrometer
+    title: ShinyProxy 11
+    logoUrl: ""
+    landingPage: /
+    containerBackend: kubernetes
+    kubernetes:
+      namespace: shinyproxy-operator
+      internal-networking: true
+      image-pull-policy: Always
+    authentication: simple
+    stop_apps_on_shutdown: false
+      #ha-mode: redis
+      #admin-groups: scientists
+      #authentication: openid
+      #authentication: none
+      #openid:
+      #auth-url: https://keycloak.ledfan.be/auth/realms/master/protocol/openid-connect/auth
+      #token-url: https://keycloak.ledfan.be/auth/realms/master/protocol/openid-connect/token
+      #jwks-url: https://keycloak.ledfan.be/auth/realms/master/protocol/openid-connect/certs
+      #logout-url: /logout-success
+      #client-id: shinyproxy-oidc-1
+      #client-secret: b98d84bd-4e2a-486b-8d47-7232da771e50
+    #roles-claim: realm_access_roles
+    #username-attribute: email
+    users:
+      - name: jack
+        password: password
+        groups: scientists
+      - name: jeff
+        password: password
+        groups: mathematicians
+    specs:
+      - id: 01_hello
+        display-name: Hello Application
+        description: Application which demonstrates the basics of a Shiny app
+        container-cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        container-image: openanalytics/shinyproxy-demo
+        #access-groups: [scientists, mathematicians]
+      - id: 06_tabsets
+        container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
+        container-image: openanalytics/shinyproxy-demo
+        #access-groups: scientists
+      - id: rstudio
+        displayName: RStudio
+        description: RStudio
+        containerImage: openanalytics/shinyproxy-rstudio-ide-demo:1.4.1106__4.0.4
+        port: 8787
+        container-env:
+          DISABLE_AUTH: true
+          WWW_ROOT_PATH: "#{proxy.getRuntimeValue('SHINYPROXY_PUBLIC_PATH')}"
+      - id: broken
+        displayName: broken
+        description: broken
+        containerImage: broken
+    operator:
+      force-transfer: true
+  kubernetesPodTemplateSpecPatches: |
+    - op: add
+      path: /spec/containers/0/env/-
+      value:
+        name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: redis-password
+            key: password
+    - op: add
+      path: /spec/containers/0/resources
+      value:
+        limits:
+          cpu: 1
+        requests:
+          cpu: 0.5
+    - op: add
+      path: /spec/serviceAccountName
+      value: shinyproxy-sa
+  #    - op: remove
+  #      path: /spec/containers/0/startupProbe
+  #    - op: remove
+  #      path: /spec/containers/0/readinessProbe
+  #    - op: remove
+  #      path: /spec/containers/0/livenessProbe
+  #      value:
+  #        httpGet:
+  #          path: /actuator/health/liveness
+  #          port: 9090
+  #          scheme: HTTP
+  #        timeoutSeconds: 3
+  #        periodSeconds: 5
+  #        successThreshold: 1
+  #        failureThreshold: 6
+  #        initialDelaySeconds: 60
+  image: openanalytics/shinyproxy-snapshot:2.6.0-SNAPSHOT-20210719.083255
+  #image: ledfan/shinyproxy:2.5.1-SNAPSHOT-20210709.154837
+  imagePullPolicy: Always
+  #  fqdn: operator-demo.local
+  fqdn: shinyproxy-demo.local

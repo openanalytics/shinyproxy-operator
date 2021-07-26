@@ -8,4 +8,4 @@ bases:
   - ../../../bases/namespaced/operator
 
 resources:
- - shinyproxy.yaml
+  - shinyproxy.yaml

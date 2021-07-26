@@ -7,6 +7,6 @@ bases:
   - ../../bases/namespaced/operator/
 
 resources:
- - namespace.yaml
- - skipper/
- - shinyproxy/
+  - namespace.yaml
+  - skipper/
+  - shinyproxy/

@@ -6,5 +6,5 @@ bases:
   - ../../../bases/shinyproxy/
 
 resources:
- - namespace.yaml
- - ns-role.yaml
+  - namespace.yaml
+  - ns-role.yaml

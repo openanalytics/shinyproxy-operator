@@ -6,5 +6,5 @@ bases:
   - ../../../bases/clustered/skipper-hpa
 
 resources:
- - namespace.yaml
- - ingress.yaml
+  - namespace.yaml
+  - ingress.yaml

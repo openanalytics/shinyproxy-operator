@@ -17,14 +17,14 @@ spec:
         app: redis
     spec:
       containers:
-      - name: master
-        image: redis
-        ports:
-         - containerPort: 6379
-        args: [ "--requirepass", "$(REDIS_PASSWORD)"]
-        env:
-          - name: REDIS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: redis-password
-                key: password
+        - name: master
+          image: redis
+          ports:
+            - containerPort: 6379
+          args: [ "--requirepass", "$(REDIS_PASSWORD)" ]
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-password
+                  key: password

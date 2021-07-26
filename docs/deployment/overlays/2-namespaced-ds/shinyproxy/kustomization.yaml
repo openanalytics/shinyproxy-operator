@@ -5,4 +5,4 @@ bases:
   - ../../../bases/shinyproxy/
 
 resources:
- - shinyproxy.yaml
+  - shinyproxy.yaml

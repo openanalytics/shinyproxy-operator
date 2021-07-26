@@ -5,4 +5,4 @@ bases:
   - ../../../bases/namespaced/skipper-ds
 
 resources:
- - ingress.yaml
+  - ingress.yaml

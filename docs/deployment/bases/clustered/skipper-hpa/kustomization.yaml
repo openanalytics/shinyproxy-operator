@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: shinyproxy
 resources:
- - serviceaccount.yaml
- - deployment.yaml
- - service.yaml
- - hpa.yaml
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml

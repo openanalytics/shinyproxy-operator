@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: shinyproxy-operator
+
+bases:
+  - ../../bases/redis/
+  - ../../bases/namespaced/operator/crd.yaml
+  - ../../bases/namespaced/operator/serviceaccount.yaml
+  - ../../bases/shinyproxy/serviceaccount.yaml
+
+resources:
+  - namespace.yaml
+  - skipper/
+  - shinyproxy/shinyproxy1.yaml
+  #- shinyproxy/shinyproxy2.yaml
+  #- shinyproxy/shinyproxy3.yaml
+  #- shinyproxy/shinyproxy4.yaml

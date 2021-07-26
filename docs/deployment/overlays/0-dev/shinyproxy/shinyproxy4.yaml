@@ -1,15 +1,13 @@
 apiVersion: openanalytics.eu/v1alpha1
 kind: ShinyProxy
 metadata:
-  name: shinyproxy3
-  namespace: shinyproxy
+  name: shinyproxy4
+  namespace: shinyproxy-operator
 spec:
   server:
-    servlet:
-      context-path: /shinyproxy3
-    secureCookies: true
-    frameOptions: sameorigin
     forward-headers-strategy: native
+    servlet:
+      context-path: /shinyproxy4/
   spring:
     session:
       store-type: redis
@@ -19,12 +17,12 @@ spec:
       host: redis
       password: ${REDIS_PASSWORD}
   proxy:
-    title: ShinyProxy3
+    title: ShinyProxy 4
     logoUrl: ""
     landingPage: /
     containerBackend: kubernetes
     kubernetes:
-      namespace: shinyproxy
+      namespace: shinyproxy-operator
       internal-networking: true
       image-pull-policy: Always
     authentication: simple
@@ -88,4 +86,4 @@ spec:
         initialDelaySeconds: 60
   image: openanalytics/shinyproxy:2.5.0
   imagePullPolicy: Always
-  fqdn: shinyproxy-demo.local
+  fqdn: operator-demo.local

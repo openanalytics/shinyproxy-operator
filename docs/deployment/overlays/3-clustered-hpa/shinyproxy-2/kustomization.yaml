@@ -6,6 +6,6 @@ bases:
   - ../../../bases/shinyproxy/
 
 resources:
- - namespace.yaml
- - shinyproxy.yaml
- - secret.yaml
+  - namespace.yaml
+  - shinyproxy.yaml
+  - secret.yaml

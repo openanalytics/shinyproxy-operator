@@ -3,7 +3,7 @@ kind: Kustomization
 
 
 resources:
- - namespace.yaml
- - skipper/
- - shinyproxy/
- - my-namespace/
+  - namespace.yaml
+  - skipper/
+  - shinyproxy/
+  - my-namespace/

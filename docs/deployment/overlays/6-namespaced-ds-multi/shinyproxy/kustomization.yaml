@@ -5,6 +5,6 @@ bases:
   - ../../../bases/shinyproxy/
 
 resources:
- - shinyproxy1.yaml
- - shinyproxy2.yaml
- - shinyproxy3.yaml
+  - shinyproxy1.yaml
+  - shinyproxy2.yaml
+  - shinyproxy3.yaml
