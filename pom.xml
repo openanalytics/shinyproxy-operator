@@ -226,6 +226,7 @@
                         <exclude>LICENSE_HEADER</exclude>
                         <exclude>README.md</exclude>
                         <exclude>.gitignore</exclude>
+                        <exclude>.editorconfig</exclude>
                     </excludes>
                 </configuration>
             </plugin>
