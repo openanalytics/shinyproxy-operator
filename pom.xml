@@ -18,7 +18,7 @@
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.target>11</maven.compiler.target>
         <version.fabric8.client>4.13.2</version.fabric8.client>
-        <kotlin.version>1.4.10</kotlin.version>
+        <kotlin.version>1.5.21</kotlin.version>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <version.arquillian_cube>1.18.2</version.arquillian_cube>
         <junit.jupiter.version>5.6.0</junit.jupiter.version>
@@ -140,6 +140,8 @@
                 </executions>
                 <configuration>
                     <jvmTarget>11</jvmTarget>
+                    <languageVersion>1.5</languageVersion>
+                    <apiVersion>1.5</apiVersion>
                 </configuration>
             </plugin>
             <plugin>

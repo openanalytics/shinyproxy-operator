@@ -9,7 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         java: [ 11 ]
-        kubernetes: [ 'v1.19.6', 'v1.18.14', 'v1.17.16', 'v1.16.14']
+        kubernetes: [ '1.21.4', '1.20.10', 'v1.19.14', 'v1.18.20', 'v1.17.17', 'v1.16.15']
 
     steps:
       - uses: actions/checkout@v2

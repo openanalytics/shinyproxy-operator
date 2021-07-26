@@ -136,7 +136,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
             serviceInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, 10 * 60 * 1000.toLong())
             configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
             ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, 10 * 60 * 1000.toLong())
-            shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000)
+            shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000.toLong())
             podRetriever = PodRetriever(this.client)
         } else {
             val operationContext = OperationContext().withNamespace(namespace)
@@ -144,7 +144,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
             serviceInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, operationContext, 10 * 60 * 1000.toLong())
             configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, operationContext, 10 * 60 * 1000.toLong())
             ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, operationContext, 10 * 60 * 1000.toLong())
-            shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, operationContext, 10 * 60 * 1000)
+            shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, operationContext, 10 * 60 * 1000.toLong())
             podRetriever = PodRetriever(this.client)
         }
 
