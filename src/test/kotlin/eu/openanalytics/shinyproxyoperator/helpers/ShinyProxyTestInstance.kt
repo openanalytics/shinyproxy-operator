@@ -29,7 +29,6 @@ import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.withTimeout
-import java.lang.IllegalStateException
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
@@ -87,10 +86,10 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals("sp-${sp.metadata.name}-ing-${hash}".take(63), ingress.metadata.name)
 
         assertEquals(mapOf(
-                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-                LabelFactory.NAME_LABEL to sp.metadata.name,
-                LabelFactory.INSTANCE_LABEL to hash,
-                LabelFactory.INGRESS_IS_LATEST to isLatest.toString()
+            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+            LabelFactory.NAME_LABEL to sp.metadata.name,
+            LabelFactory.INSTANCE_LABEL to hash,
+            LabelFactory.INGRESS_IS_LATEST to isLatest.toString()
         ), ingress.metadata.labels)
 
         assertEquals(1, ingress.metadata.ownerReferences.size)
@@ -104,24 +103,24 @@ class ShinyProxyTestInstance(private val namespace: String,
                 "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to "True()",
                 "zalando.org/skipper-filter" to
-                        """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
-                        """ -> """ +
-                        """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
-                        """ -> """ +
-                        """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")""" +
-                        """ -> """ +
-                        """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
+                    """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
+                    """ -> """ +
+                    """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
+                    """ -> """ +
+                    """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")""" +
+                    """ -> """ +
+                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
             ), ingress.metadata.annotations)
         } else {
             assertEquals(mapOf(
                 "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
                 "zalando.org/skipper-filter" to
-                        """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
-                        """ -> """ +
-                        """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
-                        """ -> """ +
-                        """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
+                    """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
+                    """ -> """ +
+                    """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
+                    """ -> """ +
+                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
 
             ), ingress.metadata.annotations)
         }
@@ -152,9 +151,9 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(80, service.spec.ports[0].port)
         assertEquals(IntOrString(8080), service.spec.ports[0].targetPort)
         assertEquals(mapOf(
-                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-                LabelFactory.NAME_LABEL to sp.metadata.name,
-                LabelFactory.INSTANCE_LABEL to hash
+            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+            LabelFactory.NAME_LABEL to sp.metadata.name,
+            LabelFactory.INSTANCE_LABEL to hash
         ), service.spec.selector)
 
     }
@@ -232,9 +231,9 @@ class ShinyProxyTestInstance(private val namespace: String,
 
     fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy) {
         assertEquals(mapOf(
-                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-                LabelFactory.NAME_LABEL to sp.metadata.name,
-                LabelFactory.INSTANCE_LABEL to hash
+            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+            LabelFactory.NAME_LABEL to sp.metadata.name,
+            LabelFactory.INSTANCE_LABEL to hash
         ), resource.metadata.labels)
     }
 

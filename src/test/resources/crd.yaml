@@ -11,7 +11,7 @@ spec:
   scope: "Namespaced"
   version: "v1alpha1"
   subresources:
-    status: {}
+    status: { }
   validation:
     openAPIV3Schema:
       description: ShinyProxy
@@ -33,7 +33,7 @@ spec:
             name:
               type: string
           required:
-           - name
+            - name
         spec:
           description: Specification of the ShinyProxy (i.e. application.yml)
           type: object
@@ -62,14 +62,14 @@ spec:
                 authentication:
                   type: string
                   enum:
-                   - ldap
-                   - kerberos
-                   - keycloak
-                   - openid
-                   - saml
-                   - social
-                   - simple
-                   - none
+                    - ldap
+                    - kerberos
+                    - keycloak
+                    - openid
+                    - saml
+                    - social
+                    - simple
+                    - none
                 containerWaitTime:
                   type: integer
                 hideNavbar:
@@ -122,8 +122,8 @@ spec:
             appNamespaces:
               type: array
           required:
-           - proxy
-           - fqdn
+            - proxy
+            - fqdn
         status:
           description: ShinyProxyStatus defines the observed state of ShinyProxy
           type: object
