@@ -40,7 +40,7 @@ class IngressController(
     channel: Channel<ShinyProxyEvent>,
     ingressInformer: SharedIndexInformer<Ingress>,
     shinyProxyListener: Lister<ShinyProxy>,
-    kubernetesClient: KubernetesClient,
+    private val kubernetesClient: KubernetesClient,
     private val resourceRetriever: ResourceRetriever
 ) : IIngressController {
 
@@ -62,6 +62,12 @@ class IngressController(
         }
         if (failed) {
             throw RuntimeException("One or more ingresses failed to reconcile")
+        }
+    }
+
+    override fun onRemoveInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        for (ingress in resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
+            kubernetesClient.resource(ingress).delete()
         }
     }
 

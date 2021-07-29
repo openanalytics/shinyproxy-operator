@@ -21,8 +21,11 @@
 package eu.openanalytics.shinyproxyoperator.ingres
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 
 interface IIngressController {
 
     fun reconcile(shinyProxy: ShinyProxy)
+
+    fun onRemoveInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance)
 }

@@ -318,19 +318,31 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     }
 
     fun deleteSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance" }
+        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 1/3]: Update status" }
         // Important: update status BEFORE deleting, otherwise we will start reconciling this instance, before it's completely deleted
         updateStatus(shinyProxy) {
             it.status.instances.remove(shinyProxyInstance)
         }
-        for (service in resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
-            kubernetesClient.resource(service).delete()
-        }
-        for (replicaSet in resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
-            kubernetesClient.resource(replicaSet).delete()
-        }
-        for (configMap in resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
-            kubernetesClient.resource(configMap).delete()
+
+        // Important: remove ingress before removing the ReplicaSet. This ensures that the rotues are correclty updated in the Ingress
+        // and users aren't routed to non-existing pods
+        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 2/3]: Update Ingress" }
+        ingressController.onRemoveInstance(shinyProxy, shinyProxyInstance)
+
+        GlobalScope.launch { // run async
+            // delete resources after delay of 30 seconds to ensure all routes are updated before deleting replicaset
+            delay(30_000)
+            logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 3/3]: Delete resources" }
+
+            for (service in resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
+                kubernetesClient.resource(service).delete()
+            }
+            for (replicaSet in resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
+                kubernetesClient.resource(replicaSet).delete()
+            }
+            for (configMap in resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
+                kubernetesClient.resource(configMap).delete()
+            }
         }
     }
 
