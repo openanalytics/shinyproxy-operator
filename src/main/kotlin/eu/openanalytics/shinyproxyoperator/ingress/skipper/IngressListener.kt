@@ -35,6 +35,7 @@ import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
+import java.util.*
 
 // TODO this has some duplicate code with ResourceListener<T>
 class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
@@ -94,7 +95,7 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
     private fun getShinyProxyOwnerRefByKind(resource: HasMetadata, kind: String): OwnerReference? {
         val ownerReferences = resource.metadata.ownerReferences
         for (ownerReference in ownerReferences) {
-            if (ownerReference.kind.toLowerCase() == kind.toLowerCase()) {
+            if (ownerReference.kind.lowercase(Locale.getDefault()) == kind.lowercase(Locale.getDefault())) {
                 return ownerReference
             }
         }

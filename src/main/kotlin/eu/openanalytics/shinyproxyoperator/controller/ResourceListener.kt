@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
+import java.util.*
 
 class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyProxyEvent>,
                                         informer: SharedIndexInformer<T>,
@@ -82,7 +83,7 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
     private fun getShinyProxyOwnerRef(resource: HasMetadata): OwnerReference? {
         val ownerReferences = resource.metadata.ownerReferences
         for (ownerReference in ownerReferences) {
-            if (ownerReference.kind.toLowerCase() == "shinyproxy") {
+            if (ownerReference.kind.lowercase(Locale.getDefault()) == "shinyproxy") {
                 return ownerReference
             }
         }

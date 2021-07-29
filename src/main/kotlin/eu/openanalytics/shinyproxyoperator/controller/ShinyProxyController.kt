@@ -35,7 +35,8 @@ import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -59,8 +60,10 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
     private val logger = KotlinLogging.logger {}
 
+    private val scope = CoroutineScope(Dispatchers.Default)
+
     suspend fun run() {
-        GlobalScope.launch { scheduleAdditionalEvents() }
+        scope.launch { scheduleAdditionalEvents() }
         while (true) {
             try {
                 receiveAndHandleEvent()
@@ -284,7 +287,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    private fun checkForObsoleteInstances() {
+    private suspend fun checkForObsoleteInstances() {
         for (shinyProxy in shinyProxyLister.list()) {
             if (shinyProxy.status.instances.size > 1) {
                 // this SP has more than one instance -> check if some of them are obsolete
@@ -317,7 +320,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    fun deleteSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+    suspend fun deleteSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 1/3]: Update status" }
         // Important: update status BEFORE deleting, otherwise we will start reconciling this instance, before it's completely deleted
         updateStatus(shinyProxy) {
@@ -329,7 +332,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 2/3]: Update Ingress" }
         ingressController.onRemoveInstance(shinyProxy, shinyProxyInstance)
 
-        GlobalScope.launch { // run async
+        scope.launch { // run async
             // delete resources after delay of 30 seconds to ensure all routes are updated before deleting replicaset
             delay(30_000)
             logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 3/3]: Delete resources" }

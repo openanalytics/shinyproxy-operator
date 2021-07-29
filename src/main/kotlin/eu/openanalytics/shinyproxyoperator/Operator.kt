@@ -49,6 +49,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
 import org.slf4j.LoggerFactory
+import java.util.*
 import kotlin.system.exitProcess
 
 
@@ -100,7 +101,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         }
 
         this.mode = readConfigValue(mode, Mode.CLUSTERED, "SPO_MODE") {
-            when (it.toLowerCase()) {
+            when (it.lowercase(Locale.getDefault())) {
                 "clustered" -> Mode.CLUSTERED
                 "namespaced" -> Mode.NAMESPACED
                 else -> error("Unsupported operator mode: $it")
