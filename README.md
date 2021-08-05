@@ -7,8 +7,9 @@ Easily run ShinyProxy on a Kubernetes cluster
 ## Why?
 
 Deploying and managing ShinyProxy can get complex when many apps are used,
-especially when the configuration of ShinyProxy is often updated. When
-restarting a running ShinyProxy instance (in order to update its configuration),
+especially when the configuration of ShinyProxy is often updated.
+
+When restarting a running ShinyProxy instance (in order to update its configuration),
 users will face a disconnect from their running applications. The only solution
 to guarantee that users do not lose their connection to running apps, is to keep
 the current instance alive when updating ShinyProxy's configuration. However,
@@ -16,21 +17,23 @@ manually keeping track of these instances would be too cumbersome and should
 therefore be automated.
 
 The ShinyProxy operator for Kubernetes is able to manage multiple ShinyProxy
-instances and their configuration. To give an example of the working of the
-operator, assume we have some ShinyProxy configuration `config1` which contains
-one app called `app1`. When the operator starts working, it checks whether a
-ShinyProxy instance exists with that configuration. If not, it starts a
-ShinyProxy instance and all other required configuration. Users can now start
-using `app1` on this instance. Some time later, the need for a second app
-arises. Therefore, the administrator adapts the configuration of ShinyProxy to
-include a second app `app2`. However, some users are still using `app1` on the
-old instance. These apps may have some state, which should not be lost.
-Therefore, the operator starts a second ShinyProxy instance using configuration
-`config2`. The operator ensures that users which are currently using the first
-instance, stay on that instance. All other users, are forwarded to the new
-server and can use the new application. Nevertheless, users using an old
-instance can choose to use the new instance, by clicking a button in the user
-interface. The operator stops the old instance once it has no apps running.
+instances and their configuration.
+
+### example
+
+Assume we have some ShinyProxy configuration `config1` which contains
+one app called `app1`. When the operator starts working, it checks whether a ShinyProxy instance exists with that configuration.
+If not, it starts a ShinyProxy instance and all other required configuration. Users can now start using `app1` on this instance.
+
+Some time later, the need for a second app arises.
+Therefore the administrator adapts the configuration of ShinyProxy to
+include a second app `app2`.
+
+However, some users are still using `app1` on the old instance.
+These apps may have some state, which should not be lost. Therefore, the operator starts a second ShinyProxy instance using configuration `config2`. The operator ensures that users which are currently using the first instance, stay on that instance.
+
+All other users are forwarded to the new server and can use the new application. Nevertheless, users using an old
+instance can choose to use the new instance, by clicking a button in the user interface. The operator stops the old instance once it has no apps running.
 
 ## Building from source
 
