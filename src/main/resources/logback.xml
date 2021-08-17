@@ -1,4 +1,4 @@
-<configuration debug="false">
+<configuration debug="false" scan="true" scanPeriod="30 seconds">
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -30,5 +30,7 @@
     <logger name="eu.openanalytics.shinyproxyoperator.ingress.skipper.IngressListener" level="WARN" additivity="false">
         <appender-ref ref="STDOUT"/>
     </logger>
+
+    <include optional="true" file="/opt/shinyproxy-operator/logback.xml"/>
 
 </configuration>
