@@ -43,22 +43,22 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
         informer.addEventHandler(object : ResourceEventHandler<T> {
             override fun onAdd(resource: T) {
                 logger.trace { "${resource.kind}::OnAdd ${resource.metadata.name}" }
-                runBlocking { enqueueResource(resource) }
+                runBlocking { enqueueResource("Add", resource) }
             }
 
             override fun onUpdate(resource: T, newResource: T) {
                 logger.trace { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
-                runBlocking { enqueueResource(newResource) }
+                runBlocking { enqueueResource("Update", newResource) }
             }
 
             override fun onDelete(resource: T, b: Boolean) {
                 logger.trace { "${resource.kind}::OnDelete ${resource.metadata.name}" }
-                runBlocking { enqueueResource(resource) }
+                runBlocking { enqueueResource("Delete", resource) }
             }
         })
     }
 
-    private suspend fun enqueueResource(resource: T) {
+    private suspend fun enqueueResource(trigger: String, resource: T) {
         val ownerReference = getShinyProxyOwnerRef(resource) ?: return
 
         val shinyProxy = shinyProxyLister.namespace(resource.metadata.namespace)[ownerReference.name] ?: return
@@ -75,7 +75,7 @@ class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyPr
             return
         }
 
-        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Event/Update of component] [Component/${resource.kind}]" }
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Event/${trigger} component] [Component/${resource.kind}]" }
         channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance))
     }
 

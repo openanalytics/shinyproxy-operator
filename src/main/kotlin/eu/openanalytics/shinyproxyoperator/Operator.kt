@@ -20,10 +20,14 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
-import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.Logger
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import eu.openanalytics.shinyproxyoperator.controller.*
+import eu.openanalytics.shinyproxyoperator.controller.IReconcileListener
+import eu.openanalytics.shinyproxyoperator.controller.PodRetriever
+import eu.openanalytics.shinyproxyoperator.controller.ResourceListener
+import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
+import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
+import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
+import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyListener
 import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
@@ -48,8 +52,10 @@ import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
-import org.slf4j.LoggerFactory
+import org.apache.logging.log4j.core.config.Configurator
 import java.util.*
+import org.apache.logging.log4j.Level
+import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
 
 
@@ -127,8 +133,8 @@ class Operator(client: NamespacedKubernetesClient? = null,
             }
         }
 
-        val rootLogger = LoggerFactory.getILoggerFactory().getLogger(Logger.ROOT_LOGGER_NAME) as Logger
-        rootLogger.level = readConfigValue(logLevel, Level.DEBUG, "SPO_LOG_LEVEL", { Level.toLevel(it) })
+        val level = readConfigValue(logLevel, Level.DEBUG, "SPO_LOG_LEVEL") { Level.toLevel(it) }
+        Configurator.setRootLevel(level)
 
         logger.info { "Running in ${this.mode} mode" }
 

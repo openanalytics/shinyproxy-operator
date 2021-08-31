@@ -48,23 +48,23 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
     init {
         informer.addEventHandler(object : ResourceEventHandler<Ingress> {
             override fun onAdd(resource: Ingress) {
-                logger.debug { "${resource.kind}::OnAdd ${resource.metadata.name}" }
-                runBlocking { enqueueResource(resource) }
+                logger.trace { "${resource.kind}::OnAdd ${resource.metadata.name}" }
+                runBlocking { enqueueResource("Add", resource) }
             }
 
             override fun onUpdate(resource: Ingress, newResource: Ingress) {
-                logger.debug { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
-                runBlocking { enqueueResource(resource) }
+                logger.trace { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
+                runBlocking { enqueueResource("Update", resource) }
             }
 
             override fun onDelete(resource: Ingress, b: Boolean) {
-                logger.debug { "${resource.kind}::OnDelete ${resource.metadata.name}" }
-                runBlocking { enqueueResource(resource) }
+                logger.trace { "${resource.kind}::OnDelete ${resource.metadata.name}" }
+                runBlocking { enqueueResource("Delete", resource) }
             }
         })
     }
 
-    private suspend fun enqueueResource(resource: Ingress) {
+    private suspend fun enqueueResource(trigger: String, resource: Ingress) {
         val replicaSetOwnerReference = getShinyProxyOwnerRefByKind(resource, "ReplicaSet") ?: return
         // TODO namespace
         val replicaSet = kubernetesClient.apps().replicaSets().inNamespace(resource.metadata.namespace).withName(replicaSetOwnerReference.name).get()
@@ -88,6 +88,7 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
             return
         }
 
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Event/${trigger} component] [Component/${resource.kind}]" }
         channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance))
     }
 

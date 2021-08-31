@@ -21,6 +21,7 @@
         <kotlin.version>1.5.20</kotlin.version>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <junit.jupiter.version>5.6.0</junit.jupiter.version>
+        <log4j.version>2.14.1</log4j.version>
     </properties>
 
     <distributionManagement>
@@ -55,9 +56,19 @@
             <version>${version.fabric8.client}</version>
         </dependency>
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.2.3</version>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>${log4j.version}</version>
         </dependency>
         <dependency>
             <groupId>io.github.microutils</groupId>
@@ -174,6 +185,9 @@
                                     <mainClass>eu.openanalytics.shinyproxyoperator.MainKt</mainClass>
                                     <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                                 </manifest>
+                                <manifestEntries>
+                                    <Multi-Release>true</Multi-Release>
+                                </manifestEntries>
                             </archive>
                             <descriptorRefs>
                                 <descriptorRef>jar-with-dependencies</descriptorRef>

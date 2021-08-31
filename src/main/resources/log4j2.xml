@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%-15.15thread] %-5level %-36.36logger{2.} - %msg%n"/>
+        </Console>
+        <RollingFile name="File" fileName="logs/operator.log"
+                     filePattern="logs/operator-%d{MM-dd-yyyy}-%i.log.gz">
+            <PatternLayout pattern="%d [%t] %-5level %logger - %msg%n"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10"/>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <!-- CONSOLE -->
+        <Logger name="io.fabric8.kubernetes.client.informers" level="WARN" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="io.fabric8.kubernetes.client.dsl.internal.WatchConnectionManager" level="WARN" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="eu.openanalytics.shinyproxyoperator.controller.PodRetriever" level="WARN" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever" level="WARN" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <!-- File -->
+        <Logger name="io.fabric8.kubernetes.client.informers" level="TRACE" additivity="false">
+            <AppenderRef ref="File"/>
+        </Logger>
+        <!-- Keep at WARN-->
+        <Logger name="io.fabric8.kubernetes.client.dsl.internal.WatchConnectionManager" level="TRACE" additivity="false">
+            <AppenderRef ref="File"/>
+        </Logger>
+        <Logger name="eu.openanalytics.shinyproxyoperator.controller.PodRetriever" level="DEBUG" additivity="false">
+            <AppenderRef ref="File"/>
+        </Logger>
+        <Logger name="eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever" level="DEBUG"
+                additivity="false">
+            <AppenderRef ref="File"/>
+        </Logger>
+
+        <!-- Root Logger -->
+        <Root level="DEBUG">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File"/>
+        </Root>
+
+    </Loggers>
+</Configuration>
