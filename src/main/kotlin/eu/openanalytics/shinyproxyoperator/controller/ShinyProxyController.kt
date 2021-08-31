@@ -62,10 +62,15 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
     private val scope = CoroutineScope(Dispatchers.Default)
 
+    @Volatile
+    public var idle: Boolean = true
+        private set
+
     suspend fun run() {
         scope.launch { scheduleAdditionalEvents() }
         while (true) {
             try {
+                idle = true
                 receiveAndHandleEvent()
             } catch (cancellationException: CancellationException) {
                 logger.warn { "Controller cancelled -> stopping" }
@@ -114,6 +119,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
 
         val event = channel.receive()
+        idle = false
         for (i in 1..5) {
             try {
                 tryReceiveAndHandleEvent(event)
@@ -327,7 +333,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             it.status.instances.remove(shinyProxyInstance)
         }
 
-        // Important: remove ingress before removing the ReplicaSet. This ensures that the rotues are correclty updated in the Ingress
+        // Important: remove ingress before removing the ReplicaSet. This ensures that the routes are correctly updated in the Ingress
         // and users aren't routed to non-existing pods
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 2/3]: Update Ingress" }
         ingressController.onRemoveInstance(shinyProxy, shinyProxyInstance)

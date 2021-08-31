@@ -72,6 +72,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
     val probeFailureThreshold: Int
     val probeTimeout: Int
     val startupProbeInitialDelay: Int
+    val processMaxLifetime: Long
 
     private val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
         .withVersion("v1alpha1")
@@ -112,6 +113,19 @@ class Operator(client: NamespacedKubernetesClient? = null,
         this.probeFailureThreshold = readConfigValue(probeFailureThreshold, 0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
         this.probeTimeout = readConfigValue(probeTimeout, 1, "SPO_PROBE_TIMEOUT", String::toInt)
         this.startupProbeInitialDelay = readConfigValue(startupProbeInitialDelay, 60, "SPO_STARTUP_PROBE_INITIAL_DELAY", String::toInt)
+        this.processMaxLifetime = readConfigValue(null, -1, "SPO_PROCESS_MAX_LIFETIME", String::toLong)
+        if (this.processMaxLifetime != -1L) {
+            Timer().schedule(this.processMaxLifetime * 60 * 1000) {
+                logger.warn { "Max lifetime of process reached, preparing shutdown" }
+                sendChannel.close();
+                while (!channel.isClosedForReceive && !channel.isEmpty && !shinyProxyController.idle) {
+                    logger.warn { "Still processing events in queue, delaying shutdown" }
+                    Thread.sleep(250)
+                }
+                logger.warn { "Queue is empty, exiting process" }
+                exitProcess(1);
+            }
+        }
 
         val rootLogger = LoggerFactory.getILoggerFactory().getLogger(Logger.ROOT_LOGGER_NAME) as Logger
         rootLogger.level = readConfigValue(logLevel, Level.DEBUG, "SPO_LOG_LEVEL", { Level.toLevel(it) })
