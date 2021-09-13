@@ -47,7 +47,7 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
         val informer = client.informers().sharedIndexInformerFor(Pod::class.java, PodList::class.java, operationContext, 10 * 60 * 1000.toLong())
         informer.run()
         informers[namespace] = informer
-        logger.debug { "Now watching pods in the $namespace namespace." }
+        logger.warn { "Now watching pods in the $namespace namespace. (total count = ${informers.size})" }
     }
 
     fun getPodsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): List<Pod> {

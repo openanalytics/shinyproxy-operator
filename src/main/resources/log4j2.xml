@@ -14,34 +14,21 @@
         </RollingFile>
     </Appenders>
     <Loggers>
-        <!-- CONSOLE -->
-        <Logger name="io.fabric8.kubernetes.client.informers" level="WARN" additivity="false">
-            <AppenderRef ref="Console"/>
+        <Logger name="io.fabric8.kubernetes.client.informers" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="TRACE"/>
         </Logger>
-        <Logger name="io.fabric8.kubernetes.client.dsl.internal.WatchConnectionManager" level="WARN" additivity="false">
-            <AppenderRef ref="Console"/>
+        <Logger name="io.fabric8.kubernetes.client.dsl.internal.WatchConnectionManager" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="TRACE"/>
         </Logger>
-        <Logger name="eu.openanalytics.shinyproxyoperator.controller.PodRetriever" level="WARN" additivity="false">
-            <AppenderRef ref="Console"/>
+        <Logger name="eu.openanalytics.shinyproxyoperator.controller.PodRetriever" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="DEBUG"/>
         </Logger>
-        <Logger name="eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever" level="WARN" additivity="false">
-            <AppenderRef ref="Console"/>
-        </Logger>
-
-        <!-- File -->
-        <Logger name="io.fabric8.kubernetes.client.informers" level="TRACE" additivity="false">
-            <AppenderRef ref="File"/>
-        </Logger>
-        <!-- Keep at WARN-->
-        <Logger name="io.fabric8.kubernetes.client.dsl.internal.WatchConnectionManager" level="TRACE" additivity="false">
-            <AppenderRef ref="File"/>
-        </Logger>
-        <Logger name="eu.openanalytics.shinyproxyoperator.controller.PodRetriever" level="DEBUG" additivity="false">
-            <AppenderRef ref="File"/>
-        </Logger>
-        <Logger name="eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever" level="DEBUG"
-                additivity="false">
-            <AppenderRef ref="File"/>
+        <Logger name="eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="DEBUG"/>
         </Logger>
 
         <!-- Root Logger -->
@@ -49,6 +36,5 @@
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
         </Root>
-
     </Loggers>
 </Configuration>
