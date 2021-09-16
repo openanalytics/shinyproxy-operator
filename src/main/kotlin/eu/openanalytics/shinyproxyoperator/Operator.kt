@@ -168,6 +168,11 @@ class Operator(client: NamespacedKubernetesClient? = null,
             podRetriever = PodRetriever(this.client)
         }
 
+        Timer().schedule(5000, 5000) {
+            val num = (getOperatorInstance().client as DefaultKubernetesClient).httpClient.connectionPool().connectionCount()
+            val max = (getOperatorInstance().client as DefaultKubernetesClient).configuration.maxConcurrentRequests
+            logger.warn { "Current number of connections: $num of $max"}
+        }
     }
 
     /**
