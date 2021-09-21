@@ -352,7 +352,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstanceUpdated.waitForOneReconcile()
 
             // 7. wait for delete to happen
-            delay(5000)
+            delay(35_000)
 
             // 8. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
@@ -429,7 +429,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 logger.debug { "Pod still exists!" }
             }
             // 11. give operator time to cleanup
-            delay(5000)
+            delay(35_000)
 
             // 11. assert older instance does not exists anymore
             assertThrows<IllegalStateException>("Instance not found") {
@@ -848,7 +848,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstanceUpdated.waitForOneReconcile()
 
             // 7. wait for delete to happen
-            delay(5000)
+            delay(35_000)
 
             // 8. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
@@ -907,7 +907,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         operator.shinyProxyController.deleteSingleShinyProxyInstance(resourceRetriever, sp, instance)
 
         // let it all work a bit
-        delay(2500)
+        delay(32_500)
 
         val replicaSets = namespacedClient.inNamespace(namespace).apps().replicaSets().list().items
         assertEquals(0, replicaSets.size)
