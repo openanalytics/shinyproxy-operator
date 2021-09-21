@@ -28,18 +28,18 @@ suspend fun retry(tries: Int, waitTime: Long, job: IntPredicate): Boolean {
 }
 
 suspend fun retry(tries: Int, waitTime: Long, retryOnException: Boolean, job: IntPredicate): Boolean {
-    var retVal = false;
+    var retVal = false
     var exception: RuntimeException? = null
     for (currentTry in 1 until tries) {
         try {
             if (job.test(currentTry)) {
-                retVal = true;
-                exception = null;
-                break;
+                retVal = true
+                exception = null
+                break
             }
         } catch (e: RuntimeException) {
-            if (retryOnException) exception = e;
-            else throw e;
+            if (retryOnException) exception = e
+            else throw e
         }
         delay(waitTime)
     }

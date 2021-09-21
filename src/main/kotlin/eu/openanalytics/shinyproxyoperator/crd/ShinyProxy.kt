@@ -29,9 +29,18 @@ import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import eu.openanalytics.shinyproxyoperator.sha1
 import io.fabric8.kubernetes.api.model.Namespaced
 import io.fabric8.kubernetes.client.CustomResource
+import io.fabric8.kubernetes.model.annotation.Group
+import io.fabric8.kubernetes.model.annotation.Version
 import javax.json.JsonPatch
 
-data class ShinyProxy(val spec: JsonNode, val status: ShinyProxyStatus = ShinyProxyStatus()) : CustomResource(), Namespaced {
+@Version("v1alpha1")
+@Group("openanalytics.eu")
+class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
+
+    override fun initStatus(): ShinyProxyStatus {
+        return ShinyProxyStatus()
+    }
+
 
     @get:JsonIgnore
     val image: String by lazy {

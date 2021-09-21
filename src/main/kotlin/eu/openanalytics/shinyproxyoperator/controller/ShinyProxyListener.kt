@@ -20,23 +20,21 @@
  */
 package eu.openanalytics.shinyproxyoperator.controller
 
+import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.isInManagedNamespace
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler
-import io.fabric8.kubernetes.client.informers.SharedIndexInformer
-import io.fabric8.kubernetes.client.informers.cache.Lister
+import io.fabric8.kubernetes.client.informers.cache.Indexer
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 
-class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>,
-                         informer: SharedIndexInformer<ShinyProxy>,
-                         private val shinyProxyLister: Lister<ShinyProxy>) {
+class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>, private val shinyProxyClient: ShinyProxyClient) {
 
     private val logger = KotlinLogging.logger {}
 
-    init {
-        informer.addEventHandler(object : ResourceEventHandler<ShinyProxy> {
+    fun start(): Indexer<ShinyProxy> {
+        val informer = shinyProxyClient.inform(object : ResourceEventHandler<ShinyProxy> {
             override fun onAdd(shinyProxy: ShinyProxy) {
                 if (!isInManagedNamespace(shinyProxy)) return
                 logger.debug { "${shinyProxy.logPrefix()} [Event/Add]" }
@@ -70,7 +68,8 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>,
                 if (!isInManagedNamespace(shinyProxy)) return
                 runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.DELETE, shinyProxy, null)) }
             }
-        })
+        }, 10 * 60 * 1000.toLong())
+        return informer.indexer!!
     }
 
 

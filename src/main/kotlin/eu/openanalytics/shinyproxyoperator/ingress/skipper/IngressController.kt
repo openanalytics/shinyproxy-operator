@@ -29,32 +29,38 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import eu.openanalytics.shinyproxyoperator.ingres.IIngressController
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
+import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
 import io.fabric8.kubernetes.client.KubernetesClient
-import io.fabric8.kubernetes.client.informers.SharedIndexInformer
+import io.fabric8.kubernetes.client.dsl.MixedOperation
+import io.fabric8.kubernetes.client.dsl.Resource
+import io.fabric8.kubernetes.client.informers.cache.Indexer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
 
 class IngressController(
-    channel: Channel<ShinyProxyEvent>,
-    ingressInformer: SharedIndexInformer<Ingress>,
-    shinyProxyListener: Lister<ShinyProxy>,
+    channel: SendChannel<ShinyProxyEvent>,
     private val kubernetesClient: KubernetesClient,
-    private val resourceRetriever: ResourceRetriever
+    ingressClient: MixedOperation<Ingress, IngressList, Resource<Ingress>>
 ) : IIngressController {
 
     private val logger = KotlinLogging.logger {}
     private val ingressFactory = IngressFactory(kubernetesClient)
 
     // Note: do not move this to the DiContainer since it is a Skipper-specific implementation
-    private val ingressListener = IngressListener(channel, kubernetesClient, ingressInformer, shinyProxyListener)
+    private val ingressListener = IngressListener(channel, kubernetesClient, ingressClient)
 
-    override fun reconcile(shinyProxy: ShinyProxy) {
+
+    fun start(shinyProxyLister: Lister<ShinyProxy>): Indexer<Ingress> {
+        return ingressListener.start(shinyProxyLister)
+    }
+
+    override fun reconcile(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy) {
         var failed = false
         for (instance in shinyProxy.status.instances) {
             try {
-                reconcileSingleInstance(shinyProxy, instance)
+                reconcileSingleInstance(resourceRetriever, shinyProxy, instance)
             } catch (e: Exception) {
                 logger.warn(e) { "${shinyProxy.logPrefix(instance)} Unable to reconcile Ingress" }
                 failed = true
@@ -65,13 +71,13 @@ class IngressController(
         }
     }
 
-    override fun onRemoveInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+    override fun onRemoveInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         for (ingress in resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
             kubernetesClient.resource(ingress).delete()
         }
     }
 
-    private fun reconcileSingleInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+    private fun reconcileSingleInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
 
         val mustBeUpdated = if (ingresses.isEmpty()) {
@@ -83,12 +89,12 @@ class IngressController(
 
         if (mustBeUpdated) {
             logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Reconciling" }
-            val replicaSet = getReplicaSet(shinyProxy, shinyProxyInstance)
+            val replicaSet = getReplicaSet(resourceRetriever, shinyProxy, shinyProxyInstance)
             if (replicaSet == null) {
                 logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Cannot reconcile Ingress since it has no ReplicaSet - probably this resource is being deleted" }
                 return
             }
-            if (!Readiness.isReady(replicaSet)) {
+            if (!Readiness.getInstance().isReady(replicaSet)) {
                 logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Cannot reconcile Ingress since the corresponding ReplicaSet is not ready yet - it is probably being created" }
                 return
             }
@@ -98,7 +104,7 @@ class IngressController(
         }
     }
 
-    private fun getReplicaSet(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ReplicaSet? {
+    private fun getReplicaSet(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ReplicaSet? {
         val replicaSets = resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (replicaSets.isEmpty()) {
             return null

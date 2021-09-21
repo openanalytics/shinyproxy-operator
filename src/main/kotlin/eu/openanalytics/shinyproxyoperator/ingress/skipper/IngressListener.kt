@@ -28,9 +28,13 @@ import eu.openanalytics.shinyproxyoperator.isInManagedNamespace
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.OwnerReference
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
+import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
 import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.dsl.MixedOperation
+import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
+import io.fabric8.kubernetes.client.informers.cache.Indexer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
@@ -40,31 +44,31 @@ import java.util.*
 // TODO this has some duplicate code with ResourceListener<T>
 class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
                       private val kubernetesClient: KubernetesClient,
-                      informer: SharedIndexInformer<Ingress>,
-                      private val shinyProxyLister: Lister<ShinyProxy>) {
+                      private val ingressClient: MixedOperation<Ingress, IngressList, Resource<Ingress>>) {
 
     private val logger = KotlinLogging.logger {}
 
-    init {
-        informer.addEventHandler(object : ResourceEventHandler<Ingress> {
+    fun start(shinyProxyLister: Lister<ShinyProxy>): Indexer<Ingress> {
+       val informer = ingressClient.inform(object : ResourceEventHandler<Ingress> {
             override fun onAdd(resource: Ingress) {
                 logger.trace { "${resource.kind}::OnAdd ${resource.metadata.name}" }
-                runBlocking { enqueueResource("Add", resource) }
+                runBlocking { enqueueResource(shinyProxyLister, "Add", resource) }
             }
 
             override fun onUpdate(resource: Ingress, newResource: Ingress) {
                 logger.trace { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
-                runBlocking { enqueueResource("Update", resource) }
+                runBlocking { enqueueResource(shinyProxyLister, "Update", resource) }
             }
 
             override fun onDelete(resource: Ingress, b: Boolean) {
                 logger.trace { "${resource.kind}::OnDelete ${resource.metadata.name}" }
-                runBlocking { enqueueResource("Delete", resource) }
+                runBlocking { enqueueResource(shinyProxyLister, "Delete", resource) }
             }
         })
+        return informer.indexer
     }
 
-    private suspend fun enqueueResource(trigger: String, resource: Ingress) {
+    private suspend fun enqueueResource(shinyProxyLister: Lister<ShinyProxy>, trigger: String, resource: Ingress) {
         val replicaSetOwnerReference = getShinyProxyOwnerRefByKind(resource, "ReplicaSet") ?: return
         // TODO namespace
         val replicaSet = kubernetesClient.apps().replicaSets().inNamespace(resource.metadata.namespace).withName(replicaSetOwnerReference.name).get()
@@ -103,5 +107,6 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
 
         return null
     }
+
 
 }

@@ -43,7 +43,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                 .withNewMetadata()
                     .withNamespace(shinyProxy.metadata.namespace)
                     .withName(ResourceNameFactory.createNameForConfigMap(shinyProxy, shinyProxyInstance))
-                    .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                    .withLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")

@@ -28,10 +28,8 @@ import eu.openanalytics.shinyproxyoperator.components.ServiceFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import eu.openanalytics.shinyproxyoperator.ingres.IIngressController
-import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
-import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.CancellationException
@@ -46,11 +44,7 @@ import mu.KotlinLogging
 class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                            private val kubernetesClient: KubernetesClient,
                            private val shinyProxyClient: ShinyProxyClient,
-                           private val replicaSetInformer: SharedIndexInformer<ReplicaSet>,
-                           private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>,
                            private val ingressController: IIngressController,
-                           private val resourceRetriever: ResourceRetriever,
-                           private val shinyProxyLister: Lister<ShinyProxy>,
                            private val podRetriever: PodRetriever,
                            private val reconcileListener: IReconcileListener?) {
 
@@ -63,15 +57,15 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     private val scope = CoroutineScope(Dispatchers.Default)
 
     @Volatile
-    public var idle: Boolean = true
+    var idle: Boolean = true
         private set
 
-    suspend fun run() {
+    suspend fun run(resourceRetriever: ResourceRetriever, shinyProxyLister: Lister<ShinyProxy>) {
         scope.launch { scheduleAdditionalEvents() }
         while (true) {
             try {
                 idle = true
-                receiveAndHandleEvent()
+                receiveAndHandleEvent(resourceRetriever, shinyProxyLister)
             } catch (cancellationException: CancellationException) {
                 logger.warn { "Controller cancelled -> stopping" }
                 throw cancellationException
@@ -79,7 +73,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    suspend fun receiveAndHandleEvent() {
+    suspend fun receiveAndHandleEvent(resourceRetriever: ResourceRetriever, shinyProxyLister: Lister<ShinyProxy>) {
         suspend fun tryReceiveAndHandleEvent(event: ShinyProxyEvent) {
             when (event.eventType) {
                 ShinyProxyEventType.ADD -> {
@@ -88,7 +82,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         return
                     }
                     val newInstance = createNewInstance(event.shinyProxy)
-                    reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
+                    reconcileSingleShinyProxyInstance(resourceRetriever, event.shinyProxy, newInstance)
                 }
                 ShinyProxyEventType.UPDATE_SPEC -> {
                     if (event.shinyProxy == null) {
@@ -96,7 +90,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         return
                     }
                     val newInstance = createNewInstance(event.shinyProxy)
-                    reconcileSingleShinyProxyInstance(event.shinyProxy, newInstance)
+                    reconcileSingleShinyProxyInstance(resourceRetriever, event.shinyProxy, newInstance)
                 }
                 ShinyProxyEventType.DELETE -> {
                     // DELETE is not needed
@@ -110,10 +104,10 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         logger.warn { "Event of type RECONCILE should have shinyProxyInstance attached to it." }
                         return
                     }
-                    reconcileSingleShinyProxyInstance(event.shinyProxy, event.shinyProxyInstance)
+                    reconcileSingleShinyProxyInstance(resourceRetriever, event.shinyProxy, event.shinyProxyInstance)
                 }
                 ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES -> {
-                    checkForObsoleteInstances()
+                    checkForObsoleteInstances(resourceRetriever, shinyProxyLister)
                 }
             }
         }
@@ -219,7 +213,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    suspend fun reconcileSingleShinyProxyInstance(_shinyProxy: ShinyProxy, _shinyProxyInstance: ShinyProxyInstance) {
+    suspend fun reconcileSingleShinyProxyInstance(resourceRetriever: ResourceRetriever, _shinyProxy: ShinyProxy, _shinyProxyInstance: ShinyProxyInstance) {
         val (shinyProxy, shinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance) // refresh shinyproxy to ensure status is always up to date
 
         if (shinyProxy == null || shinyProxyInstance == null) {
@@ -255,11 +249,11 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         // Extra check, if this check is positive we have some bug, see #24986
         if (replicaSets.size > 1) {
             logger.error(Throwable()) {
-                "${shinyProxy.logPrefix(shinyProxyInstance)} Trying to reconcile but detected more than one ReplicaSet which matches the labels for a single instance. ${replicaSets.map { it.metadata.name }} ${replicaSets.map { Readiness.isReady(it) }}"
+                "${shinyProxy.logPrefix(shinyProxyInstance)} Trying to reconcile but detected more than one ReplicaSet which matches the labels for a single instance. ${replicaSets.map { it.metadata.name }} ${replicaSets.map { Readiness.getInstance().isReady(it) }}"
             }
         }
 
-        if (!Readiness.isReady(replicaSets[0])) {
+        if (!Readiness.getInstance().isReady(replicaSets[0])) {
             // do no proceed until replicaset is ready
             logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 3/$amountOfSteps: Waiting] [Component/ReplicaSet] ReplicaSet not ready" }
             return
@@ -283,7 +277,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         // refresh the ShinyProxy variables after updating the latest marker
         val (updatedShinyProxy, updatedShinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance)
         if (updatedShinyProxy == null) return
-        ingressController.reconcile(updatedShinyProxy)
+        ingressController.reconcile(resourceRetriever, updatedShinyProxy)
 
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 6/$amountOfSteps: Ok] [Component/Ingress]" }
 
@@ -293,7 +287,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    private suspend fun checkForObsoleteInstances() {
+    private suspend fun checkForObsoleteInstances(resourceRetriever: ResourceRetriever, shinyProxyLister: Lister<ShinyProxy>) {
         for (shinyProxy in shinyProxyLister.list()) {
             if (shinyProxy.status.instances.size > 1) {
                 // this SP has more than one instance -> check if some of them are obsolete
@@ -309,7 +303,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
                     if (pods.isEmpty()) {
                         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has no running apps and is not the latest version => removing this instance" }
-                        deleteSingleShinyProxyInstance(shinyProxy, shinyProxyInstance)
+                        deleteSingleShinyProxyInstance(resourceRetriever, shinyProxy, shinyProxyInstance)
                     } else {
                         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has ${pods.size} running apps => not removing this instance" }
                     }
@@ -326,7 +320,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    suspend fun deleteSingleShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+    suspend fun deleteSingleShinyProxyInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 1/3]: Update status" }
         // Important: update status BEFORE deleting, otherwise we will start reconciling this instance, before it's completely deleted
         updateStatus(shinyProxy) {
@@ -336,7 +330,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         // Important: remove ingress before removing the ReplicaSet. This ensures that the routes are correctly updated in the Ingress
         // and users aren't routed to non-existing pods
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 2/3]: Update Ingress" }
-        ingressController.onRemoveInstance(shinyProxy, shinyProxyInstance)
+        ingressController.onRemoveInstance(resourceRetriever, shinyProxy, shinyProxyInstance)
 
         scope.launch { // run async
             // delete resources after delay of 30 seconds to ensure all routes are updated before deleting replicaset

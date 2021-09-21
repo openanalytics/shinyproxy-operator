@@ -60,13 +60,13 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.create()
 
             // 2. prepare the operator
-            operator.prepare()
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
             // 3. check whether the controller waits until the ReplicaSet is ready before creating other resources
             var checked = false
             while (true) {
                 // let the operator handle one event
-                operator.shinyProxyController.receiveAndHandleEvent()
+                operator.shinyProxyController.receiveAndHandleEvent(resourceRetriever, shinyProxyLister)
 
                 val replicaSets = stableClient.apps().replicaSets().list().items
                 if (replicaSets.size == 0) {
@@ -77,7 +77,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 val replicaSet = replicaSets[0]
                 // replicaset exists -> perform our checks, operator is paused
 
-                if (!Readiness.isReady(replicaSet)) {
+                if (!Readiness.getInstance().isReady(replicaSet)) {
                     // replicaset not ready
                     // -> Service should not yet be created
                     assertEquals(0, stableClient.services().list().items.size)
@@ -100,7 +100,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             val job = GlobalScope.launch {
                 // let the operator finish its business
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 4. wait until instance is created
@@ -124,10 +124,10 @@ class MainIntegrationTest : IntegrationTestBase() {
             )
             spTestInstance.create()
 
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             // 2. start the operator and let it do it's work
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -153,9 +153,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             val sp = spTestInstance.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -223,9 +223,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait a bit
@@ -251,9 +251,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             val sp = spTestInstance.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -325,9 +325,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstanceOriginal.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -380,9 +380,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             val sp = spTestInstanceOriginal.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -456,9 +456,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             val sp = spTestInstance.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -497,9 +497,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -541,9 +541,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -569,9 +569,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -654,7 +654,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             templateSpec.volumes[0].configMap.name
         )
 
-        assertTrue(Readiness.isReady(replicaSet))
+        assertTrue(Readiness.getInstance().isReady(replicaSet))
 
         // c. check service
         spTestInstance.assertServiceIsCorrect(sp)
@@ -724,9 +724,9 @@ class MainIntegrationTest : IntegrationTestBase() {
         val sp = spTestInstance.create()
 
         // 2. start the operator and let it do it's work
+        val (resourceRetriever, shinyProxyLister) = operator.prepare()
         val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
+            operator.run(resourceRetriever, shinyProxyLister)
         }
 
         // 3. wait until instance is created
@@ -791,9 +791,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstanceOriginal.create()
 
             // 2. start the operator and let it do it's work
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -877,10 +877,11 @@ class MainIntegrationTest : IntegrationTestBase() {
         )
         spTestInstance.create()
 
+        val (resourceRetriever, shinyProxyLister) = operator.prepare()
+
         // 2. start the operator and let it do it's work
         val job = GlobalScope.launch {
-            operator.prepare()
-            operator.run()
+            operator.run(resourceRetriever, shinyProxyLister)
         }
 
         // 3. wait until instance is created
@@ -898,12 +899,12 @@ class MainIntegrationTest : IntegrationTestBase() {
             repeat(10) {
                 delay(10)
                 logger.debug { "Trying to trigger bug, by triggering reconcile with old status" }
-                operator.shinyProxyController.reconcileSingleShinyProxyInstance(sp, instance)
+                operator.shinyProxyController.reconcileSingleShinyProxyInstance(resourceRetriever, sp, instance)
             }
         }
 
         // 6. force delete the instance
-        operator.shinyProxyController.deleteSingleShinyProxyInstance(sp, instance)
+        operator.shinyProxyController.deleteSingleShinyProxyInstance(resourceRetriever, sp, instance)
 
         // let it all work a bit
         delay(2500)
@@ -927,10 +928,10 @@ class MainIntegrationTest : IntegrationTestBase() {
             )
             val spA = instanceA.create()
 
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
             // 2. start the operator and let it do it's work
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 3. wait until instance is created
@@ -986,14 +987,17 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 12. give operator time to cleanup instance B
-            delay(5000)
+            delay(5_000)
 
-            // 11. assert instance B does not exists anymore
+            // 13. assert instance B does not exists anymore
             assertThrows<IllegalStateException>("Instance not found") {
                 instanceB.retrieveInstance()
             }
 
-            // 11. assert instance A' is correct
+            // 14. wait for step 3 (effectively cleaning up the resources)  to happen
+            delay(35_000)
+
+            // 15. assert instance A' is correct
             instanceAPrime.assertInstanceIsCorrect(1, true)
 
             job.cancel()
@@ -1015,12 +1019,12 @@ class MainIntegrationTest : IntegrationTestBase() {
         spTestInstance.create()
 
         // 2. prepare the operator
-        operator.prepare()
+        val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
         // 3. run the operator until the ReplicaSet is ready
         while (true) {
             // let the operator handle one event
-            operator.shinyProxyController.receiveAndHandleEvent()
+            operator.shinyProxyController.receiveAndHandleEvent(resourceRetriever, shinyProxyLister)
 
             val replicaSets = stableClient.apps().replicaSets().list().items
             if (replicaSets.size == 0) {
@@ -1029,7 +1033,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
             assertEquals(1, replicaSets.size)
             val replicaSet = replicaSets[0]
-            if (!Readiness.isReady(replicaSet)) {
+            if (!Readiness.getInstance().isReady(replicaSet)) {
                 // if replicaset is not ready -> continue handling events
                 continue
             }
@@ -1055,7 +1059,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         // Test starts here:
 
         // 5. handle one more event -> should set the latest marker and create the ingress in one step
-        operator.shinyProxyController.receiveAndHandleEvent()
+        operator.shinyProxyController.receiveAndHandleEvent(resourceRetriever, shinyProxyLister)
 
         // 6. check state:
         // A) at this point the latestMarker should be set
@@ -1088,10 +1092,11 @@ class MainIntegrationTest : IntegrationTestBase() {
             )
             spTestInstance.create()
 
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+
             // 3. start the operator and let it do it's work
             val job = GlobalScope.launch {
-                operator.prepare()
-                operator.run()
+                operator.run(resourceRetriever, shinyProxyLister)
             }
 
             // 4. wait until instance is created

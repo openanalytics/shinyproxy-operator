@@ -24,9 +24,7 @@ import eu.openanalytics.shinyproxyoperator.Mode
 import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
-import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.api.model.PodList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
@@ -35,7 +33,11 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder
-import kotlinx.coroutines.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 
 abstract class IntegrationTestBase {
@@ -78,8 +80,8 @@ abstract class IntegrationTestBase {
 
             // 2. create the CRD
             if (!crdExists()) {
-                val crd = stableClient.customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
-                stableClient.customResourceDefinitions().createOrReplace(crd)
+                val crd = stableClient.apiextensions().v1beta1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
+                stableClient.apiextensions().v1beta1().customResourceDefinitions().createOrReplace(crd)
             }
 
             // 3. create the operator
@@ -94,7 +96,7 @@ abstract class IntegrationTestBase {
             Operator.setOperatorInstance(operator)
 
             // TODO stable or chaos?
-            val shinyProxyClient = stableClient.inNamespace(namespace).customResources(customResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
+            val shinyProxyClient: ShinyProxyClient = stableClient.inNamespace(namespace).resources(ShinyProxy::class.java)
 
             try {
                 // 4. run test
@@ -142,8 +144,8 @@ abstract class IntegrationTestBase {
     }
 
     private suspend fun deleteCRD(client: DefaultKubernetesClient) {
-        val crd = client.customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
-        client.customResourceDefinitions().delete(crd)
+        val crd = stableClient.apiextensions().v1beta1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
+        stableClient.apiextensions().v1beta1().customResourceDefinitions().delete(crd)
         delay(2000)
 
         while (crdExists()) {
@@ -152,7 +154,7 @@ abstract class IntegrationTestBase {
     }
 
     private fun crdExists(): Boolean {
-        return stableClient.customResourceDefinitions().list().items.firstOrNull {
+        return stableClient.apiextensions().v1beta1().customResourceDefinitions().list().items.firstOrNull {
             it.spec.group == "openanalytics.eu" && it.spec.names.plural == "shinyproxies"
         } != null
     }

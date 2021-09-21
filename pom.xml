@@ -17,7 +17,7 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.release>11</maven.compiler.release>
         <maven.compiler.target>11</maven.compiler.target>
-        <version.fabric8.client>4.13.2</version.fabric8.client>
+        <version.fabric8.client>5.7.3</version.fabric8.client>
         <kotlin.version>1.5.20</kotlin.version>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <junit.jupiter.version>5.6.0</junit.jupiter.version>

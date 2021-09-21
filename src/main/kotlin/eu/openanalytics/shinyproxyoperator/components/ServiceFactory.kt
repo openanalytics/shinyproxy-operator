@@ -38,7 +38,7 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
                 .withNewMetadata()
                     .withName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
                     .withNamespace(shinyProxy.metadata.namespace)
-                    .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                    .withLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
@@ -53,7 +53,7 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
                         .withPort(80)
                         .withTargetPort(IntOrString(8080))
                     .endPort()
-                    .withSelector(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                    .withSelector<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                 .endSpec()
                 .build()
         //@formatter:on

@@ -20,23 +20,23 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
-import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
+import io.fabric8.kubernetes.api.model.KubernetesResourceList
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.Resource
 import mu.KotlinLogging
 import kotlin.system.exitProcess
 
-typealias ShinyProxyClient = MixedOperation<ShinyProxy, ShinyProxyList, DoneableShinyProxy, Resource<ShinyProxy, DoneableShinyProxy>>
+typealias ShinyProxyClient = MixedOperation<ShinyProxy, KubernetesResourceList<ShinyProxy>, Resource<ShinyProxy>>
 
 suspend fun main() {
     val logger = KotlinLogging.logger {}
     try {
         val operator = Operator()
         Operator.setOperatorInstance(operator)
-        operator.run()
+        val (resourceRetriever, shinyProxyLister) = operator.prepare()
+        operator.run(resourceRetriever, shinyProxyLister)
     } catch (exception: KubernetesClientException) {
         logger.warn { "Kubernetes Client Exception : ${exception.message}" }
         exception.printStackTrace()

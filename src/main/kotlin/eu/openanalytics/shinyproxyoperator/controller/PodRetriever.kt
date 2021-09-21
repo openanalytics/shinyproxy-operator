@@ -40,12 +40,7 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
             return
         }
 
-        val operationContext = OperationContext()
-            .withNamespace(namespace)
-            .withLabels(mapOf(LabelFactory.PROXIED_APP to "true")) // only look for ShinyProxy apps
-
-        val informer = client.informers().sharedIndexInformerFor(Pod::class.java, PodList::class.java, operationContext, 10 * 60 * 1000.toLong())
-        informer.run()
+        val informer = client.pods().inNamespace(namespace).withLabels(mapOf(LabelFactory.PROXIED_APP to "true")).inform(null, 10 * 60 * 1000.toLong())
         informers[namespace] = informer
         logger.warn { "Now watching pods in the $namespace namespace. (total count = ${informers.size})" }
     }

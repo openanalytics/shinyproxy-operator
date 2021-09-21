@@ -24,41 +24,45 @@ import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.isInManagedNamespace
 import io.fabric8.kubernetes.api.model.HasMetadata
+import io.fabric8.kubernetes.api.model.KubernetesResourceList
 import io.fabric8.kubernetes.api.model.OwnerReference
+import io.fabric8.kubernetes.client.dsl.MixedOperation
+import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler
-import io.fabric8.kubernetes.client.informers.SharedIndexInformer
+import io.fabric8.kubernetes.client.informers.cache.Indexer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import java.util.*
 
-class ResourceListener<T : HasMetadata>(private val channel: SendChannel<ShinyProxyEvent>,
-                                        informer: SharedIndexInformer<T>,
-                                        private val shinyProxyLister: Lister<ShinyProxy>) {
+class ResourceListener<T : HasMetadata, L : KubernetesResourceList<T>, R : Resource<T>>(
+    private val channel: SendChannel<ShinyProxyEvent>, private val resourceClient: MixedOperation<T, L, R>
+) {
 
     private val logger = KotlinLogging.logger {}
 
-    init {
-        informer.addEventHandler(object : ResourceEventHandler<T> {
+    fun start(shinyProxyLister: Lister<ShinyProxy>): Indexer<T>? {
+        val informer = resourceClient.inform(object : ResourceEventHandler<T> {
             override fun onAdd(resource: T) {
                 logger.trace { "${resource.kind}::OnAdd ${resource.metadata.name}" }
-                runBlocking { enqueueResource("Add", resource) }
+                runBlocking { enqueueResource(shinyProxyLister, "Add", resource) }
             }
 
             override fun onUpdate(resource: T, newResource: T) {
                 logger.trace { "${resource.kind}::OnUpdate ${resource.metadata.name}" }
-                runBlocking { enqueueResource("Update", newResource) }
+                runBlocking { enqueueResource(shinyProxyLister, "Update", newResource) }
             }
 
             override fun onDelete(resource: T, b: Boolean) {
                 logger.trace { "${resource.kind}::OnDelete ${resource.metadata.name}" }
-                runBlocking { enqueueResource("Delete", resource) }
+                runBlocking { enqueueResource(shinyProxyLister, "Delete", resource) }
             }
         })
+        return informer.indexer
     }
 
-    private suspend fun enqueueResource(trigger: String, resource: T) {
+    private suspend fun enqueueResource(shinyProxyLister: Lister<ShinyProxy>, trigger: String, resource: T) {
         val ownerReference = getShinyProxyOwnerRef(resource) ?: return
 
         val shinyProxy = shinyProxyLister.namespace(resource.metadata.namespace)[ownerReference.name] ?: return

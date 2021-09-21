@@ -226,7 +226,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals("config-volume", templateSpec.volumes[0].name)
         assertEquals("sp-${sp.metadata.name}-cm-${hash}".take(63), templateSpec.volumes[0].configMap.name)
 
-        assertTrue(Readiness.isReady(replicaSet))
+        assertTrue(Readiness.getInstance().isReady(replicaSet))
     }
 
     fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy) {

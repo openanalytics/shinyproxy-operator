@@ -28,9 +28,7 @@ import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyListener
-import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
 import eu.openanalytics.shinyproxyoperator.ingress.skipper.IngressController
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.ConfigMapList
@@ -38,23 +36,20 @@ import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.ServiceList
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
-import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
-import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
-import io.fabric8.kubernetes.client.dsl.base.OperationContext
-import io.fabric8.kubernetes.client.informers.SharedIndexInformer
-import io.fabric8.kubernetes.client.informers.SharedInformerFactory
+import io.fabric8.kubernetes.client.dsl.Resource
+import io.fabric8.kubernetes.client.dsl.RollableScalableResource
+import io.fabric8.kubernetes.client.dsl.ServiceResource
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
+import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.config.Configurator
 import java.util.*
-import org.apache.logging.log4j.Level
 import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
 
@@ -80,23 +75,20 @@ class Operator(client: NamespacedKubernetesClient? = null,
     val startupProbeInitialDelay: Int
     val processMaxLifetime: Long
 
-    private val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
-        .withVersion("v1alpha1")
-        .withScope("Namespaced")
-        .withGroup("openanalytics.eu")
-        .withPlural("shinyproxies")
-        .build()
-
-    private val informerFactory: SharedInformerFactory
-    private val replicaSetInformer: SharedIndexInformer<ReplicaSet>
-    private val serviceInformer: SharedIndexInformer<Service>
-    private val configMapInformer: SharedIndexInformer<ConfigMap>
-    private val ingressInformer: SharedIndexInformer<Ingress>
-    private val shinyProxyInformer: SharedIndexInformer<ShinyProxy>
     val podRetriever: PodRetriever
+    private val shinyProxyClient: ShinyProxyClient
+
+    private val shinyProxyListener: ShinyProxyListener
+    private val replicaSetListener: ResourceListener<ReplicaSet, ReplicaSetList, RollableScalableResource<ReplicaSet>>
+    private val serviceListener: ResourceListener<Service, ServiceList, ServiceResource<Service>>
+    private val configMapListener: ResourceListener<ConfigMap, ConfigMapList, Resource<ConfigMap>>
+    private val ingressController: IngressController
+
+    private val channel = Channel<ShinyProxyEvent>(10000)
+    val sendChannel: SendChannel<ShinyProxyEvent> = channel // public for tests
 
     /**
-     * Initialize mode, client, namespace and informers
+     * Initialize mode, client, namespace and listeners
      */
     init {
         Serialization.jsonMapper().registerKotlinModule()
@@ -123,13 +115,13 @@ class Operator(client: NamespacedKubernetesClient? = null,
         if (this.processMaxLifetime != -1L) {
             Timer().schedule(this.processMaxLifetime * 60 * 1000) {
                 logger.warn { "Max lifetime of process reached, preparing shutdown" }
-                sendChannel.close();
+                sendChannel.close()
                 while (!channel.isClosedForReceive && !channel.isEmpty && !shinyProxyController.idle) {
                     logger.warn { "Still processing events in queue, delaying shutdown" }
                     Thread.sleep(250)
                 }
                 logger.warn { "Queue is empty, exiting process" }
-                exitProcess(1);
+                exitProcess(1)
             }
         }
 
@@ -146,79 +138,42 @@ class Operator(client: NamespacedKubernetesClient? = null,
         }
         logger.info { "Using namespace : $namespace " }
 
-        informerFactory = when (this.mode) {
-            Mode.CLUSTERED -> this.client.inAnyNamespace().informers()
-            Mode.NAMESPACED -> this.client.inNamespace(namespace).informers()
+        this.shinyProxyClient = when (this.mode) {
+            Mode.CLUSTERED -> this.client.inAnyNamespace().resources(ShinyProxy::class.java)
+            Mode.NAMESPACED -> this.client.inNamespace(namespace).resources(ShinyProxy::class.java)
         }
 
+        shinyProxyListener = ShinyProxyListener(sendChannel, this.shinyProxyClient)
+        podRetriever = PodRetriever(this.client)
+
         if (this.mode == Mode.CLUSTERED) {
-            replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, 10 * 60 * 1000.toLong())
-            serviceInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, 10 * 60 * 1000.toLong())
-            configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
-            ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, 10 * 60 * 1000.toLong())
-            shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000.toLong())
-            podRetriever = PodRetriever(this.client)
+            replicaSetListener = ResourceListener(sendChannel, this.client.inAnyNamespace().apps().replicaSets())
+            serviceListener = ResourceListener(sendChannel, this.client.inAnyNamespace().services())
+            configMapListener = ResourceListener(sendChannel, this.client.inAnyNamespace().configMaps())
+            ingressController = IngressController(sendChannel, this.client, this.client.inAnyNamespace().network().ingress())
         } else {
-            val operationContext = OperationContext().withNamespace(namespace)
-            replicaSetInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, operationContext, 10 * 60 * 1000.toLong())
-            serviceInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, operationContext, 10 * 60 * 1000.toLong())
-            configMapInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, operationContext, 10 * 60 * 1000.toLong())
-            ingressInformer = informerFactory.sharedIndexInformerFor(Ingress::class.java, IngressList::class.java, operationContext, 10 * 60 * 1000.toLong())
-            shinyProxyInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, operationContext, 10 * 60 * 1000.toLong())
-            podRetriever = PodRetriever(this.client)
+            replicaSetListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).apps().replicaSets())
+            serviceListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).services())
+            configMapListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).configMaps())
+            ingressController = IngressController(sendChannel, this.client, this.client.inNamespace(namespace).network().ingress())
         }
 
         Timer().schedule(5000, 5000) {
             val num = (getOperatorInstance().client as DefaultKubernetesClient).httpClient.connectionPool().connectionCount()
             val max = (getOperatorInstance().client as DefaultKubernetesClient).configuration.maxConcurrentRequests
-            logger.warn { "Current number of connections: $num of $max"}
+            logger.warn { "Current number of connections: $num of $max" }
         }
     }
 
     /**
-     * Main Components
-     */
-    private val shinyProxyClient = when (this.mode) {
-        Mode.CLUSTERED -> this.client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
-        Mode.NAMESPACED -> this.client.inNamespace(namespace).customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
-    }
-    private val channel = Channel<ShinyProxyEvent>(10000)
-    val sendChannel: SendChannel<ShinyProxyEvent> = channel // public for tests
-
-    /**
-     * Listers
-     */
-    private val shinyProxyLister = Lister(shinyProxyInformer.indexer)
-    private val replicaSetLister = Lister(replicaSetInformer.indexer)
-    private val configMapLister = Lister(configMapInformer.indexer)
-    private val serviceLister = Lister(serviceInformer.indexer)
-    private val ingressLister = Lister(ingressInformer.indexer)
-
-    /**
-     * Listeners
-     * Note: it is normal that these are unused, since they only perform background processing
-     */
-    private val shinyProxyListener = ShinyProxyListener(sendChannel, shinyProxyInformer, shinyProxyLister)
-    private val replicaSetListener = ResourceListener(sendChannel, replicaSetInformer, shinyProxyLister)
-    private val serviceListener = ResourceListener(sendChannel, serviceInformer, shinyProxyLister)
-    private val configMapListener = ResourceListener(sendChannel, configMapInformer, shinyProxyLister)
-
-    /**
-     * Helpers
-     */
-    private val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, ingressLister)
-
-    /**
      * Controllers
      */
-    private val ingressController = IngressController(channel, ingressInformer, shinyProxyLister, this.client, resourceRetriever)
-    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, replicaSetInformer, shinyProxyInformer, ingressController, resourceRetriever, shinyProxyLister, podRetriever, reconcileListener)
+    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, ingressController, podRetriever, reconcileListener)
 
-
-    fun prepare() {
-        logger.info("Starting ShinyProxy Operator")
+    fun prepare(): Pair<ResourceRetriever, Lister<ShinyProxy>> {
+        logger.info { "Starting background processes of ShinyProxy Operator" }
         try {
-            if (client.customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get() == null) {
+            if (client.apiextensions().v1beta1().customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get() == null) {
                 println()
                 println()
                 println("ERROR: the CustomResourceDefinition (CRD) of the Operator does not exist!")
@@ -240,22 +195,19 @@ class Operator(client: NamespacedKubernetesClient? = null,
             println()
         }
 
-        informerFactory.startAllRegisteredInformers()
+        val shinyProxyLister = Lister(shinyProxyListener.start())
+        val replicaSetLister = Lister(replicaSetListener.start(shinyProxyLister))
+        val serviceLister = Lister(serviceListener.start(shinyProxyLister))
+        val configMapLister = Lister(configMapListener.start(shinyProxyLister))
+        val ingressLister = Lister(ingressController.start(shinyProxyLister))
+        val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, ingressLister)
 
-        informerFactory.addSharedInformerEventListener {
-            // TODO exit when KubernetesClientException ?
-            logger.warn(it) { "Exception occurred, but caught $it" }
-        }
-
-        while (!replicaSetInformer.hasSynced() || !shinyProxyInformer.hasSynced()) {
-            // Wait till Informer syncs
-        }
-
+        return resourceRetriever to shinyProxyLister
     }
 
-    suspend fun run() {
-        prepare()
-        shinyProxyController.run()
+    suspend fun run(resourceRetriever: ResourceRetriever, shinyProxyLister: Lister<ShinyProxy>) {
+        logger.info { "Starting ShinyProxy Operator" }
+        shinyProxyController.run(resourceRetriever, shinyProxyLister)
     }
 
     companion object {
