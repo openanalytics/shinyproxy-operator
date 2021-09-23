@@ -29,6 +29,7 @@ import io.fabric8.kubernetes.api.model.OwnerReference
 import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Indexer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.SendChannel
@@ -42,8 +43,10 @@ class ResourceListener<T : HasMetadata, L : KubernetesResourceList<T>, R : Resou
 
     private val logger = KotlinLogging.logger {}
 
+    private var informer: SharedIndexInformer<T>? = null
+
     fun start(shinyProxyLister: Lister<ShinyProxy>): Indexer<T>? {
-        val informer = resourceClient.inform(object : ResourceEventHandler<T> {
+        val i = resourceClient.inform(object : ResourceEventHandler<T> {
             override fun onAdd(resource: T) {
                 logger.trace { "${resource.kind}::OnAdd ${resource.metadata.name}" }
                 runBlocking { enqueueResource(shinyProxyLister, "Add", resource) }
@@ -59,7 +62,8 @@ class ResourceListener<T : HasMetadata, L : KubernetesResourceList<T>, R : Resou
                 runBlocking { enqueueResource(shinyProxyLister, "Delete", resource) }
             }
         })
-        return informer.indexer
+        informer = i
+        return i.indexer
     }
 
     private suspend fun enqueueResource(shinyProxyLister: Lister<ShinyProxy>, trigger: String, resource: T) {
@@ -93,6 +97,11 @@ class ResourceListener<T : HasMetadata, L : KubernetesResourceList<T>, R : Resou
         }
 
         return null
+    }
+
+    fun stop() {
+        informer?.stop()
+        informer = null
     }
 
 }

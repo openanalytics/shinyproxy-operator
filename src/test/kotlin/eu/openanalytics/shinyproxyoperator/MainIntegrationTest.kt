@@ -160,7 +160,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 3. wait until instance is created
             spTestInstance.waitForOneReconcile()
-            logger.info { "Fuly created instance." }
+            logger.info { "Fully created instance." }
 
             // 4. assert correctness
             spTestInstance.assertInstanceIsCorrect()

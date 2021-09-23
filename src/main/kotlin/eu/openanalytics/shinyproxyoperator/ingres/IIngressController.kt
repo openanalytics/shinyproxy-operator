@@ -29,4 +29,6 @@ interface IIngressController {
     fun reconcile(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy)
 
     fun onRemoveInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance)
+
+    fun stop()
 }

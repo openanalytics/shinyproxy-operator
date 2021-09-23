@@ -114,6 +114,8 @@ abstract class IntegrationTestBase {
                 // 6. delete namespace
                 deleteNamespaces()
             }
+            Operator.getOperatorInstance().stop()
+            stableClient.httpClient.connectionPool().evictAll()
         }
 
     }

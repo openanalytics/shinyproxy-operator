@@ -24,6 +24,7 @@ import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.isInManagedNamespace
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Indexer
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
@@ -33,8 +34,10 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>, priv
 
     private val logger = KotlinLogging.logger {}
 
+    private var informer: SharedIndexInformer<ShinyProxy>? = null
+
     fun start(): Indexer<ShinyProxy> {
-        val informer = shinyProxyClient.inform(object : ResourceEventHandler<ShinyProxy> {
+       val i = shinyProxyClient.inform(object : ResourceEventHandler<ShinyProxy> {
             override fun onAdd(shinyProxy: ShinyProxy) {
                 if (!isInManagedNamespace(shinyProxy)) return
                 logger.debug { "${shinyProxy.logPrefix()} [Event/Add]" }
@@ -69,7 +72,13 @@ class ShinyProxyListener(private val channel: SendChannel<ShinyProxyEvent>, priv
                 runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.DELETE, shinyProxy, null)) }
             }
         }, 10 * 60 * 1000.toLong())
-        return informer.indexer!!
+        informer = i
+        return i.indexer!!
+    }
+
+    fun stop() {
+        informer?.stop()
+        informer = null
     }
 
 

@@ -77,6 +77,10 @@ class IngressController(
         }
     }
 
+    override fun stop() {
+        ingressListener.stop()
+    }
+
     private fun reconcileSingleInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
 

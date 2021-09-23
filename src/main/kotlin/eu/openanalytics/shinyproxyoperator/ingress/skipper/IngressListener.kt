@@ -46,10 +46,11 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
                       private val kubernetesClient: KubernetesClient,
                       private val ingressClient: MixedOperation<Ingress, IngressList, Resource<Ingress>>) {
 
+    private var informer: SharedIndexInformer<Ingress>? = null
     private val logger = KotlinLogging.logger {}
 
     fun start(shinyProxyLister: Lister<ShinyProxy>): Indexer<Ingress> {
-       val informer = ingressClient.inform(object : ResourceEventHandler<Ingress> {
+       val i = ingressClient.inform(object : ResourceEventHandler<Ingress> {
             override fun onAdd(resource: Ingress) {
                 logger.trace { "${resource.kind}::OnAdd ${resource.metadata.name}" }
                 runBlocking { enqueueResource(shinyProxyLister, "Add", resource) }
@@ -65,7 +66,13 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
                 runBlocking { enqueueResource(shinyProxyLister, "Delete", resource) }
             }
         })
-        return informer.indexer
+        informer = i
+        return i.indexer
+    }
+
+    fun stop() {
+        informer?.stop()
+        informer = null
     }
 
     private suspend fun enqueueResource(shinyProxyLister: Lister<ShinyProxy>, trigger: String, resource: Ingress) {
@@ -96,7 +103,6 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
         channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance))
     }
 
-
     private fun getShinyProxyOwnerRefByKind(resource: HasMetadata, kind: String): OwnerReference? {
         val ownerReferences = resource.metadata.ownerReferences
         for (ownerReference in ownerReferences) {
@@ -107,6 +113,7 @@ class IngressListener(private val channel: SendChannel<ShinyProxyEvent>,
 
         return null
     }
+
 
 
 }

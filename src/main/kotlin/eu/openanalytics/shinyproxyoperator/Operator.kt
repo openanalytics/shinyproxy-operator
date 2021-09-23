@@ -159,8 +159,8 @@ class Operator(client: NamespacedKubernetesClient? = null,
         }
 
         Timer().schedule(5000, 5000) {
-            val num = (getOperatorInstance().client as DefaultKubernetesClient).httpClient.connectionPool().connectionCount()
-            val max = (getOperatorInstance().client as DefaultKubernetesClient).configuration.maxConcurrentRequests
+            val num = (client as DefaultKubernetesClient).httpClient.connectionPool().connectionCount()
+            val max = client.configuration.maxConcurrentRequests
             logger.warn { "Current number of connections: $num of $max" }
         }
     }
@@ -210,6 +210,15 @@ class Operator(client: NamespacedKubernetesClient? = null,
         shinyProxyController.run(resourceRetriever, shinyProxyLister)
     }
 
+    fun stop() {
+        shinyProxyListener.stop()
+        replicaSetListener.stop()
+        serviceListener.stop()
+        configMapListener.stop()
+        ingressController.stop()
+        podRetriever.stop()
+    }
+
     companion object {
         private var _operatorInstance: Operator? = null
 
@@ -238,6 +247,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         logger.info { "Using $res for property $envVarName" }
         return res
     }
+
 
 }
 

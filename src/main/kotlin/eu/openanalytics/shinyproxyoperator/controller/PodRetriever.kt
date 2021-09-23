@@ -24,9 +24,7 @@ import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.Pod
-import io.fabric8.kubernetes.api.model.PodList
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
-import io.fabric8.kubernetes.client.dsl.base.OperationContext
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import mu.KotlinLogging
 
@@ -87,6 +85,10 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
 
     fun getNamespaces(): Set<String> {
         return informers.keys
+    }
+
+    fun stop() {
+        informers.forEach { it.value.stop() }
     }
 
 }
