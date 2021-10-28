@@ -31,16 +31,12 @@ import mu.KotlinLogging
 class PodRetriever(private val client: NamespacedKubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
-    private val informers = mutableMapOf<String, SharedIndexInformer<Pod>>()
+    private val namespaces = HashSet<String>()
 
     fun addNamespace(namespace: String) {
-        if (informers.containsKey(namespace)) {
-            return
+        if (namespaces.add(namespace)) {
+            logger.warn { "Now watching pods in the $namespace namespace. (total count = ${namespaces.size})" }
         }
-
-        val informer = client.pods().inNamespace(namespace).withLabels(mapOf(LabelFactory.PROXIED_APP to "true")).inform(null, 10 * 60 * 1000.toLong())
-        informers[namespace] = informer
-        logger.warn { "Now watching pods in the $namespace namespace. (total count = ${informers.size})" }
     }
 
     fun getPodsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): List<Pod> {
@@ -56,26 +52,16 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
             // We don't know the exact namespaces used by older ShinyProxyInstance, therefore we have to look into all namespaces.
             // We could save the list of namespaces in the status of the instance, if it turns out this is a performance bottleneck.
             // Note: that currently this function is only called for older SP instances and thus this else statement is actually always executed...
-            informers.keys
+            namespaces
         }
 
         logger.debug { "Looking for Pods managed by ${shinyProxyInstance.hashOfSpec} using $labels in $namespacesToCheck" }
 
         for (namespace in namespacesToCheck) {
-            val informer = informers[namespace]
-            if (informer == null) {
-                logger.warn { "Looking for pods in $namespace but no informer found!" }
-                continue
-            }
-
-            for (pod in informer.indexer.list()) {
-                if (pod?.metadata?.labels?.entries?.containsAll(labels.entries) == true) {
-                    pods.add(pod)
-                }
-            }
+            pods.addAll(client.pods().inNamespace(namespace).withLabels(labels).list().items)
         }
 
-        logger.info { "PodCount: ${pods.size}, ${pods.map { it.metadata.name }}" }
+        logger.info { "PodCount: ${pods.size}, ${pods.map { it.metadata.namespace + "/" + it.metadata.name }}" }
         return pods
     }
 
@@ -84,7 +70,7 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
     }
 
     fun getNamespaces(): Set<String> {
-        return informers.keys
+        return namespaces
     }
 
     fun stop() {
