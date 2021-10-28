@@ -167,7 +167,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
     fun prepare(): Pair<ResourceRetriever, Lister<ShinyProxy>> {
         logger.info { "Starting background processes of ShinyProxy Operator" }
         try {
-            if (client.apiextensions().v1beta1().customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get() == null) {
+            if (client.apiextensions().v1().customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get() == null) {
                 println()
                 println()
                 println("ERROR: the CustomResourceDefinition (CRD) of the Operator does not exist!")

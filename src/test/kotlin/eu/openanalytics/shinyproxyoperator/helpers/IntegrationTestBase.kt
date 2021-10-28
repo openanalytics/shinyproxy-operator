@@ -42,13 +42,6 @@ import kotlinx.coroutines.runBlocking
 
 abstract class IntegrationTestBase {
 
-    private val customResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
-        .withVersion("v1alpha1")
-        .withScope("Namespaced")
-        .withGroup("openanalytics.eu")
-        .withPlural("shinyproxies")
-        .build()
-
     private val namespace = "itest"
     private val managedNamespaces = listOf("itest", "itest-2")
 
@@ -80,8 +73,8 @@ abstract class IntegrationTestBase {
 
             // 2. create the CRD
             if (!crdExists()) {
-                val crd = stableClient.apiextensions().v1beta1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
-                stableClient.apiextensions().v1beta1().customResourceDefinitions().createOrReplace(crd)
+                val crd = stableClient.apiextensions().v1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
+                stableClient.apiextensions().v1().customResourceDefinitions().createOrReplace(crd)
             }
 
             // 3. create the operator
@@ -146,8 +139,8 @@ abstract class IntegrationTestBase {
     }
 
     private suspend fun deleteCRD(client: DefaultKubernetesClient) {
-        val crd = stableClient.apiextensions().v1beta1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
-        stableClient.apiextensions().v1beta1().customResourceDefinitions().delete(crd)
+        val crd = stableClient.apiextensions().v1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
+        stableClient.apiextensions().v1().customResourceDefinitions().delete(crd)
         delay(2000)
 
         while (crdExists()) {
@@ -156,7 +149,7 @@ abstract class IntegrationTestBase {
     }
 
     private fun crdExists(): Boolean {
-        return stableClient.apiextensions().v1beta1().customResourceDefinitions().list().items.firstOrNull {
+        return stableClient.apiextensions().v1().customResourceDefinitions().list().items.firstOrNull {
             it.spec.group == "openanalytics.eu" && it.spec.names.plural == "shinyproxies"
         } != null
     }

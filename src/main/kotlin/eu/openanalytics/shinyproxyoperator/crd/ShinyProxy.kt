@@ -33,7 +33,7 @@ import io.fabric8.kubernetes.model.annotation.Group
 import io.fabric8.kubernetes.model.annotation.Version
 import javax.json.JsonPatch
 
-@Version("v1alpha1")
+@Version("v1")
 @Group("openanalytics.eu")
 class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
 

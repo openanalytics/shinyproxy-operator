@@ -241,7 +241,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(1, resource.metadata.ownerReferences.size)
         assertTrue(resource.metadata.ownerReferences[0].controller)
         assertEquals("ShinyProxy", resource.metadata.ownerReferences[0].kind)
-        assertEquals("openanalytics.eu/v1alpha1", resource.metadata.ownerReferences[0].apiVersion)
+        assertEquals("openanalytics.eu/v1", resource.metadata.ownerReferences[0].apiVersion)
         assertEquals(sp.metadata.name, resource.metadata.ownerReferences[0].name)
         assertEquals(sp.metadata.uid, resource.metadata.ownerReferences[0].uid)
     }

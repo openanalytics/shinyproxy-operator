@@ -42,7 +42,7 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
-                        .withApiVersion("openanalytics.eu/v1alpha1")
+                        .withApiVersion("openanalytics.eu/v1")
                         .withName(shinyProxy.metadata.name)
                         .withNewUid(shinyProxy.metadata.uid)
                     .endOwnerReference()
