@@ -204,9 +204,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             return
         }
 
-        // Extra check, if this check is positive we have some bug, see #24986
-        logger.warn(Throwable()) { "${shinyProxy.logPrefix(shinyProxyInstance)} Updating latest marker to ${latestInstance.hashOfSpec}, status: ${shinyProxy.status}" }
-
         updateStatus(shinyProxy) {
             it.status.instances.forEach { inst -> inst.isLatestInstance = false }
             it.status.instances.first { inst -> inst.hashOfSpec == latestInstance.hashOfSpec }.isLatestInstance = true

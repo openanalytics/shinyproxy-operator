@@ -157,12 +157,6 @@ class Operator(client: NamespacedKubernetesClient? = null,
             configMapListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).configMaps())
             ingressController = IngressController(sendChannel, this.client, this.client.inNamespace(namespace).network().ingress())
         }
-
-        Timer().schedule(5000, 5000) {
-            val num = (client as DefaultKubernetesClient).httpClient.connectionPool().connectionCount()
-            val max = client.configuration.maxConcurrentRequests
-            logger.warn { "Current number of connections: $num of $max" }
-        }
     }
 
     /**
