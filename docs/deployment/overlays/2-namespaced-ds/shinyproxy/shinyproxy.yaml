@@ -1,4 +1,4 @@
-apiVersion: openanalytics.eu/v1alpha1
+apiVersion: openanalytics.eu/v1
 kind: ShinyProxy
 metadata:
   name: shinyproxy

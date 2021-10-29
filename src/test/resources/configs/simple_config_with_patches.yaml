@@ -1,4 +1,4 @@
-apiVersion: openanalytics.eu/v1alpha1
+apiVersion: openanalytics.eu/v1
 kind: ShinyProxy
 metadata:
   name: example-shinyproxy
@@ -64,5 +64,3 @@ spec:
         timeoutSeconds: 1
     - op: remove
       path: /spec/containers/0/startupProbe
-
-

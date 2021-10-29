@@ -35,6 +35,8 @@ spec:
           #     value: "TRUE" # when specifying the env variable with any value secure cookies are disabled (this by default the operator uses secure cookies)
           #   - name: "SPO_LOG_LEVEL"
           #     VALUE: "DEBUG" # by default DEBUG
+          #   - name: SPO_PROCESS_MAX_LIFETIME
+          #    value: "30"
           resources:
             limits:
               cpu: 500m
