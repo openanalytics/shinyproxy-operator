@@ -43,7 +43,7 @@ ShinyProxy operator on minikube.
 2. Start minikube:
 
    ```bash
-   minikube start --addons=metrics-server,ingress
+   minikube start --kubernetes-version='v1.21.6'  --addons=metrics-server,ingress
    ````
 
 3. Clone this repository and change the working directory:
@@ -206,3 +206,24 @@ important:
   only needed when you change the namespace of an app using the
   `kubernetes-pod-patches` feature. The namespace of the operator and ShinyProxy
   instance are automatically included
+
+## Troubleshooting
+
+You may get the following exception:
+
+```text
+io.fabric8.kubernetes.client.KubernetesClientException: Failure executing: POST at: https://10.96.0.1/apis/networking.k8s.io/v1beta1/namespaces/shinyproxy/ingresses. Message: admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "shinyproxy-demo.local" and path "/" is already defined in ingress shinyproxy/ngingx-to-skipper-ingress. Received status: Status(apiVersion=v1, code=400, details=null, kind=Status, message=admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "shinyproxy-demo.local" and path "/" is already defined in ingress shinyproxy/ngingx-to-skipper-ingress, metadata=ListMeta(_continue=null, remainingItemCount=null, resourceVersion=null, selfLink=null, additionalProperties={}), reason=BadRequest, status=Failure, additionalProperties={}).
+```
+
+This exception is caused by a
+[bug](https://github.com/kubernetes/ingress-nginx/issues/7546) in the latest
+(v1.0.0) version of the ingress-nginx controller. There are two workarounds for this bug:
+
+- use a version of the ingress controller older than v1.0.0 (e.g. v0.49.2)
+- remove the validating webhook using, this is **not recommended** since it
+  removes an important part of how the ingress controller works. However, it is
+  an easy solution when you are following the above tutorial in minikube:
+
+  ```bash
+  kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+  ```

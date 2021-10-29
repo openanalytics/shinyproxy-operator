@@ -21,3 +21,17 @@ roleRef:
   kind: Role
   name: shinyproxy-apps-role-my-ns
   apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: shinyproxy-operator-apps-rolebinding-my-ns
+  namespace: my-namespace
+subjects:
+  - kind: ServiceAccount
+    name: shinyproxy-operator-sa
+    namespace: shinyproxy
+roleRef:
+  kind: Role
+  name: shinyproxy-apps-role-my-ns
+  apiGroup: rbac.authorization.k8s.io

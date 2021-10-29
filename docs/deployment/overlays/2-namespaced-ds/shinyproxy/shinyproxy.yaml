@@ -17,6 +17,8 @@ spec:
       host: redis
       password: ${REDIS_PASSWORD}
   proxy:
+    operator:
+      force-transfer: true
     title: ShinyProxy
     logoUrl: ""
     landingPage: /
@@ -84,6 +86,6 @@ spec:
         successThreshold: 1
         failureThreshold: 6
         initialDelaySeconds: 60
-  image: openanalytics/shinyproxy:2.5.0
+  image: openanalytics/shinyproxy:2.6.0
   imagePullPolicy: Always
   fqdn: shinyproxy-demo.local
