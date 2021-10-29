@@ -13,13 +13,13 @@ connection and session of currently running apps. Every time the configuration
 of ShinyProxy is updated, the operator creates a new ShinyProxy server. The
 previous running server will not be removed by the operator immediately.
 Instead, it is kept around as long as users are running apps on that server.
-Theses users will stay on the old server, until they are transferred to the new
+These users will stay on the old server, until they are transferred to the new
 server. In contrast, new users will automatically get routed to the latest
 server and run their apps on that server.
 
 ## Transferring users to the latest ShinyProxy Server
 
-This sections describe the scenarios in which a user is transferred to the
+These sections describe the scenarios in which a user is transferred to the
 latest server.
 
 ### Scenario 1: user action
@@ -46,7 +46,7 @@ the latest version.
 **Note:** both messages can be disabled by setting the
 `proxy.operator.show-transfer-message-main-page` and
 `proxy.operator.show-transfer-message-app-page` options to `false` (in the
-ShinyProxy configuration). By default these messages are enabled.
+ShinyProxy configuration). By default, these messages are enabled.
 
 ### Scenario 2: After logout
 
@@ -97,7 +97,7 @@ server. This server will then redirect to the OpenID provider.
   the latest ShinyProxy server
 
 **Note:** this only works when the `proxy.operator.force-transfer` option is set
-to `true` (in the ShinyProxy configuration). By default this option is disabled.
+to `true` (in the ShinyProxy configuration). By default, this option is disabled.
 
 ### Scenario 5: Starting an app
 
@@ -111,8 +111,8 @@ to `true` (in the ShinyProxy configuration). By default this option is disabled.
 
 **Behavior:**
 
-- before ShinyProxy starts the request app, the user is transferred to the
+- before ShinyProxy starts the requested app, the user is transferred to the
   latest ShinyProxy server
 
 **Note:** this only works when the `proxy.operator.force-transfer` option is set
-to `true` (in the ShinyProxy configuration). By default this option is disabled.
+to `true` (in the ShinyProxy configuration). By default, this option is disabled.

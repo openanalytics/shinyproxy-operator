@@ -52,11 +52,11 @@ This configuration automatically discovers all ShinyProxy servers.
 
 The above screenshot shows the `absolute_users_active` metric int the Prometheus
 UI. The `shinyproxy_realm` label is automatically added by ShinyProxy to every
-metric. The tag contains the resource name of the ShinyProxy server. Therefore
+metric. The tag contains the resource name of the ShinyProxy server. Therefore,
 this tag is not added to the metrics when ShinyProxy is not being run using the
 Operator. In the screenshot there are three ShinyProxy servers being managed by
 the ShinyProxy server and two servers using a traditional deployment. The
-`shinyproxy` realm has has two severs (instances) running (see the
+`shinyproxy` realm has two severs (instances) running (see the
 `shinyproxy_instance` label). The dashboard provided on the [ShinyProxy website](https://shinyproxy.io/documentation/usage-statistics/#micrometer) 
 is designed to work with multiple realms and multiple servers inside each realm.
 For example, when displaying the Active Users, the dashboard differentiates
@@ -65,5 +65,5 @@ between the different realms:
 ![Grafana UI](../.github/screenshots/grafana_active_users.png)
 
 The dashboard contains two variables which allow you to filter the panels by
-realm or app name. By default these are hidden, check the [ShinyProxy website](https://shinyproxy.io/documentation/usage-statistics/#variable-filters)
+realm or app name. By default, these are hidden, check the [ShinyProxy website](https://shinyproxy.io/documentation/usage-statistics/#variable-filters)
 to makes these visible.
