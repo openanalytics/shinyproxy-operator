@@ -210,7 +210,6 @@ class Operator(client: NamespacedKubernetesClient? = null,
         serviceListener.stop()
         configMapListener.stop()
         ingressController.stop()
-        podRetriever.stop()
     }
 
     companion object {

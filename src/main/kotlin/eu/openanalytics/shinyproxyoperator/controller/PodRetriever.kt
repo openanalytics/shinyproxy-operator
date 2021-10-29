@@ -73,8 +73,4 @@ class PodRetriever(private val client: NamespacedKubernetesClient) {
         return namespaces
     }
 
-    fun stop() {
-        informers.forEach { it.value.stop() }
-    }
-
 }
