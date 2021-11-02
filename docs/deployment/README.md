@@ -59,6 +59,19 @@ ShinyProxy operator on minikube.
    kustomize build .  | k apply -f -
    ```
 
+   **Note:** this command may not finish successfully from the first attempt,
+   for example, you could get the following message:
+
+   ```text
+   unable to recognize "STDIN": no matches for kind "CustomResourceDefinition" in version "apiextensions.k8s.io/v1"
+   unable to recognize "STDIN": no matches for kind "ShinyProxy" in version "openanalytics.eu/v1"  
+   ```
+
+   In this case, just re-run the command. The resources should then get created.
+   (there is no way to specify the order of resources or the dependencies
+   between resources in `kustomize`, re-running the command is the only
+   workaround)
+
 5. Wait for all the resources to startup. At this point the operator should
    start. It is now time to configure web access to the cluster. First get the
    IP of minikube using:
