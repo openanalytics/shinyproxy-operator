@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: sp-example-shinyproxy-cm-ffe378e0c083a033ee86a2473ff0a3d125dfaa
+  name: sp-example-shinyproxy-cm-abfc24c726e9e87ea7c633384f2a6599352490
   namespace: itest
 data:
   application.yml: |
@@ -10,7 +10,7 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: sp-example-shinyproxy-svc-ffe378e0c083a033ee86a2473ff0a3d125dfa
+  name: sp-example-shinyproxy-svc-abfc24c726e9e87ea7c633384f2a659935249
   namespace: itest
 spec:
   type: ClusterIP
@@ -25,7 +25,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: sp-example-shinyproxy-ing-ffe378e0c083a033ee86a2473ff0a3d125dfa
+  name: sp-example-shinyproxy-ing-abfc24c726e9e87ea7c633384f2a659935249
   namespace: itest
 spec:
   rules:
