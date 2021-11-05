@@ -1,6 +1,25 @@
+/**
+ * ShinyProxy-Operator
+ *
+ * Copyright (C) 2021 Open Analytics
+ *
+ * ===========================================================================
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the Apache License as published by
+ * The Apache Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Apache License for more details.
+ *
+ * You should have received a copy of the Apache License
+ * along with this program.  If not, see <http://www.apache.org/licenses/>
+ */
 package eu.openanalytics.shinyproxyoperator.components
 
-import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.IntOrString
@@ -13,34 +32,34 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
-    suspend fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Service? {
+    fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        //@formatter:off
         val serviceDefinition: Service = ServiceBuilder()
                 .withNewMetadata()
-                    .withName(ResourceNameFactory.createNameForService(shinyProxy))
+                    .withName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
                     .withNamespace(shinyProxy.metadata.namespace)
-                    .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                    .withLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
-                        .withApiVersion("openanalytics.eu/v1alpha1")
+                        .withApiVersion("openanalytics.eu/v1")
                         .withName(shinyProxy.metadata.name)
                         .withNewUid(shinyProxy.metadata.uid)
                     .endOwnerReference()
                 .endMetadata()
                 .withNewSpec()
-                    .withType("NodePort")
+                    .withType("ClusterIP")
                     .addNewPort()
                         .withPort(80)
                         .withTargetPort(IntOrString(8080))
                     .endPort()
-                    .withSelector(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                    .withSelector<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                 .endSpec()
                 .build()
+        //@formatter:on
 
-        val createdService = kubeClient.services().inNamespace(shinyProxy.metadata.namespace).create(serviceDefinition)
-        logger.debug { "Created Service with name ${createdService.metadata.name}" }
-
-        return kubeClient.resource(createdService).fromServer().get()
+        val createdService = kubeClient.services().inNamespace(shinyProxy.metadata.namespace).createOrReplace(serviceDefinition)
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Service] Created ${createdService.metadata.name}" }
     }
 
 }

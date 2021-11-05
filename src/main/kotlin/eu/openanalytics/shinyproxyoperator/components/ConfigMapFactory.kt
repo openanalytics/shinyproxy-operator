@@ -1,3 +1,23 @@
+/**
+ * ShinyProxy-Operator
+ *
+ * Copyright (C) 2021 Open Analytics
+ *
+ * ===========================================================================
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the Apache License as published by
+ * The Apache Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Apache License for more details.
+ *
+ * You should have received a copy of the Apache License
+ * along with this program.  If not, see <http://www.apache.org/licenses/>
+ */
 package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -12,30 +32,31 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
-    fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): ConfigMap {
-        if (shinyProxy.calculateHashOfCurrentSpec() != shinyProxyInstance.hashOfSpec) {
-            TODO("Cannot re-create ConfigMap for old instance")
+    fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        if (shinyProxy.hashOfCurrentSpec != shinyProxyInstance.hashOfSpec) {
+            logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot re-create ConfigMap for old instance" }
+            return
         }
 
+        //@formatter:off
         val configMapDefinition: ConfigMap = ConfigMapBuilder()
                 .withNewMetadata()
-                    .withName(ResourceNameFactory.createNameForConfigMap(shinyProxy))
-                    .withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                    .withNamespace(shinyProxy.metadata.namespace)
+                    .withName(ResourceNameFactory.createNameForConfigMap(shinyProxy, shinyProxyInstance))
+                    .withLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
-                        .withApiVersion("openanalytics.eu/v1alpha1")
+                        .withApiVersion("openanalytics.eu/v1")
                         .withName(shinyProxy.metadata.name)
                         .withNewUid(shinyProxy.metadata.uid)
                     .endOwnerReference()
                 .endMetadata()
-                .addToData("application-in.yml", shinyProxy.specAsYaml)
+                .addToData("application.yml", shinyProxy.specAsYaml)
                 .build()
-
-        val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).create(configMapDefinition)
-        logger.debug { "Created ConfigMap with name ${createdConfigMap.metadata.name}" }
-
-        return kubeClient.resource(createdConfigMap).fromServer().get()
+        //@formatter:on
+        val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).createOrReplace(configMapDefinition)
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/ConfigMap] Created ${createdConfigMap.metadata.name}" }
     }
 
 }

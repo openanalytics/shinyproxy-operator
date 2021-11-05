@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%-15.15thread] %-5level %-36.36logger{2.} - %msg%n"/>
+        </Console>
+        <RollingFile name="File" fileName="logs/operator.log"
+                     filePattern="logs/operator-%d{MM-dd-yyyy}-%i.log.gz">
+            <PatternLayout pattern="%d [%t] %-5level %logger - %msg%n"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10"/>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <Logger name="io.fabric8.kubernetes.client.informers" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="TRACE"/>
+        </Logger>
+        <Logger name="io.fabric8.kubernetes.client.dsl.internal.WatchConnectionManager" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="TRACE"/>
+        </Logger>
+        <Logger name="eu.openanalytics.shinyproxyoperator.controller.PodRetriever" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="DEBUG"/>
+        </Logger>
+        <Logger name="eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="DEBUG"/>
+        </Logger>
+
+        <!-- Root Logger -->
+        <Root level="DEBUG">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File"/>
+        </Root>
+    </Loggers>
+</Configuration>

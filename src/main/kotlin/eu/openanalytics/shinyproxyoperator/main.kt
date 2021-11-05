@@ -1,69 +1,45 @@
+/**
+ * ShinyProxy-Operator
+ *
+ * Copyright (C) 2021 Open Analytics
+ *
+ * ===========================================================================
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the Apache License as published by
+ * The Apache Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * Apache License for more details.
+ *
+ * You should have received a copy of the Apache License
+ * along with this program.  If not, see <http://www.apache.org/licenses/>
+ */
 package eu.openanalytics.shinyproxyoperator
 
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyList
-import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
-import eu.openanalytics.shinyproxyoperator.crd.DoneableShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import io.fabric8.kubernetes.api.model.*
-import io.fabric8.kubernetes.api.model.apps.ReplicaSet
-import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import io.fabric8.kubernetes.api.model.KubernetesResourceList
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.Resource
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import mu.KotlinLogging
+import kotlin.system.exitProcess
+
+typealias ShinyProxyClient = MixedOperation<ShinyProxy, KubernetesResourceList<ShinyProxy>, Resource<ShinyProxy>>
 
 suspend fun main() {
     val logger = KotlinLogging.logger {}
     try {
-        val client = DefaultKubernetesClient()
-        var namespace = client.namespace
-        if (namespace == null) {
-            logger.info { "No namespace found via config, assuming default." }
-            namespace = "default"
-        }
-        logger.info { "Using namespace : $namespace " }
-        var podSetCustomResourceDefinition = client.customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get()
-        if (podSetCustomResourceDefinition == null) {
-            podSetCustomResourceDefinition = client.customResourceDefinitions().load(object : Any() {}.javaClass.getResourceAsStream("/crd.yaml")).get()
-            client.customResourceDefinitions().create(podSetCustomResourceDefinition)
-            logger.info { "Created CustomResourceDefinition" }
-        }
-
-        val podSetCustomResourceDefinitionContext = CustomResourceDefinitionContext.Builder()
-                .withVersion("v1alpha1")
-                .withScope("Namespaced")
-                .withGroup("openanalytics.eu")
-                .withPlural("shinyproxies")
-                .build()
-
-        val informerFactory = client.informers()
-        val shinyProxyClient: MixedOperation<ShinyProxy, ShinyProxyList, DoneableShinyProxy, Resource<ShinyProxy, DoneableShinyProxy>> = client.customResources(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, DoneableShinyProxy::class.java)
-        val replicaSetIndexInformer = informerFactory.sharedIndexInformerFor(ReplicaSet::class.java, ReplicaSetList::class.java, 10 * 60 * 1000.toLong())
-        val serviceIndexInformer = informerFactory.sharedIndexInformerFor(Service::class.java, ServiceList::class.java, 10 * 60 * 1000.toLong())
-        val configMapIndexInformer = informerFactory.sharedIndexInformerFor(ConfigMap::class.java, ConfigMapList::class.java, 10 * 60 * 1000.toLong())
-        val shinyProxyIndexInformer = informerFactory.sharedIndexInformerForCustomResource(podSetCustomResourceDefinitionContext, ShinyProxy::class.java, ShinyProxyList::class.java, 10 * 60 * 1000)
-        val podInformer = informerFactory.sharedIndexInformerFor(Pod::class.java, PodList::class.java, 10 * 60 * 1000.toLong())
-
-        val shinyProxyController = ShinyProxyController(client,
-                shinyProxyClient,
-                replicaSetIndexInformer,
-                serviceIndexInformer,
-                configMapIndexInformer,
-                podInformer,
-                shinyProxyIndexInformer,
-                namespace)
-
-        informerFactory.startAllRegisteredInformers()
-
-        informerFactory.addSharedInformerEventListener {
-            logger.warn { "Exception occurred, but caught $it" }
-        }
-
-        shinyProxyController.run()
+        val operator = Operator()
+        Operator.setOperatorInstance(operator)
+        val (resourceRetriever, shinyProxyLister) = operator.prepare()
+        operator.run(resourceRetriever, shinyProxyLister)
     } catch (exception: KubernetesClientException) {
         logger.warn { "Kubernetes Client Exception : ${exception.message}" }
         exception.printStackTrace()
+        exitProcess(1)
     }
 }
