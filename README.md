@@ -108,17 +108,18 @@ ShinyProxy and the operator for the best experience.
 
 ## Kubernetes versions
 
-|                | k8s 1.22.x | k8s >= v1.21.3 | k8s <= v1.21.2 | k8s >= 1.20.10 | k8s <= v1.20.9 | v1.19 | v1.18 | v1.17 | v1.16 |
-|----------------|------------|----------------|----------------|----------------|----------------|-------|-------|-------|-------|
-| 1.1.0³          | ✓          | ✓              | ✓²              | ✓              | ✓²              | ✓     | -     | -     | -     |
-| 1.0.0          | -          | ✓              | ✓²              | ✓              | ✓²              | ✓     | ✓     | ✓¹     | ✓¹     |
-| 0.0.1-SNAPSHOT | -          | ✓              | ✓²              | ✓              | ✓²              | ✓     | ✓     | ✓¹     | ✓¹     |
+|                | k8s 1.22.x | k8s >= v1.21.3 | k8s <= v1.21.2 | k8s >= 1.20.10 | k8s <= v1.20.9 | v1.19 | v1.18 | v1.17 | v1.16 | v1.15 | v1.14 |
+|----------------|------------|----------------|----------------|----------------|----------------|-------|-------|-------|-------| ----- | ----- |
+| 1.1.0³          | ✓          | ✓              | ✓²              | ✓              | ✓²              | ✓     | -     | -     | -     | -    | - |
+| 1.0.0          | -          | ✓              | ✓²              | ✓              | ✓²              | ✓     | ✓     | ✓¹     | ✓¹     | -⁴  | -⁴ |
+| 0.0.1-SNAPSHOT | -          | ✓              | ✓²              | ✓              | ✓²              | ✓     | ✓     | ✓¹     | ✓¹     | ✓¹  | ✓¹ |
 
 **Note:**
 
 - ¹ requires the use of `SPO_PROBE_INITIAL_DELAY` and `SPO_PROBE_FAILURE_THRESHOL` due to lack of startup probes
 - ² requires a workaround, see below.
 - ³ not yet released; this version will use the `extensions/v1beta1` version of `Ingress` which is removed in k8s v1.22, but only available from v1.19
+- ⁴ version 1.0.0 uses version `apiextensions.k8s.io/v1` of the `CustomResourceDefinition` resource, which does not exists in versions before v1.16
 
 ### Workaround for bug in Kubernetes
 
@@ -135,6 +136,25 @@ only reasonable work-around is to regularly restart the Operator. Since version
 `SPO_PROCESS_MAX_LIFETIME` environment variable. After the configured time (in
 minutes), the operator stops. The corresponding Docker container then
 automatically restarts the Java process.
+
+### Update to 1.0.0
+
+Be aware of these changes when updating to version 1.0.0:
+
+- the ShinyProxy CRD now uses version `apiextensions.k8s.io/v1` of the
+  `CustomResourceDefinition` resource instead of version
+  `apiextensions.k8s.io/v1beta`. In our tests this update when smooth, but
+  please take into account that you may be required to re-create the CRD and
+  that therefore your ShinyProxy servers may have to be re-created (causing
+  downtime).
+- because of this change, the operator requires at least version Kubernetes
+  v1.16.
+- the ShinyProxy CRD now specifies version `openanalytics.eu/v1` instead of
+  `openanalytics.eu/v1alpha1`. Nevertheless, the operator is still able to
+  handle ShinyProxy resources using the `openanalytics.eu/v1alpha1` version.
+  When creating resources with version `openanalytics.eu/v1alpha1`, Kubernetes
+  will automatically convert these to use version `openanalytics.eu/v1`.
+
 
 ## Java Version
 
