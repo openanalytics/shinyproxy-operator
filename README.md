@@ -45,7 +45,7 @@ The build will result in a single `.jar` file:
 
 ## Running
 
-The operator should be run in Kubernetes using the [docker image](https://hub.docker.com/r/openanalytics/shinyproxy-operator-snapshot).
+The operator should be run in Kubernetes using the [docker image](https://hub.docker.com/r/openanalytics/shinyproxy-operator).
 It can run in either `clustered` scope or `namespaced` mode. In the former the
 operator looks for ShinyProxy instances in all namespaces while in the latter it
 only manages ShinyProxy instances in its own namespace.
