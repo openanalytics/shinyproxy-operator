@@ -6,7 +6,7 @@
 
     <groupId>eu.openanalytics</groupId>
     <artifactId>shinyproxy-operator</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.1</version>
 
     <organization>
         <name>Open Analytics NV</name>
