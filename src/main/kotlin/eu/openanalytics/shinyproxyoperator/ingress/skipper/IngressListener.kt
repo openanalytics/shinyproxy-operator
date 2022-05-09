@@ -27,8 +27,8 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.isInManagedNamespace
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.OwnerReference
-import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
-import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressList
+import io.fabric8.kubernetes.api.model.networking.v1.Ingress
+import io.fabric8.kubernetes.api.model.networking.v1.IngressList
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.Resource
