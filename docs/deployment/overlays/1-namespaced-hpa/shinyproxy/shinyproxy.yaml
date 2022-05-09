@@ -40,11 +40,11 @@ spec:
       - id: 01_hello
         display-name: Hello Application
         description: Application which demonstrates the basics of a Shiny app
-        container-cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+        container-cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
         container-image: openanalytics/shinyproxy-demo
-        access-groups: [ scientists, mathematicians ]
+        access-groups: [scientists, mathematicians]
       - id: 06_tabsets
-        container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
+        container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
         container-image: openanalytics/shinyproxy-demo
         access-groups: scientists
       - id: rstudio
@@ -54,7 +54,7 @@ spec:
         port: 8787
         container-env:
           DISABLE_AUTH: true
-          WWW_ROOT_PATH: "#{proxySpec.containerSpecs[0].env.get('SHINYPROXY_PUBLIC_PATH')}"
+          WWW_ROOT_PATH: "#{proxy.getRuntimeValue('SHINYPROXY_PUBLIC_PATH')}"
   kubernetesPodTemplateSpecPatches: |
     - op: add
       path: /spec/containers/0/env/-
