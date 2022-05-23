@@ -46,8 +46,8 @@ object ResourceNameFactory {
         return "sp-${shinyProxy.metadata.name}-rs-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
-    fun createNameForIngress(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        return "sp-${shinyProxy.metadata.name}-ing-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
+    fun createNameForIngress(shinyProxy: ShinyProxy, routeName: String, shinyProxyInstance: ShinyProxyInstance): String {
+        return "sp-${shinyProxy.metadata.name}-ing-${routeName}-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
 }
