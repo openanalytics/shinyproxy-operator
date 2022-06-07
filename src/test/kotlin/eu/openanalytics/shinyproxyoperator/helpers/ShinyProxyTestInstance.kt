@@ -20,17 +20,23 @@
  */
 package eu.openanalytics.shinyproxyoperator.helpers
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyStatus
+import eu.openanalytics.shinyproxyoperator.ingress.skipper.RouteGroup
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import java.nio.file.Paths
+import kotlin.io.path.pathString
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
@@ -43,6 +49,7 @@ class ShinyProxyTestInstance(private val namespace: String,
                              private val reconcileListener: ReconcileListener) {
 
     lateinit var hash: String
+    private val objectMapper = ObjectMapper().registerKotlinModule()
 
     fun create(): ShinyProxy {
         val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).createOrReplace()
@@ -94,6 +101,49 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         // check ingress
         assertIngressIsCorrect(sp, numInstancesRunning, isLatest)
+
+        // check metadata RouteGroup
+        assertMetadataRouteGroupIsCorrect(sp)
+    }
+
+    private fun assertMetadataRouteGroupIsCorrect(sp: ShinyProxy) {
+        val routeGroupClient = client.resources(RouteGroup::class.java)
+        val routeGroups = routeGroupClient.inNamespace(namespace).withLabel(LabelFactory.NAME_LABEL, sp.metadata.name).list().items
+        assertEquals(1, routeGroups.size)
+        val routeGroup = routeGroups[0]
+        assertEquals("sp-${sp.metadata.name}-ing-metadata".take(63), routeGroup.metadata.name)
+        assertEquals(mapOf(
+            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+            LabelFactory.NAME_LABEL to sp.metadata.name
+        ), routeGroup.metadata.labels)
+
+        assertEquals(1, routeGroup.metadata.ownerReferences.size)
+        assertTrue(routeGroup.metadata.ownerReferences[0].controller)
+        assertEquals("ShinyProxy", routeGroup.metadata.ownerReferences[0].kind)
+        assertEquals("openanalytics.eu/v1", routeGroup.metadata.ownerReferences[0].apiVersion)
+        assertEquals(sp.metadata.name, routeGroup.metadata.ownerReferences[0].name)
+
+        assertEquals(1, routeGroup.spec.hosts.size)
+        assertEquals(sp.fqdn, routeGroup.spec.hosts[0])
+
+        assertEquals(1, routeGroup.spec.backends.size)
+        assertEquals("shunt", routeGroup.spec.backends[0].name)
+        assertEquals("shunt", routeGroup.spec.backends[0].type)
+
+        assertEquals(1, routeGroup.spec.defaultBackends.size)
+        assertEquals("shunt", routeGroup.spec.defaultBackends[0].backendName)
+
+        assertEquals(1, routeGroup.spec.routes.size)
+        assertEquals(Paths.get(sp.subPath, "/operator/metadata").pathString, routeGroup.spec.routes[0].pathSubtree)
+        assertEquals(1, routeGroup.spec.routes[0].backends.size)
+        assertEquals("shunt", routeGroup.spec.routes[0].backends[0].backendName)
+        assertEquals(3, routeGroup.spec.routes[0].filters.size)
+        assertEquals("""setResponseHeader("Content-Type","application/json")""", routeGroup.spec.routes[0].filters[0])
+        val metadata = routeGroup.spec.routes[0].filters[1].removePrefix("inlineContent(\"").removeSuffix("\")").replace("\\\"", "\"")
+        val status = objectMapper.readValue(metadata, ShinyProxyStatus::class.java)
+        assertEquals(sp.status, status)
+        assertEquals("""status(200)""", routeGroup.spec.routes[0].filters[2])
+
     }
 
     fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {

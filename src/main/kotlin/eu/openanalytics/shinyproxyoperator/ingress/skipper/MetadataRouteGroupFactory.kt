@@ -21,6 +21,7 @@
 package eu.openanalytics.shinyproxyoperator.ingress.skipper
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.components.ResourceNameFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -34,13 +35,13 @@ import mu.KotlinLogging
 class MetadataRouteGroupFactory(private val routeGroupClient: MixedOperation<RouteGroup, KubernetesResourceList<RouteGroup>, Resource<RouteGroup>>) {
 
     private val logger = KotlinLogging.logger {}
-    private val objectMapper = ObjectMapper()
+    private val objectMapper = ObjectMapper().registerKotlinModule()
 
     fun createOrReplaceRouteGroup(shinyProxy: ShinyProxy) {
         val metadata = objectMapper.writeValueAsString(mapOf("instances" to shinyProxy.status.instances)).replace("\"", "\\\"")
 
         val path = if (shinyProxy.subPath != "") {
-            shinyProxy.subPath + "/operator/metadata"
+            shinyProxy.subPath + "operator/metadata"
         } else {
             "/operator/metadata"
         }

@@ -32,7 +32,6 @@ data class BackendName(val backendName: String)
 data class Route(val pathSubtree: String, val filters: List<String>, val backends: List<BackendName>)
 data class RouteGroupSpec(val hosts: List<String>, val backends: List<Backend>, val defaultBackends: List<BackendName>, val routes: List<Route>)
 
-// TODO create tests
 @Version("v1")
 @Group("zalando.org")
 class RouteGroup: CustomResource<RouteGroupSpec, RouteGroupStatus>(), Namespaced {
