@@ -84,8 +84,8 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
         return if (isLatest) {
             mapOf(
                 "" to createRoute(true, hashOfSpec, shinyProxy, "True()"),
-                "cookie-override" to createRoute(true, hashOfSpec, shinyProxy, """Cookie("sp-instance-override", "$hashOfSpec") && Weight(20)""""),
-                "query-override" to createRoute(true, hashOfSpec, shinyProxy, """QueryParam("sp_instance_override", "$hashOfSpec") && Weight(20)""""),
+                "cookie-override" to createRoute(false, hashOfSpec, shinyProxy, """Cookie("sp-instance-override", "$hashOfSpec") && Weight(20)"""),
+                "query-override" to createRoute(false, hashOfSpec, shinyProxy, """QueryParam("sp_instance_override", "$hashOfSpec") && Weight(20)"""),
             )
         } else {
             mapOf(
@@ -96,7 +96,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
         }
     }
 
-    private fun createRoute(isLatest: Boolean, hashOfSpec: String, shinyProxy: ShinyProxy, predicate: String): Map<String, String> {
+    private fun createRoute(isDefaultRoute: Boolean, hashOfSpec: String, shinyProxy: ShinyProxy, predicate: String): Map<String, String> {
         val security = if (Operator.getOperatorInstance().disableSecureCookies) {
             ""
         } else {
@@ -114,14 +114,14 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                 """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
                 """ -> """ +
                 """setRequestHeader("X-ShinyProxy-Latest-Instance", "${shinyProxy.hashOfCurrentSpec}")""" +
-                if (isLatest) {
+                if (isDefaultRoute) {
                     """ -> """ +
                         """appendResponseHeader("Set-Cookie", "sp-instance=$hashOfSpec; $security Path=$cookiePath")"""
                 } else {
                     ""
                 } +
                 """ -> """ +
-                """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")"""
+                """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")""",
         )
 
     }

@@ -47,7 +47,11 @@ object ResourceNameFactory {
     }
 
     fun createNameForIngress(shinyProxy: ShinyProxy, routeName: String, shinyProxyInstance: ShinyProxyInstance): String {
-        return "sp-${shinyProxy.metadata.name}-ing-${routeName}-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
+        return listOf("sp", shinyProxy.metadata.name, "ing", routeName, shinyProxyInstance.hashOfSpec).filter { it.isNotEmpty() }.joinToString("-").take(KUBE_RESOURCE_NAME_MAX_LENGTH)
+    }
+
+    fun createNameForMetadataIngress(shinyProxy: ShinyProxy): String {
+        return "sp-${shinyProxy.metadata.name}-ing-metadata".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
 }
