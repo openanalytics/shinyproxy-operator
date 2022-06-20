@@ -83,7 +83,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                     assertEquals(0, stableClient.services().list().items.size)
 
                     // -> Ingress should not yet be created
-                    assertEquals(0, stableClient.network().ingresses().list().items.size)
+                    assertEquals(0, stableClient.network().v1().ingresses().list().items.size)
 
                     // -> Latest marker should not yet be set
                     val sp = spTestInstance.retrieveInstance()
@@ -197,7 +197,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 8. Delete Ingress -> reconcile -> assert it is still ok
             executeAsyncAfter100ms {
-                stableClient.network().ingress()
+                stableClient.network().v1().ingresses()
                     .withName("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63)).delete()
                 logger.info { "Deleted Ingress" }
             }
@@ -660,7 +660,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         spTestInstance.assertServiceIsCorrect(sp)
 
         // d. check ingress
-        val ingresses = namespacedClient.inNamespace(namespace).network().ingresses().list().items
+        val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(1, ingresses.size)
         val ingress = ingresses.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
         assertNotNull(ingress)
@@ -704,8 +704,8 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertEquals(1, rule.http.paths.size)
         val path = rule.http.paths[0]
         assertNotNull(path)
-        assertEquals("sp-${sp.metadata.name}-svc-${spTestInstance.hash}".take(63), path.backend.serviceName)
-        assertEquals(IntOrString(80), path.backend.servicePort)
+        assertEquals("sp-${sp.metadata.name}-svc-${spTestInstance.hash}".take(63), path.backend.service.name)
+        assertEquals(80, path.backend.service.port.number)
     }
 
     @Test
@@ -733,7 +733,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         spTestInstance.waitForOneReconcile()
 
         // 4. assert correctness of ingress
-        val ingresses = namespacedClient.inNamespace(namespace).network().ingresses().list().items
+        val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(1, ingresses.size)
         val ingress = ingresses.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
         assertNotNull(ingress)
@@ -1053,7 +1053,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertEquals(false, sp.status.instances[0].isLatestInstance)
 
         // C) at this point the ingress should not exist yet
-        var ingresses = stableClient.inNamespace(namespace).network().ingresses().list().items
+        var ingresses = stableClient.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(0, ingresses.size)
 
         // Test starts here:
@@ -1069,7 +1069,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertEquals(true, sp.status.instances[0].isLatestInstance)
 
         // B) at this point the ingress should exist
-        ingresses = stableClient.inNamespace(namespace).network().ingresses().list().items
+        ingresses = stableClient.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(1, ingresses.size)
 
     }
@@ -1080,7 +1080,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     fun `operator should properly handle 409 conflicts by replacing the resource`() =
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
             // 1. create conflicting resources
-            stableClient.load(this.javaClass.getResourceAsStream("/configs/conflict.yaml")).createOrReplace()
+            stableClient.load(this.javaClass.getResourceAsStream("/configs/conflict_v1_ingress.yaml")).createOrReplace()
 
             // 2. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
