@@ -56,7 +56,6 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
 
         val annotations = if (isLatest) {
             mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to "True()",
                 "zalando.org/skipper-filter" to
                     """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
@@ -70,7 +69,6 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
             )
         } else {
             mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hashOfSpec")""",
                 "zalando.org/skipper-filter" to
                     """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
@@ -105,6 +103,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                             .addToPaths(createPathV1(shinyProxy, shinyProxyInstance))
                         .endHttp()
                     .endRule()
+                    .withIngressClassName("skipper")
                 .endSpec()
                 .build()
         //@formatter:on

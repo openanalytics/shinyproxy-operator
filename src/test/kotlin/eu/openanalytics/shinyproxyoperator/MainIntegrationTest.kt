@@ -684,8 +684,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             ingress.metadata.ownerReferences[0].name
         )
 
+        assertEquals(ingress.spec.ingressClassName, "skipper")
+
         assertEquals(mapOf(
-            "kubernetes.io/ingress.class" to "skipper",
             "zalando.org/skipper-predicate" to "True()",
             "zalando.org/skipper-filter" to
                 """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
@@ -757,8 +758,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             ingress.metadata.ownerReferences[0].name
         )
 
+        assertEquals(ingress.spec.ingressClassName, "skipper")
+
         assertEquals(mapOf(
-            "kubernetes.io/ingress.class" to "skipper",
             "zalando.org/skipper-predicate" to "True()",
             "zalando.org/skipper-filter" to
                 """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
@@ -1080,7 +1082,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     fun `operator should properly handle 409 conflicts by replacing the resource`() =
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
             // 1. create conflicting resources
-            stableClient.load(this.javaClass.getResourceAsStream("/configs/conflict_v1_ingress.yaml")).createOrReplace()
+            stableClient.load(this.javaClass.getResourceAsStream("/config/conflict.yaml")).createOrReplace()
 
             // 2. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(

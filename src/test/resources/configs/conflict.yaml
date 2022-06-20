@@ -22,7 +22,7 @@ spec:
   selector:
     app.kubernetes.io/name: myname
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: sp-example-shinyproxy-ing-abfc24c726e9e87ea7c633384f2a659935249
@@ -33,6 +33,9 @@ spec:
       http:
         paths:
           - path: /
+            pathType: ImplementationSpecific
             backend:
-              serviceName: my-service-name
-              servicePort: 8081
+              service:
+                name: my-service-name
+                port:
+                  number: 8081

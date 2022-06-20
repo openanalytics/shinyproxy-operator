@@ -98,9 +98,10 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals("apps/v1", ingress.metadata.ownerReferences[0].apiVersion)
         assertEquals("sp-${sp.metadata.name}-rs-${hash}".take(63), ingress.metadata.ownerReferences[0].name)
 
+        assertEquals(ingress.spec.ingressClassName, "skipper")
+
         if (isLatest) {
             assertEquals(mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to "True()",
                 "zalando.org/skipper-filter" to
                     """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
@@ -113,7 +114,6 @@ class ShinyProxyTestInstance(private val namespace: String,
             ), ingress.metadata.annotations)
         } else {
             assertEquals(mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
                 "zalando.org/skipper-filter" to
                     """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
