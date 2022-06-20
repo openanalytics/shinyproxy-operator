@@ -18,7 +18,7 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator.ingres
+package eu.openanalytics.shinyproxyoperator.ingress
 
 import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
