@@ -26,7 +26,7 @@ import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.ingres.IIngressController
+import eu.openanalytics.shinyproxyoperator.ingress.IIngressController
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1.IngressList

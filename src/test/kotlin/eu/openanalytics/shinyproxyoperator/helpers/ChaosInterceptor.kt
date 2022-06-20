@@ -24,9 +24,11 @@ import io.fabric8.kubernetes.api.model.StatusBuilder
 import io.fabric8.kubernetes.client.ConfigBuilder
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
+import io.fabric8.kubernetes.client.okhttp.OkHttpClientFactory
 import io.fabric8.kubernetes.client.utils.HttpClientUtils
 import mu.KotlinLogging
 import okhttp3.Interceptor
+import okhttp3.OkHttpClient
 import okhttp3.Response
 import java.net.HttpURLConnection
 import kotlin.random.Random
@@ -60,8 +62,14 @@ class ChaosInterceptor : Interceptor {
 
     companion object {
         fun createChaosKubernetesClient(): DefaultKubernetesClient {
+            val factory = object: OkHttpClientFactory() {
+                override fun additionalConfig(builder: OkHttpClient.Builder) {
+                    builder.addInterceptor(ChaosInterceptor())
+                }
+            }
+
             val config = ConfigBuilder().build()
-            val httpClient = HttpClientUtils.createHttpClient(config).newBuilder().addInterceptor(ChaosInterceptor()).build()
+            val httpClient = factory.createHttpClient(config).newBuilder().build();
 
             return DefaultKubernetesClient(httpClient, config)
         }
