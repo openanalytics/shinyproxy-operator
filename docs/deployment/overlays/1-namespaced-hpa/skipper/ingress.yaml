@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ngingx-to-skipper-ingress
+  name: nginx-to-skipper-ingress
   annotations:
     # Annotations for kubernetes/ingress-nginx controller:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "420"

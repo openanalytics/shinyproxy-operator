@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021 Open Analytics
+ * Copyright (C) 2021-2022 Open Analytics
  *
  * ===========================================================================
  *
@@ -150,12 +150,12 @@ class Operator(client: NamespacedKubernetesClient? = null,
             replicaSetListener = ResourceListener(sendChannel, this.client.inAnyNamespace().apps().replicaSets())
             serviceListener = ResourceListener(sendChannel, this.client.inAnyNamespace().services())
             configMapListener = ResourceListener(sendChannel, this.client.inAnyNamespace().configMaps())
-            ingressController = IngressController(sendChannel, this.client, this.client.inAnyNamespace().network().ingress())
+            ingressController = IngressController(sendChannel, this.client, this.client.inAnyNamespace().network().v1().ingresses())
         } else {
             replicaSetListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).apps().replicaSets())
             serviceListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).services())
             configMapListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).configMaps())
-            ingressController = IngressController(sendChannel, this.client, this.client.inNamespace(namespace).network().ingress())
+            ingressController = IngressController(sendChannel, this.client, this.client.inNamespace(namespace).network().v1().ingresses())
         }
     }
 

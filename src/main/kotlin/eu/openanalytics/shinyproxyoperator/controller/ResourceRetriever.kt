@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021 Open Analytics
+ * Copyright (C) 2021-2022 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,7 +23,7 @@ package eu.openanalytics.shinyproxyoperator.controller
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
-import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress
+import io.fabric8.kubernetes.api.model.networking.v1.Ingress
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import mu.KotlinLogging
 

@@ -228,3 +228,4 @@ buildNumber.properties
 .project
 
 docs/deployment/overlays/0-dev/**
+build.sh

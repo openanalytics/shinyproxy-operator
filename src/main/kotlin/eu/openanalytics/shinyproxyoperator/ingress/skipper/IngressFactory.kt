@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021 Open Analytics
+ * Copyright (C) 2021-2022 Open Analytics
  *
  * ===========================================================================
  *
@@ -26,9 +26,9 @@ import eu.openanalytics.shinyproxyoperator.components.ResourceNameFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
-import io.fabric8.kubernetes.api.model.networking.v1beta1.HTTPIngressPath
-import io.fabric8.kubernetes.api.model.networking.v1beta1.HTTPIngressPathBuilder
-import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder
+import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPath
+import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPathBuilder
+import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import mu.KotlinLogging
 
@@ -37,6 +37,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
     private val logger = KotlinLogging.logger {}
 
     fun createOrReplaceIngress(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, replicaSet: ReplicaSet) {
+
         val hashOfSpec = shinyProxyInstance.hashOfSpec
 
         val isLatest = shinyProxyInstance.isLatestInstance
@@ -55,7 +56,6 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
 
         val annotations = if (isLatest) {
             mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to "True()",
                 "zalando.org/skipper-filter" to
                     """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
@@ -69,7 +69,6 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
             )
         } else {
             mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hashOfSpec")""",
                 "zalando.org/skipper-filter" to
                     """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
@@ -101,31 +100,37 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                     .addNewRule()
                         .withHost(shinyProxy.fqdn)
                         .withNewHttp()
-                            .addToPaths(createPath(shinyProxy, shinyProxyInstance))
+                            .addToPaths(createPathV1(shinyProxy, shinyProxyInstance))
                         .endHttp()
                     .endRule()
+                    .withIngressClassName("skipper")
                 .endSpec()
                 .build()
         //@formatter:on
 
         val createdIngress =
-            kubeClient.network().ingress().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
+            kubeClient.network().v1().ingresses().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Created ${createdIngress.metadata.name} [latest=$isLatest]" }
     }
 
-    private fun createPath(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): HTTPIngressPath {
+    private fun createPathV1 (shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): HTTPIngressPath {
         //@formatter:off
         val builder = HTTPIngressPathBuilder()
+                .withPathType("Prefix")
                 .withNewBackend()
-                    .withServiceName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
-                    .withNewServicePort()
-                        .withIntVal(80)
-                    .endServicePort()
+                    .withNewService()
+                        .withName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
+                        .withNewPort()
+                            .withNumber(80)
+                        .endPort()
+                    .endService()
                 .endBackend()
         //@formatter:on
 
         if (shinyProxy.subPath != "") {
             builder.withPath(shinyProxy.subPath)
+        } else {
+            builder.withPath("/")
         }
 
         return builder.build()

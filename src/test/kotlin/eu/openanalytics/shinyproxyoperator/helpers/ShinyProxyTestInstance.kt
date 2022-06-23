@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021 Open Analytics
+ * Copyright (C) 2021-2022 Open Analytics
  *
  * ===========================================================================
  *
@@ -79,7 +79,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     }
 
     fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {
-        val ingresses = client.inNamespace(namespace).network().ingresses().list().items
+        val ingresses = client.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(numInstancesRunning, ingresses.size)
         val ingress = ingresses.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
         assertNotNull(ingress)
@@ -98,9 +98,10 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals("apps/v1", ingress.metadata.ownerReferences[0].apiVersion)
         assertEquals("sp-${sp.metadata.name}-rs-${hash}".take(63), ingress.metadata.ownerReferences[0].name)
 
+        assertEquals(ingress.spec.ingressClassName, "skipper")
+
         if (isLatest) {
             assertEquals(mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to "True()",
                 "zalando.org/skipper-filter" to
                     """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
@@ -113,7 +114,6 @@ class ShinyProxyTestInstance(private val namespace: String,
             ), ingress.metadata.annotations)
         } else {
             assertEquals(mapOf(
-                "kubernetes.io/ingress.class" to "skipper",
                 "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
                 "zalando.org/skipper-filter" to
                     """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
@@ -132,8 +132,8 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(1, rule.http.paths.size)
         val path = rule.http.paths[0]
         assertNotNull(path)
-        assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), path.backend.serviceName)
-        assertEquals(IntOrString(80), path.backend.servicePort)
+        assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), path.backend.service.name)
+        assertEquals(80, path.backend.service.port.number)
 
     }
 

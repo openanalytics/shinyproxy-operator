@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021 Open Analytics
+ * Copyright (C) 2021-2022 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,7 +27,7 @@ import eu.openanalytics.shinyproxyoperator.components.ReplicaSetFactory
 import eu.openanalytics.shinyproxyoperator.components.ServiceFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.ingres.IIngressController
+import eu.openanalytics.shinyproxyoperator.ingress.IIngressController
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.informers.cache.Lister

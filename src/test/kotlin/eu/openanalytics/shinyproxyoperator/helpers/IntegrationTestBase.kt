@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021 Open Analytics
+ * Copyright (C) 2021-2022 Open Analytics
  *
  * ===========================================================================
  *
@@ -108,7 +108,7 @@ abstract class IntegrationTestBase {
                 deleteNamespaces()
             }
             Operator.getOperatorInstance().stop()
-            stableClient.httpClient.connectionPool().evictAll()
+            stableClient.httpClient.close()
         }
 
     }

@@ -64,7 +64,7 @@ ShinyProxy operator on minikube.
 
    ```text
    unable to recognize "STDIN": no matches for kind "CustomResourceDefinition" in version "apiextensions.k8s.io/v1"
-   unable to recognize "STDIN": no matches for kind "ShinyProxy" in version "openanalytics.eu/v1"  
+   unable to recognize "STDIN": no matches for kind "ShinyProxy" in version "openanalytics.eu/v1"
    ```
 
    In this case, just re-run the command. The resources should then get created.
@@ -112,8 +112,8 @@ ShinyProxy operator on minikube.
     kubectl delete namespace/my-namespace                        # may fail
     kubectl delete namespace/redis                               # may fail
     kubectl delete namespace/skipper                             # may fail
-    kubectl delete -n default ingress/ngingx-to-skipper-ingress  # may fail
-    kubectl delete -n skipper ingress/ngingx-to-skipper-ingress  # may fail
+    kubectl delete -n default ingress/nginx-to-skipper-ingress  # may fail
+    kubectl delete -n skipper ingress/nginx-to-skipper-ingress  # may fail
     cd directory_of_example
     kustomize build .  | k apply -f -
     ```
@@ -225,7 +225,7 @@ important:
 You may get the following exception:
 
 ```text
-io.fabric8.kubernetes.client.KubernetesClientException: Failure executing: POST at: https://10.96.0.1/apis/networking.k8s.io/v1beta1/namespaces/shinyproxy/ingresses. Message: admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "shinyproxy-demo.local" and path "/" is already defined in ingress shinyproxy/ngingx-to-skipper-ingress. Received status: Status(apiVersion=v1, code=400, details=null, kind=Status, message=admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "shinyproxy-demo.local" and path "/" is already defined in ingress shinyproxy/ngingx-to-skipper-ingress, metadata=ListMeta(_continue=null, remainingItemCount=null, resourceVersion=null, selfLink=null, additionalProperties={}), reason=BadRequest, status=Failure, additionalProperties={}).
+io.fabric8.kubernetes.client.KubernetesClientException: Failure executing: POST at: https://10.96.0.1/apis/networking.k8s.io/v1beta1/namespaces/shinyproxy/ingresses. Message: admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "shinyproxy-demo.local" and path "/" is already defined in ingress shinyproxy/nginx-to-skipper-ingress. Received status: Status(apiVersion=v1, code=400, details=null, kind=Status, message=admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "shinyproxy-demo.local" and path "/" is already defined in ingress shinyproxy/nginx-to-skipper-ingress, metadata=ListMeta(_continue=null, remainingItemCount=null, resourceVersion=null, selfLink=null, additionalProperties={}), reason=BadRequest, status=Failure, additionalProperties={}).
 ```
 
 This exception is caused by a

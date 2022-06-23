@@ -56,7 +56,7 @@ spec:
         port: 8787
         container-env:
           DISABLE_AUTH: true
-          WWW_ROOT_PATH: "#{proxySpec.containerSpecs[0].env.get('SHINYPROXY_PUBLIC_PATH')}"
+          WWW_ROOT_PATH: "#{proxy.getRuntimeValue('SHINYPROXY_PUBLIC_PATH')}"
   kubernetesPodTemplateSpecPatches: |
     - op: add
       path: /spec/containers/0/env/-
