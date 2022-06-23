@@ -553,7 +553,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.assertInstanceIsCorrect(1, true)
 
             // 5. additional assert correctness of ingress
-            val ingresses = namespacedClient.inNamespace(namespace).network().ingresses().list().items
+            val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
             assertEquals(3, ingresses.size)
             for (ingress in ingresses) {
                 assertTrue(ingress.metadata.annotations["zalando.org/skipper-filter"]?.contains("Path=/sub-path/") == true)
@@ -590,7 +590,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.assertInstanceIsCorrect(1, true)
 
             // 5. additional assert correctness of ingress
-            val ingresses = namespacedClient.inNamespace(namespace).network().ingresses().list().items
+            val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
             assertEquals(3, ingresses.size)
             for (ingress in ingresses) {
                 assertTrue(ingress.metadata.annotations["zalando.org/skipper-filter"]?.contains("Path=/sub-path/") == true)
@@ -628,7 +628,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         spTestInstance.assertInstanceIsCorrect(1, true)
 
         // 5. additional assert correctness of ingress
-        val ingresses = namespacedClient.inNamespace(namespace).network().ingresses().list().items
+        val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(3, ingresses.size)
         for (ingress in ingresses) {
             assertTrue(ingress.metadata.annotations["zalando.org/skipper-filter"]?.contains("Secure;") == false)

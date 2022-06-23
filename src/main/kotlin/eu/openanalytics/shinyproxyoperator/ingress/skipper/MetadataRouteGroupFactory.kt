@@ -40,11 +40,7 @@ class MetadataRouteGroupFactory(private val routeGroupClient: MixedOperation<Rou
     fun createOrReplaceRouteGroup(shinyProxy: ShinyProxy) {
         val metadata = objectMapper.writeValueAsString(mapOf("instances" to shinyProxy.status.instances)).replace("\"", "\\\"")
 
-        val path = if (shinyProxy.subPath != "") {
-            shinyProxy.subPath + "operator/metadata"
-        } else {
-            "/operator/metadata"
-        }
+        val path = shinyProxy.subPath + "operator/metadata"
 
         val routeGroupSpec = RouteGroupSpec(
             hosts = listOf(shinyProxy.fqdn),

@@ -149,7 +149,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {
         val allIngresses = client.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(numInstancesRunning * 3, allIngresses.size)
-        val ingresses = client.inNamespace(namespace).network().ingresses().withLabel(LabelFactory.INSTANCE_LABEL, hash).list().items
+        val ingresses = client.inNamespace(namespace).network().v1().ingresses().withLabel(LabelFactory.INSTANCE_LABEL, hash).list().items
         assertEquals(3, ingresses.size)
         val mainIngress = ingresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing-${hash}".take(63) }
         assertNotNull(mainIngress)
@@ -171,6 +171,7 @@ class ShinyProxyTestInstance(private val namespace: String,
             assertEquals("ReplicaSet", ingress.metadata.ownerReferences[0].kind)
             assertEquals("apps/v1", ingress.metadata.ownerReferences[0].apiVersion)
             assertEquals("sp-${sp.metadata.name}-rs-${hash}".take(63), ingress.metadata.ownerReferences[0].name)
+            assertEquals(ingress.spec.ingressClassName, "skipper")
         }
 
         val security = if (Operator.getOperatorInstance().disableSecureCookies) {
@@ -184,7 +185,6 @@ class ShinyProxyTestInstance(private val namespace: String,
             "/"
         }
 
-        assertEquals(ingress.spec.ingressClassName, "skipper")
 
         if (isLatest) {
             assertEquals(mapOf(
@@ -210,7 +210,6 @@ class ShinyProxyTestInstance(private val namespace: String,
             ), mainIngress.metadata.annotations)
         }
         assertEquals(mapOf(
-            "kubernetes.io/ingress.class" to "skipper",
             "zalando.org/skipper-predicate" to """Cookie("sp-instance-override", "$hash") && Weight(20)""",
             "zalando.org/skipper-filter" to
                 """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
@@ -220,7 +219,6 @@ class ShinyProxyTestInstance(private val namespace: String,
                 """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; $security Path=$cookiePath")""",
         ), cookieOverrideIngress.metadata.annotations)
         assertEquals(mapOf(
-            "kubernetes.io/ingress.class" to "skipper",
             "zalando.org/skipper-predicate" to """QueryParam("sp_instance_override", "$hash") && Weight(20)""",
             "zalando.org/skipper-filter" to
                 """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
@@ -238,8 +236,8 @@ class ShinyProxyTestInstance(private val namespace: String,
             assertEquals(1, rule.http.paths.size)
             val path = rule.http.paths[0]
             assertNotNull(path)
-            assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), path.backend.serviceName)
-            assertEquals(IntOrString(80), path.backend.servicePort)
+            assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), path.backend.service.name)
+            assertEquals(80, path.backend.service.port.number)
         }
 
     }
