@@ -162,7 +162,7 @@ Be aware of these changes when updating to version 1.0.0:
   Kubernetes 1.22 or later and requires at least Kubernetes v1.19. In order to
   make this possible, the Skipper component was updated and the Skipper
   configuration was changed. Make sure to re-import the manifests.
--
+
 ## Java Version
 
 This project requires JDK 11.
