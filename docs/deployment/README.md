@@ -56,7 +56,7 @@ ShinyProxy operator on minikube.
 4. Apply all resources
 
    ```bash
-   kustomize build .  | k apply -f -
+   kustomize build .  | kubectl apply -f -
    ```
 
    **Note:** this command may not finish successfully from the first attempt,
@@ -115,7 +115,7 @@ ShinyProxy operator on minikube.
     kubectl delete -n default ingress/nginx-to-skipper-ingress  # may fail
     kubectl delete -n skipper ingress/nginx-to-skipper-ingress  # may fail
     cd directory_of_example
-    kustomize build .  | k apply -f -
+    kustomize build .  | kubectl apply -f -
     ```
 
 ## Overview of examples
