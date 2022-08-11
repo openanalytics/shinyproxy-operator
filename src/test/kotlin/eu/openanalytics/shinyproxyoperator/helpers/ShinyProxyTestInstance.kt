@@ -20,15 +20,23 @@
  */
 package eu.openanalytics.shinyproxyoperator.helpers
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyStatus
+import eu.openanalytics.shinyproxyoperator.ingress.skipper.RouteGroup
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.internal.readiness.Readiness
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import java.nio.file.Paths
+import kotlin.io.path.pathString
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
@@ -41,6 +49,7 @@ class ShinyProxyTestInstance(private val namespace: String,
                              private val reconcileListener: ReconcileListener) {
 
     lateinit var hash: String
+    private val objectMapper = ObjectMapper().registerKotlinModule()
 
     fun create(): ShinyProxy {
         val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).createOrReplace()
@@ -51,9 +60,25 @@ class ShinyProxyTestInstance(private val namespace: String,
         return sp
     }
 
-    suspend fun waitForOneReconcile(): ShinyProxyInstance? {
+    suspend fun waitForOneReconcile(): ShinyProxyInstance {
         return withTimeout(120_000) {
             reconcileListener.waitForNextReconcile(hash).await()
+        }
+    }
+
+    suspend fun waitForReconcileCycle() {
+        // require at least one reconcile
+        waitForOneReconcile()
+        // then wait until no reconciles happen
+        while (true) {
+            try {
+                withTimeout(10_000) {
+                    reconcileListener.waitForNextReconcile(hash).await()
+                }
+            } catch (e: TimeoutCancellationException) {
+                // no reconcile in the last 10 seconds -> ok
+                return
+            }
         }
     }
 
@@ -76,29 +101,90 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         // check ingress
         assertIngressIsCorrect(sp, numInstancesRunning, isLatest)
+
+        // check metadata RouteGroup
+        assertMetadataRouteGroupIsCorrect(sp)
+    }
+
+    private fun assertMetadataRouteGroupIsCorrect(sp: ShinyProxy) {
+        val routeGroupClient = client.resources(RouteGroup::class.java)
+        val routeGroups = routeGroupClient.inNamespace(namespace).withLabel(LabelFactory.NAME_LABEL, sp.metadata.name).list().items
+        assertEquals(1, routeGroups.size)
+        val routeGroup = routeGroups[0]
+        assertEquals("sp-${sp.metadata.name}-ing-metadata".take(63), routeGroup.metadata.name)
+        assertEquals(mapOf(
+            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+            LabelFactory.NAME_LABEL to sp.metadata.name
+        ), routeGroup.metadata.labels)
+
+        assertEquals(1, routeGroup.metadata.ownerReferences.size)
+        assertTrue(routeGroup.metadata.ownerReferences[0].controller)
+        assertEquals("ShinyProxy", routeGroup.metadata.ownerReferences[0].kind)
+        assertEquals("openanalytics.eu/v1", routeGroup.metadata.ownerReferences[0].apiVersion)
+        assertEquals(sp.metadata.name, routeGroup.metadata.ownerReferences[0].name)
+
+        assertEquals(1, routeGroup.spec.hosts.size)
+        assertEquals(sp.fqdn, routeGroup.spec.hosts[0])
+
+        assertEquals(1, routeGroup.spec.backends.size)
+        assertEquals("shunt", routeGroup.spec.backends[0].name)
+        assertEquals("shunt", routeGroup.spec.backends[0].type)
+
+        assertEquals(1, routeGroup.spec.defaultBackends.size)
+        assertEquals("shunt", routeGroup.spec.defaultBackends[0].backendName)
+
+        assertEquals(1, routeGroup.spec.routes.size)
+        assertEquals(Paths.get(sp.subPath, "/operator/metadata").pathString, routeGroup.spec.routes[0].pathSubtree)
+        assertEquals(1, routeGroup.spec.routes[0].backends.size)
+        assertEquals("shunt", routeGroup.spec.routes[0].backends[0].backendName)
+        assertEquals(3, routeGroup.spec.routes[0].filters.size)
+        assertEquals("""setResponseHeader("Content-Type","application/json")""", routeGroup.spec.routes[0].filters[0])
+        val metadata = routeGroup.spec.routes[0].filters[1].removePrefix("inlineContent(\"").removeSuffix("\")").replace("\\\"", "\"")
+        val status = objectMapper.readValue(metadata, ShinyProxyStatus::class.java)
+        assertEquals(sp.status, status)
+        assertEquals("""status(200)""", routeGroup.spec.routes[0].filters[2])
+
     }
 
     fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {
-        val ingresses = client.inNamespace(namespace).network().v1().ingresses().list().items
-        assertEquals(numInstancesRunning, ingresses.size)
-        val ingress = ingresses.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
-        assertNotNull(ingress)
-        assertEquals("sp-${sp.metadata.name}-ing-${hash}".take(63), ingress.metadata.name)
+        val allIngresses = client.inNamespace(namespace).network().v1().ingresses().list().items
+        assertEquals(numInstancesRunning * 3, allIngresses.size)
+        val ingresses = client.inNamespace(namespace).network().v1().ingresses().withLabel(LabelFactory.INSTANCE_LABEL, hash).list().items
+        assertEquals(3, ingresses.size)
+        val mainIngress = ingresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing-${hash}".take(63) }
+        assertNotNull(mainIngress)
+        val cookieOverrideIngress = ingresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing-cookie-override-${hash}".take(63) }
+        assertNotNull(cookieOverrideIngress)
+        val queryParamOverrideIngress = ingresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing-query-override-${hash}".take(63) }
+        assertNotNull(queryParamOverrideIngress)
 
-        assertEquals(mapOf(
-            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.NAME_LABEL to sp.metadata.name,
-            LabelFactory.INSTANCE_LABEL to hash,
-            LabelFactory.INGRESS_IS_LATEST to isLatest.toString()
-        ), ingress.metadata.labels)
+        for (ingress in listOf(mainIngress, cookieOverrideIngress, queryParamOverrideIngress)) {
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.NAME_LABEL to sp.metadata.name,
+                LabelFactory.INSTANCE_LABEL to hash,
+                LabelFactory.INGRESS_IS_LATEST to isLatest.toString()
+            ), ingress.metadata.labels)
 
-        assertEquals(1, ingress.metadata.ownerReferences.size)
-        assertTrue(ingress.metadata.ownerReferences[0].controller)
-        assertEquals("ReplicaSet", ingress.metadata.ownerReferences[0].kind)
-        assertEquals("apps/v1", ingress.metadata.ownerReferences[0].apiVersion)
-        assertEquals("sp-${sp.metadata.name}-rs-${hash}".take(63), ingress.metadata.ownerReferences[0].name)
+            assertEquals(1, ingress.metadata.ownerReferences.size)
+            assertTrue(ingress.metadata.ownerReferences[0].controller)
+            assertEquals("ReplicaSet", ingress.metadata.ownerReferences[0].kind)
+            assertEquals("apps/v1", ingress.metadata.ownerReferences[0].apiVersion)
+            assertEquals("sp-${sp.metadata.name}-rs-${hash}".take(63), ingress.metadata.ownerReferences[0].name)
+            assertEquals(ingress.spec.ingressClassName, "skipper")
+        }
 
-        assertEquals(ingress.spec.ingressClassName, "skipper")
+        val security = if (Operator.getOperatorInstance().disableSecureCookies) {
+            ""
+        } else {
+            "Secure;"
+        }
+        val cookiePath = if (sp.subPath != "") {
+            sp.subPath
+        } else {
+            "/"
+        }
+
 
         if (isLatest) {
             assertEquals(mapOf(
@@ -108,32 +194,51 @@ class ShinyProxyTestInstance(private val namespace: String,
                     """ -> """ +
                     """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
                     """ -> """ +
-                    """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")""" +
+                    """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec}; $security Path=$cookiePath")""" +
                     """ -> """ +
-                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
-            ), ingress.metadata.annotations)
+                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; $security Path=$cookiePath")"""
+            ), mainIngress.metadata.annotations)
         } else {
             assertEquals(mapOf(
-                "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
+                "zalando.org/skipper-predicate" to """Cookie("sp-instance", "$hash") && Weight(10)""",
                 "zalando.org/skipper-filter" to
                     """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
                     """ -> """ +
                     """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
                     """ -> """ +
-                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
-
-            ), ingress.metadata.annotations)
+                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; $security Path=$cookiePath")"""
+            ), mainIngress.metadata.annotations)
         }
+        assertEquals(mapOf(
+            "zalando.org/skipper-predicate" to """Cookie("sp-instance-override", "$hash") && Weight(20)""",
+            "zalando.org/skipper-filter" to
+                """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
+                """ -> """ +
+                """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
+                """ -> """ +
+                """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; $security Path=$cookiePath")""",
+        ), cookieOverrideIngress.metadata.annotations)
+        assertEquals(mapOf(
+            "zalando.org/skipper-predicate" to """QueryParam("sp_instance_override", "$hash") && Weight(20)""",
+            "zalando.org/skipper-filter" to
+                """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
+                """ -> """ +
+                """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
+                """ -> """ +
+                """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; $security Path=$cookiePath")"""
+        ), queryParamOverrideIngress.metadata.annotations)
 
-        assertEquals(1, ingress.spec.rules.size)
-        val rule = ingress.spec.rules[0]
-        assertNotNull(rule)
-        assertEquals(sp.fqdn, rule.host)
-        assertEquals(1, rule.http.paths.size)
-        val path = rule.http.paths[0]
-        assertNotNull(path)
-        assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), path.backend.service.name)
-        assertEquals(80, path.backend.service.port.number)
+        for (ingress in listOf(mainIngress, cookieOverrideIngress, queryParamOverrideIngress)) {
+            assertEquals(1, ingress.spec.rules.size)
+            val rule = ingress.spec.rules[0]
+            assertNotNull(rule)
+            assertEquals(sp.fqdn, rule.host)
+            assertEquals(1, rule.http.paths.size)
+            val path = rule.http.paths[0]
+            assertNotNull(path)
+            assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), path.backend.service.name)
+            assertEquals(80, path.backend.service.port.number)
+        }
 
     }
 

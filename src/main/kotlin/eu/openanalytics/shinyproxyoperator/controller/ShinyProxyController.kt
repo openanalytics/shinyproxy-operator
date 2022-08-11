@@ -172,6 +172,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 logger.debug { "${shinyProxy.logPrefix()} Trying to update status (attempt ${i}/5)" }
                 tryUpdateStatus()
                 logger.debug { "${shinyProxy.logPrefix()} Status successfully updated" }
+                ingressController.reconcileMetadataEndpoint(refreshShinyProxy(shinyProxy), true)
                 return
             } catch (e: KubernetesClientException) {
                 logger.warn(e) { "${shinyProxy.logPrefix()} Update of status not succeeded (attempt ${i}/5)" }

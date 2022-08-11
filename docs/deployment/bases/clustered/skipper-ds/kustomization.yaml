@@ -4,3 +4,4 @@ resources:
   - serviceaccount.yaml
   - daemonset.yaml
   - service.yaml
+  - routegroups.crd.yaml

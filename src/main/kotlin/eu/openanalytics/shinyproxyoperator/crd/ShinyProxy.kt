@@ -131,7 +131,7 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
             return@lazy path
         }
 
-        return@lazy ""
+        return@lazy "/"
     }
 
     @get:JsonIgnore

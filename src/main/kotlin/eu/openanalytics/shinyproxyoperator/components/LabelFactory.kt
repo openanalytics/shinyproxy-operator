@@ -42,6 +42,13 @@ object LabelFactory {
         )
     }
 
+    fun labelsForShinyProxy(shinyProxy: ShinyProxy): Map<String, String> {
+        return mapOf(
+            APP_LABEL to APP_LABEL_VALUE,
+            NAME_LABEL to shinyProxy.metadata.name
+        )
+    }
+
     const val APP_LABEL = "app"
     const val APP_LABEL_VALUE = "shinyproxy"
     const val NAME_LABEL = "openanalytics.eu/sp-resource-name"

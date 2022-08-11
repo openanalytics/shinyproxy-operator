@@ -150,12 +150,12 @@ class Operator(client: NamespacedKubernetesClient? = null,
             replicaSetListener = ResourceListener(sendChannel, this.client.inAnyNamespace().apps().replicaSets())
             serviceListener = ResourceListener(sendChannel, this.client.inAnyNamespace().services())
             configMapListener = ResourceListener(sendChannel, this.client.inAnyNamespace().configMaps())
-            ingressController = IngressController(sendChannel, this.client, this.client.inAnyNamespace().network().v1().ingresses())
+            ingressController = IngressController(sendChannel, this.client.inAnyNamespace(), this.client.inAnyNamespace().network().v1().ingresses())
         } else {
             replicaSetListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).apps().replicaSets())
             serviceListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).services())
             configMapListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).configMaps())
-            ingressController = IngressController(sendChannel, this.client, this.client.inNamespace(namespace).network().v1().ingresses())
+            ingressController = IngressController(sendChannel, this.client.inNamespace(namespace), this.client.inNamespace(namespace).network().v1().ingresses())
         }
     }
 
@@ -164,39 +164,58 @@ class Operator(client: NamespacedKubernetesClient? = null,
      */
     val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, ingressController, podRetriever, reconcileListener)
 
-    fun prepare(): Pair<ResourceRetriever, Lister<ShinyProxy>> {
-        logger.info { "Starting background processes of ShinyProxy Operator" }
+    private fun _checkCrdExists(name: String, shortName: String) {
         try {
-            if (client.apiextensions().v1().customResourceDefinitions().withName("shinyproxies.openanalytics.eu").get() == null) {
+            if (client.apiextensions().v1().customResourceDefinitions().withName(name).get() == null) {
                 println()
                 println()
-                println("ERROR: the CustomResourceDefinition (CRD) of the Operator does not exist!")
-                println("The name of the CRD is 'shinyproxies.openanalytics.eu'")
+                println("ERROR: the CustomResourceDefinition (CRD) '${shortName}' does not exist!")
+                println("The name of the CRD is '${name}'")
                 println("Create the CRD first, before starting the operator")
                 println()
                 println("Exiting in 10 seconds because of the above error")
-                Thread.sleep(10000) // sleep 10 seconds to make it easier to find this error by an sysadmin
+                Thread.sleep(10000) // sleep 10 seconds to make it easier to find this error by a sysadmin
 
                 exitProcess(2)
             }
         } catch (e: KubernetesClientException) {
             println()
             println()
-            println("Warning: could not check whether ShinyProxy CRD exits.")
+            println("Warning: could not check whether $shortName CRD exits.")
             println("This is normal when the ServiceAccount of the operator does not have permission to access CRDs (at cluster scope).")
             println("If you get an unexpected error after this message, make sure that the CRD exists.")
             println()
             println()
         }
 
-        val shinyProxyLister = Lister(shinyProxyListener.start())
-        val replicaSetLister = Lister(replicaSetListener.start(shinyProxyLister))
-        val serviceLister = Lister(serviceListener.start(shinyProxyLister))
-        val configMapLister = Lister(configMapListener.start(shinyProxyLister))
-        val ingressLister = Lister(ingressController.start(shinyProxyLister))
-        val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, ingressLister)
+    }
 
-        return resourceRetriever to shinyProxyLister
+    fun prepare(): Pair<ResourceRetriever, Lister<ShinyProxy>> {
+        logger.info { "Starting background processes of ShinyProxy Operator" }
+
+        _checkCrdExists("shinyproxies.openanalytics.eu", "ShinyProxy")
+        _checkCrdExists("routegroups.zalando.org", "RouteGroup")
+
+        try {
+            val shinyProxyLister = Lister(shinyProxyListener.start())
+            val replicaSetLister = Lister(replicaSetListener.start(shinyProxyLister))
+            val serviceLister = Lister(serviceListener.start(shinyProxyLister))
+            val configMapLister = Lister(configMapListener.start(shinyProxyLister))
+            val ingressLister = Lister(ingressController.start(shinyProxyLister))
+            val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, ingressLister)
+            return resourceRetriever to shinyProxyLister
+        } catch (e: KubernetesClientException) {
+            println()
+            println()
+            println("Error during starting up. Please check if all CRDs exists (see above).")
+            println("Exiting in 10 seconds because of the above error")
+            println()
+            e.printStackTrace()
+            println()
+            println()
+            Thread.sleep(10000) // sleep 10 seconds to make it easier to find this error by a sysadmin
+            exitProcess(3)
+        }
     }
 
     suspend fun run(resourceRetriever: ResourceRetriever, shinyProxyLister: Lister<ShinyProxy>) {

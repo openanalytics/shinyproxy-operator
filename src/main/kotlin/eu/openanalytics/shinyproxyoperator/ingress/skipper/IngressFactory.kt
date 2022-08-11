@@ -42,81 +42,91 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
 
         val isLatest = shinyProxyInstance.isLatestInstance
 
-        val cookiePath = if (shinyProxy.subPath != "") {
-            shinyProxy.subPath
-        } else {
-            "/"
+        val routes = createRoutes(isLatest, hashOfSpec, shinyProxy)
+
+        val labels = LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance).toMutableMap()
+        labels[LabelFactory.INGRESS_IS_LATEST] = isLatest.toString()
+
+        for ((routeName, routeAnnotations) in routes) {
+
+            //@formatter:off
+            val ingressDefinition = IngressBuilder()
+                    .withNewMetadata()
+                        .withName(ResourceNameFactory.createNameForIngress(shinyProxy, routeName, shinyProxyInstance))
+                        .withLabels<String, String>(labels)
+                        .addNewOwnerReference()
+                            .withController(true)
+                            .withKind("ReplicaSet")
+                            .withApiVersion("apps/v1")
+                            .withName(ResourceNameFactory.createNameForReplicaSet(shinyProxy, shinyProxyInstance))
+                            .withNewUid(replicaSet.metadata.uid)
+                        .endOwnerReference()
+                        .withAnnotations<String, String>(routeAnnotations)
+                    .endMetadata()
+                    .withNewSpec()
+                        .withIngressClassName("skipper")
+                        .addNewRule()
+                            .withHost(shinyProxy.fqdn)
+                            .withNewHttp()
+                                .addToPaths(createPathV1(shinyProxy, shinyProxyInstance))
+                            .endHttp()
+                        .endRule()
+                    .endSpec()
+                    .build()
+            //@formatter:on
+
+            val createdIngress = kubeClient.network().v1().ingresses().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
+            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Created ${createdIngress.metadata.name} [latest=$isLatest]" }
         }
 
+    }
+
+    private fun createRoutes(isLatest: Boolean, hashOfSpec: String, shinyProxy: ShinyProxy): Map<String, Map<String, String>> {
+        return if (isLatest) {
+            mapOf(
+                "" to createRoute(true, hashOfSpec, shinyProxy, "True()"),
+                "cookie-override" to createRoute(false, hashOfSpec, shinyProxy, """Cookie("sp-instance-override", "$hashOfSpec") && Weight(20)"""),
+                "query-override" to createRoute(false, hashOfSpec, shinyProxy, """QueryParam("sp_instance_override", "$hashOfSpec") && Weight(20)"""),
+            )
+        } else {
+            mapOf(
+                "" to createRoute(false, hashOfSpec, shinyProxy, """Cookie("sp-instance", "$hashOfSpec") && Weight(10)"""),
+                "cookie-override" to createRoute(false, hashOfSpec, shinyProxy, """Cookie("sp-instance-override", "$hashOfSpec") && Weight(20)"""),
+                "query-override" to createRoute(false, hashOfSpec, shinyProxy, """QueryParam("sp_instance_override", "$hashOfSpec") && Weight(20)"""),
+            )
+        }
+    }
+
+    private fun createRoute(isDefaultRoute: Boolean, hashOfSpec: String, shinyProxy: ShinyProxy, predicate: String): Map<String, String> {
         val security = if (Operator.getOperatorInstance().disableSecureCookies) {
             ""
         } else {
             "Secure;"
         }
 
-        val annotations = if (isLatest) {
-            mapOf(
-                "zalando.org/skipper-predicate" to "True()",
-                "zalando.org/skipper-filter" to
-                    """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
+        return mapOf(
+            "zalando.org/skipper-predicate" to predicate,
+            "zalando.org/skipper-filter" to
+                """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
+                """ -> """ +
+                """setRequestHeader("X-ShinyProxy-Latest-Instance", "${shinyProxy.hashOfCurrentSpec}")""" +
+                if (isDefaultRoute) {
                     """ -> """ +
-                    """setRequestHeader("X-ShinyProxy-Latest-Instance", "${shinyProxy.hashOfCurrentSpec}")""" +
-                    """ -> """ +
-                    """appendResponseHeader("Set-Cookie", "sp-instance=$hashOfSpec; $security Path=$cookiePath")""" +
-                    """ -> """ +
-                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")"""
+                        """appendResponseHeader("Set-Cookie", "sp-instance=$hashOfSpec; $security Path=${shinyProxy.subPath}")"""
+                } else {
+                    ""
+                } +
+                """ -> """ +
+                """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=${shinyProxy.subPath}")""",
+        )
 
-            )
-        } else {
-            mapOf(
-                "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hashOfSpec")""",
-                "zalando.org/skipper-filter" to
-                    """setRequestHeader("X-ShinyProxy-Instance", "$hashOfSpec")""" +
-                    """ -> """ +
-                    """setRequestHeader("X-ShinyProxy-Latest-Instance", "${shinyProxy.hashOfCurrentSpec}")""" +
-                    """ -> """ +
-                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${shinyProxy.hashOfCurrentSpec}; $security Path=$cookiePath")"""
-            )
-        }
-
-        val labels = LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance).toMutableMap()
-        labels[LabelFactory.INGRESS_IS_LATEST] = isLatest.toString()
-
-        //@formatter:off
-        val ingressDefinition = IngressBuilder()
-                .withNewMetadata()
-                    .withName(ResourceNameFactory.createNameForIngress(shinyProxy, shinyProxyInstance))
-                    .withLabels<String, String>(labels)
-                    .addNewOwnerReference()
-                        .withController(true)
-                        .withKind("ReplicaSet")
-                        .withApiVersion("apps/v1")
-                        .withName(ResourceNameFactory.createNameForReplicaSet(shinyProxy, shinyProxyInstance))
-                        .withNewUid(replicaSet.metadata.uid)
-                    .endOwnerReference()
-                    .withAnnotations<String, String>(annotations)
-                .endMetadata()
-                .withNewSpec()
-                    .addNewRule()
-                        .withHost(shinyProxy.fqdn)
-                        .withNewHttp()
-                            .addToPaths(createPathV1(shinyProxy, shinyProxyInstance))
-                        .endHttp()
-                    .endRule()
-                    .withIngressClassName("skipper")
-                .endSpec()
-                .build()
-        //@formatter:on
-
-        val createdIngress =
-            kubeClient.network().v1().ingresses().inNamespace(shinyProxy.metadata.namespace).createOrReplace(ingressDefinition)
-        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Ingress] Created ${createdIngress.metadata.name} [latest=$isLatest]" }
     }
 
     private fun createPathV1 (shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): HTTPIngressPath {
         //@formatter:off
         val builder = HTTPIngressPathBuilder()
                 .withPathType("Prefix")
+                .withPath(shinyProxy.subPath)
                 .withNewBackend()
                     .withNewService()
                         .withName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
@@ -126,12 +136,6 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                     .endService()
                 .endBackend()
         //@formatter:on
-
-        if (shinyProxy.subPath != "") {
-            builder.withPath(shinyProxy.subPath)
-        } else {
-            builder.withPath("/")
-        }
 
         return builder.build()
     }

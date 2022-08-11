@@ -31,4 +31,5 @@ interface IIngressController {
     fun onRemoveInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance)
 
     fun stop()
+    fun reconcileMetadataEndpoint(shinyProxy: ShinyProxy, force: Boolean = false)
 }
