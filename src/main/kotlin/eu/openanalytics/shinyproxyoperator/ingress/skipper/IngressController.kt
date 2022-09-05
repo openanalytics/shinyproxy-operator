@@ -36,7 +36,7 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.informers.cache.Indexer
 import io.fabric8.kubernetes.client.informers.cache.Lister
-import io.fabric8.kubernetes.client.internal.readiness.Readiness
+import io.fabric8.kubernetes.client.readiness.Readiness
 import kotlinx.coroutines.channels.SendChannel
 import mu.KotlinLogging
 

@@ -29,7 +29,7 @@ import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
 import eu.openanalytics.shinyproxyoperator.helpers.isStartupProbesSupported
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
-import io.fabric8.kubernetes.client.internal.readiness.Readiness
+import io.fabric8.kubernetes.client.readiness.Readiness
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
