@@ -66,6 +66,7 @@ spec:
                         - openid
                         - saml
                         - social
+                        - webservice
                         - simple
                         - none
                     containerWaitTime:
@@ -205,6 +206,7 @@ spec:
                         - openid
                         - saml
                         - social
+                        - webservice
                         - simple
                         - none
                     containerWaitTime:
