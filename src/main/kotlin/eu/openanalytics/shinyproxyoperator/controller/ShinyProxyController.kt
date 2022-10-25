@@ -31,7 +31,7 @@ import eu.openanalytics.shinyproxyoperator.ingress.IIngressController
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.informers.cache.Lister
-import io.fabric8.kubernetes.client.internal.readiness.Readiness
+import io.fabric8.kubernetes.client.readiness.Readiness
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,12 +45,13 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                            private val kubernetesClient: KubernetesClient,
                            private val shinyProxyClient: ShinyProxyClient,
                            private val ingressController: IIngressController,
-                           private val podRetriever: PodRetriever,
+                           podRetriever: PodRetriever,
                            private val reconcileListener: IReconcileListener?) {
 
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val serviceFactory = ServiceFactory(kubernetesClient)
     private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
+    private val recyclableChecker = RecyclableChecker(podRetriever)
 
     private val logger = KotlinLogging.logger {}
 
@@ -279,7 +280,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 6/$amountOfSteps: Ok] [Component/Ingress]" }
 
-        podRetriever.addNamespaces(shinyProxy.namespacesOfCurrentInstance)
         if (updatedShinyProxyInstance != null) {
             reconcileListener?.onInstanceFullyReconciled(updatedShinyProxy, updatedShinyProxyInstance)
         }
@@ -296,14 +296,9 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         // shinyProxyInstance is either the latest or the soon to be latest instance
                         continue
                     }
-
-                    val pods = podRetriever.getPodsForShinyProxyInstance(shinyProxy, shinyProxyInstance)
-
-                    if (pods.isEmpty()) {
-                        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has no running apps and is not the latest version => removing this instance" }
+                    if (recyclableChecker.isInstanceRecyclable(shinyProxy, shinyProxyInstance)) {
+                        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has no open websocket connections and is not the latest version => removing this instance" }
                         deleteSingleShinyProxyInstance(resourceRetriever, shinyProxy, shinyProxyInstance)
-                    } else {
-                        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has ${pods.size} running apps => not removing this instance" }
                     }
                 }
             }

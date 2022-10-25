@@ -25,52 +25,15 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
-import io.fabric8.kubernetes.client.informers.SharedIndexInformer
-import mu.KotlinLogging
 
 class PodRetriever(private val client: NamespacedKubernetesClient) {
 
-    private val logger = KotlinLogging.logger {}
-    private val namespaces = HashSet<String>()
-
-    fun addNamespace(namespace: String) {
-        if (namespaces.add(namespace)) {
-            logger.warn { "Now watching pods in the $namespace namespace. (total count = ${namespaces.size})" }
-        }
-    }
-
-    fun getPodsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): List<Pod> {
-        val pods = arrayListOf<Pod>()
+    fun getShinyProxyPods(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): List<Pod> {
         val labels = mapOf(
-            LabelFactory.PROXIED_APP to "true",
+            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
             LabelFactory.INSTANCE_LABEL to shinyProxyInstance.hashOfSpec
         )
-
-        val namespacesToCheck = if (shinyProxyInstance.isLatestInstance) {
-            shinyProxy.namespacesOfCurrentInstance
-        } else {
-            // We don't know the exact namespaces used by older ShinyProxyInstance, therefore we have to look into all namespaces.
-            // We could save the list of namespaces in the status of the instance, if it turns out this is a performance bottleneck.
-            // Note: that currently this function is only called for older SP instances and thus this else statement is actually always executed...
-            namespaces
-        }
-
-        logger.debug { "Looking for Pods managed by ${shinyProxyInstance.hashOfSpec} using $labels in $namespacesToCheck" }
-
-        for (namespace in namespacesToCheck) {
-            pods.addAll(client.pods().inNamespace(namespace).withLabels(labels).list().items)
-        }
-
-        logger.info { "PodCount: ${pods.size}, ${pods.map { it.metadata.namespace + "/" + it.metadata.name }}" }
-        return pods
-    }
-
-    fun addNamespaces(namespaces: List<String>) {
-        namespaces.forEach { addNamespace(it) }
-    }
-
-    fun getNamespaces(): Set<String> {
-        return namespaces
+        return client.pods().inNamespace(shinyProxy.metadata.namespace).withLabels(labels).list().items
     }
 
 }
