@@ -50,30 +50,36 @@ class RecyclableChecker(
         val pods = podRetriever.getShinyProxyPods(shinyProxy, shinyProxyInstance)
 
         for (pod in pods) {
-            val url = "http://${pod.status.podIP}:9090/actuator/recyclable"
-            val request = Request.Builder()
-                .url(url)
-                .build()
-
-            val body = try {
-                client.newCall(request).execute().body?.string()
-            } catch (e: IOException) {
-                logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} unreachable for recyclable check (using ${url})" }
-                // server unreachable -> do not delete it yet
-                return false
-            }
-            if (body == null) {
-                // server unreachable -> do not delete it yet
-                return false
-            }
-            val resp = objectMapper.readValue(body, Response::class.java)
-            if (!resp.isRecyclable) {
-                logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Replica has ${resp.activeConnections} open websocket connections" }
-                return false
+            for (i in 1..5) {
+                val resp = checkServer(pod.status.podIP)
+                if (resp == null) {
+                    // no response received, try to check again
+                    logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} unreachable for recyclable check (using ${pod.status.podIP})" }
+                    Thread.sleep(500)
+                    continue
+                }
+                if (!resp.isRecyclable) {
+                    logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Replica is not recyclable." }
+                    return false
+                }
             }
         }
 
         return true
+    }
+
+    private fun checkServer(ip: String): Response? {
+        val url = "http://${ip}:9090/actuator/recyclable"
+        val request = Request.Builder()
+            .url(url)
+            .build()
+
+        val body = try {
+            client.newCall(request).execute().body?.string() ?: return null
+        } catch (e: IOException) {
+            return null
+        }
+        return objectMapper.readValue(body, Response::class.java)
     }
 
 }
