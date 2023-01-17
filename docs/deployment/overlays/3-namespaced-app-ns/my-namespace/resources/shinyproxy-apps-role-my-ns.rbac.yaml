@@ -1,0 +1,40 @@
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: shinyproxy-apps-role-my-ns
+  namespace: my-namespace
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+  - apiGroups: [ "" ]
+    resources: [ "events" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: shinyproxy-apps-rolebinding-my-ns
+  namespace: my-namespace
+subjects:
+  - kind: ServiceAccount
+    name: shinyproxy-sa
+    namespace: shinyproxy
+roleRef:
+  kind: Role
+  name: shinyproxy-apps-role-my-ns
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: shinyproxy-operator-apps-rolebinding-my-ns
+  namespace: my-namespace
+subjects:
+  - kind: ServiceAccount
+    name: shinyproxy-operator-sa
+    namespace: shinyproxy
+roleRef:
+  kind: Role
+  name: shinyproxy-apps-role-my-ns
+  apiGroup: rbac.authorization.k8s.io
