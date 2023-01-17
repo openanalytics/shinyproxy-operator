@@ -2,7 +2,7 @@
 
 Easily run ShinyProxy on a Kubernetes cluster
 
-**(c) Copyright Open Analytics NV, 2020-2022 - Apache License 2.0**
+**(c) Copyright Open Analytics NV, 2020-2023 - Apache License 2.0**
 
 ## Why?
 

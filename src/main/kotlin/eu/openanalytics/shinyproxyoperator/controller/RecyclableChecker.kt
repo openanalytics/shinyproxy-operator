@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
