@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit
 
 class RecyclableChecker(
     private val podRetriever: PodRetriever,
-) {
+) : IRecyclableChecker {
 
     private val logger = KotlinLogging.logger {}
     private val client: OkHttpClient = OkHttpClient.Builder()
@@ -46,7 +46,7 @@ class RecyclableChecker(
 
     data class Response(@JsonProperty("isRecyclable") val isRecyclable: Boolean, @JsonProperty("activeConnections") val activeConnections: Int)
 
-    fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean {
+    override fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean {
         val pods = podRetriever.getShinyProxyPods(shinyProxy, shinyProxyInstance)
 
         for (pod in pods) {

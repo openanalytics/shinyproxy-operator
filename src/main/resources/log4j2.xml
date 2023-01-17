@@ -14,6 +14,10 @@
         </RollingFile>
     </Appenders>
     <Loggers>
+        <Logger name="io.fabric8.kubernetes.client.Config" additivity="false">
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="File" level="INFO"/>
+        </Logger>
         <Logger name="io.fabric8.kubernetes.client.informers" additivity="false">
             <AppenderRef ref="Console" level="WARN"/>
             <AppenderRef ref="File" level="TRACE"/>

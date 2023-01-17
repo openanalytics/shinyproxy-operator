@@ -32,4 +32,8 @@ data class ShinyProxyStatus(val instances: ArrayList<ShinyProxyInstance> = array
         return instances.find { it.hashOfSpec == hash }
     }
 
+    fun latestInstance(): ShinyProxyInstance? {
+        return instances.firstOrNull { it.isLatestInstance }
+    }
+
 }

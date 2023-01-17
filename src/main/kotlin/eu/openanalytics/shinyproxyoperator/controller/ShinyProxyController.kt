@@ -27,7 +27,6 @@ import eu.openanalytics.shinyproxyoperator.components.ReplicaSetFactory
 import eu.openanalytics.shinyproxyoperator.components.ServiceFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.ingress.IIngressController
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.informers.cache.Lister
@@ -44,14 +43,14 @@ import mu.KotlinLogging
 class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                            private val kubernetesClient: KubernetesClient,
                            private val shinyProxyClient: ShinyProxyClient,
-                           private val ingressController: IIngressController,
-                           podRetriever: PodRetriever,
-                           private val reconcileListener: IReconcileListener?) {
+                           private val ingressController: IngressController,
+                           private val reconcileListener: IReconcileListener?,
+                           private val recyclableChecker: IRecyclableChecker) {
 
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val serviceFactory = ServiceFactory(kubernetesClient)
     private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
-    private val recyclableChecker = RecyclableChecker(podRetriever)
+
 
     private val logger = KotlinLogging.logger {}
 
@@ -134,7 +133,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             logger.warn { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is the latest instance" }
             return existingInstance
         } else if (existingInstance != null && !existingInstance.isLatestInstance) {
-            logger.info { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is not the latest instance. Therefore this instance wiill become the latest again" }
+            logger.info { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is not the latest instance. Therefore this instance will become the latest again" }
             // reconcile will take care of making this the latest instance again
             return existingInstance
         }
@@ -173,7 +172,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 logger.debug { "${shinyProxy.logPrefix()} Trying to update status (attempt ${i}/5)" }
                 tryUpdateStatus()
                 logger.debug { "${shinyProxy.logPrefix()} Status successfully updated" }
-                ingressController.reconcileMetadataEndpoint(refreshShinyProxy(shinyProxy), true)
                 return
             } catch (e: KubernetesClientException) {
                 logger.warn(e) { "${shinyProxy.logPrefix()} Update of status not succeeded (attempt ${i}/5)" }
@@ -297,8 +295,10 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         continue
                     }
                     if (recyclableChecker.isInstanceRecyclable(shinyProxy, shinyProxyInstance)) {
-                        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance has no open websocket connections and is not the latest version => removing this instance" }
+                        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance is recyclable (i.e. it has no open websocket connections) and is not the latest version => removing this instance" }
                         deleteSingleShinyProxyInstance(resourceRetriever, shinyProxy, shinyProxyInstance)
+                    } else {
+                        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxyInstance is not recyclable (e.g. because it has open websocket connections) => not removing this instance" }
                     }
                 }
             }

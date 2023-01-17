@@ -22,20 +22,24 @@ package eu.openanalytics.shinyproxyoperator
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.controller.IReconcileListener
+import eu.openanalytics.shinyproxyoperator.controller.IRecyclableChecker
 import eu.openanalytics.shinyproxyoperator.controller.PodRetriever
+import eu.openanalytics.shinyproxyoperator.controller.RecyclableChecker
 import eu.openanalytics.shinyproxyoperator.controller.ResourceListener
 import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyListener
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.ingress.skipper.IngressController
+import eu.openanalytics.shinyproxyoperator.controller.IngressController
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.ConfigMapList
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.ServiceList
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
+import io.fabric8.kubernetes.api.model.networking.v1.Ingress
+import io.fabric8.kubernetes.api.model.networking.v1.IngressList
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
@@ -62,7 +66,8 @@ class Operator(client: NamespacedKubernetesClient? = null,
                probeFailureThreshold: Int? = null,
                probeTimeout: Int? = null,
                startupProbeInitialDelay: Int? = null,
-               logLevel: Level? = null) {
+               logLevel: Level? = null,
+               recyclableChecker: IRecyclableChecker? = null) {
 
     private val logger = KotlinLogging.logger {}
     private val client: NamespacedKubernetesClient
@@ -77,11 +82,13 @@ class Operator(client: NamespacedKubernetesClient? = null,
 
     val podRetriever: PodRetriever
     private val shinyProxyClient: ShinyProxyClient
+    private val recyclableChecker: IRecyclableChecker
 
     private val shinyProxyListener: ShinyProxyListener
     private val replicaSetListener: ResourceListener<ReplicaSet, ReplicaSetList, RollableScalableResource<ReplicaSet>>
     private val serviceListener: ResourceListener<Service, ServiceList, ServiceResource<Service>>
     private val configMapListener: ResourceListener<ConfigMap, ConfigMapList, Resource<ConfigMap>>
+    private val ingressListener: ResourceListener<Ingress, IngressList, Resource<Ingress>>
     private val ingressController: IngressController
 
     private val channel = Channel<ShinyProxyEvent>(10000)
@@ -145,24 +152,27 @@ class Operator(client: NamespacedKubernetesClient? = null,
 
         shinyProxyListener = ShinyProxyListener(sendChannel, this.shinyProxyClient)
         podRetriever = PodRetriever(this.client)
+        this.recyclableChecker = recyclableChecker ?: RecyclableChecker(podRetriever)
 
         if (this.mode == Mode.CLUSTERED) {
             replicaSetListener = ResourceListener(sendChannel, this.client.inAnyNamespace().apps().replicaSets())
             serviceListener = ResourceListener(sendChannel, this.client.inAnyNamespace().services())
             configMapListener = ResourceListener(sendChannel, this.client.inAnyNamespace().configMaps())
-            ingressController = IngressController(sendChannel, this.client.inAnyNamespace(), this.client.inAnyNamespace().network().v1().ingresses())
+            ingressListener = ResourceListener(sendChannel, this.client.inAnyNamespace().network().v1().ingresses())
+            ingressController = IngressController(this.client.inAnyNamespace().network().v1().ingresses())
         } else {
             replicaSetListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).apps().replicaSets())
             serviceListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).services())
             configMapListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).configMaps())
-            ingressController = IngressController(sendChannel, this.client.inNamespace(namespace), this.client.inNamespace(namespace).network().v1().ingresses())
+            ingressListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).network().v1().ingresses())
+            ingressController = IngressController(this.client.inNamespace(namespace).network().v1().ingresses())
         }
     }
 
     /**
      * Controllers
      */
-    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, ingressController, podRetriever, reconcileListener)
+    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, ingressController, reconcileListener, this.recyclableChecker)
 
     private fun _checkCrdExists(name: String, shortName: String) {
         try {
@@ -194,14 +204,13 @@ class Operator(client: NamespacedKubernetesClient? = null,
         logger.info { "Starting background processes of ShinyProxy Operator" }
 
         _checkCrdExists("shinyproxies.openanalytics.eu", "ShinyProxy")
-        _checkCrdExists("routegroups.zalando.org", "RouteGroup")
 
         try {
             val shinyProxyLister = Lister(shinyProxyListener.start())
             val replicaSetLister = Lister(replicaSetListener.start(shinyProxyLister))
             val serviceLister = Lister(serviceListener.start(shinyProxyLister))
             val configMapLister = Lister(configMapListener.start(shinyProxyLister))
-            val ingressLister = Lister(ingressController.start(shinyProxyLister))
+            val ingressLister = Lister(ingressListener.start(shinyProxyLister))
             val resourceRetriever = ResourceRetriever(replicaSetLister, configMapLister, serviceLister, ingressLister)
             return resourceRetriever to shinyProxyLister
         } catch (e: KubernetesClientException) {
@@ -228,7 +237,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         replicaSetListener.stop()
         serviceListener.stop()
         configMapListener.stop()
-        ingressController.stop()
+        ingressListener.stop()
     }
 
     companion object {

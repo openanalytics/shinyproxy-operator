@@ -18,18 +18,13 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator.ingress
+package eu.openanalytics.shinyproxyoperator.controller
 
-import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 
-interface IIngressController {
+interface IRecyclableChecker {
 
-    fun reconcile(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy)
+    fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean
 
-    fun onRemoveInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance)
-
-    fun stop()
-    fun reconcileMetadataEndpoint(shinyProxy: ShinyProxy, force: Boolean = false)
 }
