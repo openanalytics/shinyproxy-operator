@@ -20,19 +20,16 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
-import eu.openanalytics.shinyproxyoperator.components.LabelFactory
-import eu.openanalytics.shinyproxyoperator.components.ResourceNameFactory
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
-import eu.openanalytics.shinyproxyoperator.helpers.isStartupProbesSupported
 import io.fabric8.kubernetes.api.model.IntOrString
-import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.readiness.Readiness
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import mu.KotlinLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -47,7 +44,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `ingress should not be created before ReplicaSet is ready`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
             // 1. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
@@ -113,7 +110,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `simple test namespaces`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
             // 1. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
                 namespace,
@@ -140,7 +137,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `operator should re-create removed resources`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
             // 1. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
@@ -198,7 +195,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             // 8. Delete Ingress -> reconcile -> assert it is still ok
             executeAsyncAfter100ms {
                 stableClient.network().v1().ingresses()
-                    .withName("sp-${sp.metadata.name}-ing-${spTestInstance.hash}".take(63)).delete()
+                    .withName("sp-${sp.metadata.name}-ing".take(63)).delete()
                 logger.info { "Deleted Ingress" }
             }
             spTestInstance.waitForReconcileCycle()
@@ -211,7 +208,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `sp in other namespaced should be ignored when using namespaced mode`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _->
             // 1. create a SP instance in other namespace
             val spTestInstance = ShinyProxyTestInstance(
                 "itest-2",
@@ -239,7 +236,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `simple test with PodTemplateSpec patches`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create a SP instance in other namespace
             val spTestInstance = ShinyProxyTestInstance(
                 namespace,
@@ -305,14 +302,14 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.assertServiceIsCorrect(sp)
 
             // check ingress
-            spTestInstance.assertIngressIsCorrect(sp)
+            spTestInstance.assertIngressIsCorrect(spTestInstance.retrieveInstance())
 
             job.cancel()
         }
 
     @Test
     fun `update without apps running`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, recyclableChecker ->
             if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
             // 1. create a SP instance
             val spTestInstanceOriginal = ShinyProxyTestInstance(
@@ -322,7 +319,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 "simple_config.yaml",
                 reconcileListener
             )
-            spTestInstanceOriginal.create()
+            val sp = spTestInstanceOriginal.create()
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
@@ -351,13 +348,21 @@ class MainIntegrationTest : IntegrationTestBase() {
             // 6. wait until instance is created
             spTestInstanceUpdated.waitForOneReconcile()
 
-            // 7. wait for delete to happen
-            delay(35_000)
+            // 7. mark old shinyproxy as recyclable (old pods keeps existing)
+            recyclableChecker.isRecyclable = true
 
-            // 8. assert correctness
+            // 8. wait for delete to happen
+            while (stableClient.pods().withName("sp-${sp.metadata.name}-pod-${spTestInstanceOriginal.hash}".take(63)).get() != null
+                || stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstanceOriginal.hash}".take(63)).get() != null
+                || stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63)).get() != null) {
+                delay(1000)
+                logger.debug { "Pod still exists!" }
+            }
+
+            // 9. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
 
-            // 9. assert older instance does not exists anymore
+            // 10. assert older instance does not exist anymore
             assertThrows<IllegalStateException>("Instance not found") {
                 spTestInstanceOriginal.retrieveInstance()
             }
@@ -367,7 +372,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `update with apps running`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, recyclableChecker ->
             if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
             // 1. create a SP instance
             val spTestInstanceOriginal = ShinyProxyTestInstance(
@@ -392,8 +397,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstanceOriginal.assertInstanceIsCorrect()
 
             // 5. launch an app
-            runCurlRequest("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63), namespace)
-            delay(10_000) // give the app some time to properly boot
+            startApp(sp, spTestInstanceOriginal)
 
             // 6. update ShinyProxy instance
             logger.debug { "Base instance created -> updating it" }
@@ -404,7 +408,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 "simple_config_updated.yaml",
                 reconcileListener
             )
-            val spUpdated = spTestInstanceUpdated.create()
+            spTestInstanceUpdated.create()
             logger.debug { "Base instance created -> updated" }
 
             // 7. wait until instance is created
@@ -417,75 +421,34 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstanceOriginal.assertInstanceIsCorrect(2, false)
             spTestInstanceUpdated.assertInstanceIsCorrect(2, true)
 
-            // 9. kill app on older instance
-            stableClient.pods().delete(getPodsForInstance(spTestInstanceOriginal.hash)?.items)
+            // 9. mark old shinyproxy as recyclable (old pods keeps existing)
+            recyclableChecker.isRecyclable = true
 
             // 10. wait for delete to happen
-            while (getPodsForInstance(spTestInstanceOriginal.hash)?.items?.isNotEmpty() == true
-                || stableClient.pods().withName("sp-${spUpdated.metadata.name}-pod-${spUpdated.hashOfCurrentSpec}")
-                    .get() != null
-            ) {
+            while (stableClient.pods().withName("sp-${sp.metadata.name}-pod-${spTestInstanceOriginal.hash}".take(63)).get() != null
+                || stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstanceOriginal.hash}".take(63)).get() != null
+                || stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63)).get() != null) {
                 delay(1000)
                 logger.debug { "Pod still exists!" }
             }
-            // 11. give operator time to cleanup
-            delay(35_000)
 
-            // 11. assert older instance does not exists anymore
+            // 11. assert older instance does not exist anymore
             assertThrows<IllegalStateException>("Instance not found") {
                 spTestInstanceOriginal.retrieveInstance()
             }
 
+            // 12. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect(1, true)
 
-            job.cancel()
-
-        }
-
-    @Test
-    fun `apps running in different namespaces`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener ->
-            // 1. create a SP instance
-            val spTestInstance = ShinyProxyTestInstance(
-                namespace,
-                namespacedClient,
-                shinyProxyClient,
-                "simple_config_multiple_namespaces.yaml",
-                reconcileListener
-            )
-            val sp = spTestInstance.create()
-
-            // 2. start the operator and let it do it's work
-            val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
-                operator.run(resourceRetriever, shinyProxyLister)
-            }
-
-            // 3. wait until instance is created
-            spTestInstance.waitForOneReconcile()
-
-            // 4. assert namespaces are correctly loaded
-//            assertEquals(setOf("my-namespace", "itest"), operator.podRetriever.getNamespaces()) // TODO
-
-            // 5. assert correctness
-            spTestInstance.assertInstanceIsCorrect()
-
-            // 6. remove instance
-            shinyProxyClient.inNamespace(namespace).delete(sp)
-
-            // 7. wait for delete to not happen
-            delay(5000)
-
-            // 8. assert namespaces are still watched
-//            assertEquals(setOf("my-namespace", "itest"), operator.podRetriever.getNamespaces()) TODO
+            // 13. assert app still exists
+            assertEquals(1, getPodsForInstance(spTestInstanceOriginal.hash)?.items?.size)
 
             job.cancel()
-
         }
 
     @Test
     fun `simple test clustered`() =
-        setup(Mode.CLUSTERED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.CLUSTERED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
                 namespace,
@@ -513,7 +476,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 "itest-2",
                 stableClient.inNamespace("itest-2"),
                 shinyProxyClient,
-                "simple_config.yaml",
+                "simple_config_clustered.yaml",
                 reconcileListener
             )
             spTestInstance2.create()
@@ -529,7 +492,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `configuration with subpath not ending in slash`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener , _->
             // 1. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
                 namespace,
@@ -554,10 +517,8 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 5. additional assert correctness of ingress
             val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
-            assertEquals(3, ingresses.size)
-            for (ingress in ingresses) {
-                assertTrue(ingress.metadata.annotations["zalando.org/skipper-filter"]?.contains("Path=/sub-path/") == true)
-            }
+            assertEquals(1, ingresses.size)
+            assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"));
 
             job.cancel()
         }
@@ -565,7 +526,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `configuration with subpath ending in slash`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
                 namespace,
@@ -591,57 +552,18 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 5. additional assert correctness of ingress
             val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
-            assertEquals(3, ingresses.size)
-            for (ingress in ingresses) {
-                assertTrue(ingress.metadata.annotations["zalando.org/skipper-filter"]?.contains("Path=/sub-path/") == true)
-            }
+            assertEquals(1, ingresses.size)
+            assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"));
 
             job.cancel()
         }
-
-
-    @Test
-    fun `simple test namespaces non-secure cookie`() = setup(
-        Mode.NAMESPACED,
-        disableSecureCookies = true
-    ) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener ->
-        // 1. create a SP instance
-        val spTestInstance = ShinyProxyTestInstance(
-            namespace,
-            namespacedClient,
-            shinyProxyClient,
-            "simple_config.yaml",
-            reconcileListener
-        )
-        val sp = spTestInstance.create()
-
-        // 2. start the operator and let it do it's work
-        val (resourceRetriever, shinyProxyLister) = operator.prepare()
-        val job = GlobalScope.launch {
-            operator.run(resourceRetriever, shinyProxyLister)
-        }
-
-        // 3. wait until instance is created
-        spTestInstance.waitForOneReconcile()
-
-        // 4. assert correctness
-        spTestInstance.assertInstanceIsCorrect(1, true)
-
-        // 5. additional assert correctness of ingress
-        val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
-        assertEquals(3, ingresses.size)
-        for (ingress in ingresses) {
-            assertTrue(ingress.metadata.annotations["zalando.org/skipper-filter"]?.contains("Secure;") == false)
-        }
-        job.cancel()
-    }
 
     /**
      *  Test whether bug #23804 is solved.
      */
     @Test
     fun `reconcile of old instance should not update latestermarker and therefore delete old instance`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, recyclableChecker ->
             if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
             // 1. create a SP instance
             val spTestInstanceOriginal = ShinyProxyTestInstance(
@@ -708,10 +630,16 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertTrue(freshSP.status.instances.firstOrNull { it.hashOfSpec != originalSpInstance.hashOfSpec }?.isLatestInstance == false)
 
             // 6. wait until instance is created
+            recyclableChecker.isRecyclable = true
             spTestInstanceUpdated.waitForOneReconcile()
 
             // 7. wait for delete to happen
-            delay(35_000)
+            while (stableClient.pods().withName("sp-${sp.metadata.name}-pod-${spTestInstanceOriginal.hash}".take(63)).get() != null
+                || stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstanceOriginal.hash}".take(63)).get() != null
+                || stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63)).get() != null) {
+                delay(1000)
+                logger.debug { "Pod still exists!" }
+            }
 
             // 8. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
@@ -728,7 +656,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     fun `may no re-create instance after remove`() = setup(
         Mode.NAMESPACED,
         disableSecureCookies = true
-    ) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener ->
+    ) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
         if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
         // 1. create a SP instance
         val spTestInstance = ShinyProxyTestInstance(
@@ -770,7 +698,12 @@ class MainIntegrationTest : IntegrationTestBase() {
         operator.shinyProxyController.deleteSingleShinyProxyInstance(resourceRetriever, sp, instance)
 
         // let it all work a bit
-        delay(32_500)
+        withTimeout(50_000) {
+            while (stableClient.replicationControllers().list().items.isNotEmpty()) {
+                delay(1000)
+                logger.debug { "Pod still exists!" }
+            }
+        }
 
         val replicaSets = namespacedClient.inNamespace(namespace).apps().replicaSets().list().items
         assertEquals(0, replicaSets.size)
@@ -780,7 +713,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     fun `restore old config version`() =
     // idea of test: launch instance A, update config to get instance B, and the update config again
         // using the same config as A, resulting in instance A' (which is the same instance as A, as A was never removed!)
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, recyclableChecker ->
             // 1. create a SP instance
             val instanceA = ShinyProxyTestInstance(
                 namespace,
@@ -804,8 +737,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             instanceA.assertInstanceIsCorrect()
 
             // 5. launch an app
-            runCurlRequest("sp-${spA.metadata.name}-svc-${instanceA.hash}".take(63), namespace)
-            delay(10_000) // give the app some time to properly boot
+            startApp(spA, instanceA)
 
             // 6. update ShinyProxy instance
             logger.debug { "Base instance created -> updating it" }
@@ -838,29 +770,26 @@ class MainIntegrationTest : IntegrationTestBase() {
                 "simple_config.yaml",
                 reconcileListener
             )
-            val spAPrime = instanceAPrime.create()
+            instanceAPrime.create()
 
             // 10. wait until instance is created
             instanceAPrime.waitForOneReconcile()
 
             // 11. wait for delete to happen
-            while (stableClient.pods().withName(ResourceNameFactory.createNameForReplicaSet(spB, spB.status.instances[0])).get() != null) {
+            recyclableChecker.isRecyclable = true
+            while (stableClient.pods().withName("sp-${spB.metadata.name}-pod-${instanceB.hash}".take(63)).get() != null
+                || stableClient.configMaps().withName("sp-${spB.metadata.name}-cm-${instanceB.hash}".take(63)).get() != null
+                || stableClient.services().withName("sp-${spB.metadata.name}-svc-${instanceB.hash}".take(63)).get() != null) {
                 delay(1000)
                 logger.debug { "Pod still exists!" }
             }
 
-            // 12. give operator time to cleanup instance B
-            delay(5_000)
-
-            // 13. assert instance B does not exists anymore
+            // 12. assert instance B does not exists anymore
             assertThrows<IllegalStateException>("Instance not found") {
                 instanceB.retrieveInstance()
             }
 
-            // 14. wait for step 3 (effectively cleaning up the resources)  to happen
-            delay(35_000)
-
-            // 15. assert instance A' is correct
+            // 13. assert instance A' is correct
             instanceAPrime.assertInstanceIsCorrect(1, true)
 
             job.cancel()
@@ -869,7 +798,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     // see #25154
     @Test
-    fun `latest marker and ingress should be created in a single, atomic step`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+    fun `latest marker and ingress should be created in a single, atomic step`() = setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
         if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
         // 1. create a SP instance
         val spTestInstance = ShinyProxyTestInstance(
@@ -933,7 +862,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
         // B) at this point the ingress should exist
         ingresses = stableClient.inNamespace(namespace).network().v1().ingresses().list().items
-        assertEquals(3, ingresses.size)
+        assertEquals(1, ingresses.size)
 
     }
 
@@ -941,7 +870,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     // see #25161
     @Test
     fun `operator should properly handle 409 conflicts by replacing the resource`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener ->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create conflicting resources
             stableClient.load(this.javaClass.getResourceAsStream("/config/conflict.yaml")).createOrReplace()
 

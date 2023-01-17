@@ -31,13 +31,13 @@ import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext
 import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 
 
 abstract class IntegrationTestBase {
@@ -54,7 +54,7 @@ abstract class IntegrationTestBase {
         DefaultKubernetesClient()
     }
 
-    protected fun setup(mode: Mode, disableSecureCookies: Boolean = false, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, NamespacedKubernetesClient, Operator, ReconcileListener) -> Unit) {
+    protected fun setup(mode: Mode, disableSecureCookies: Boolean = false, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, NamespacedKubernetesClient, Operator, ReconcileListener, MockRecyclableChecker) -> Unit) {
         runBlocking {
 
             Runtime.getRuntime().addShutdownHook(Thread {
@@ -78,12 +78,13 @@ abstract class IntegrationTestBase {
             }
 
             // 3. create the operator
+            val recyclableChecker = MockRecyclableChecker()
             val reconcileListener = ReconcileListener()
 
             val operator = if (stableClient.isStartupProbesSupported()) {
-                Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener)
+                Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener, recyclableChecker=recyclableChecker)
             } else {
-                Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener, 40, 2)
+                Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener, 40, 2, recyclableChecker=recyclableChecker)
             }
 
             Operator.setOperatorInstance(operator)
@@ -93,7 +94,7 @@ abstract class IntegrationTestBase {
 
             try {
                 // 4. run test
-                block(namespace, shinyProxyClient, namespacedKubernetesClient, stableClient.inNamespace(namespace), operator, reconcileListener)
+                block(namespace, shinyProxyClient, namespacedKubernetesClient, stableClient.inNamespace(namespace), operator, reconcileListener, recyclableChecker)
             } finally {
                 // 5. remove all instances
                 try {
@@ -161,8 +162,10 @@ abstract class IntegrationTestBase {
         }
     }
 
-    protected fun runCurlRequest(serviceName: String, namespace: String) {
-        stableClient.run().inNamespace(namespace)
+    protected suspend fun startApp(shinyProxy: ShinyProxy, instance: ShinyProxyTestInstance) {
+        val oldNumApps = getPodsForInstance(instance.hash)?.items?.filter { it.status.phase.equals("Running") }?.size ?: 0
+        val serviceName = "sp-${shinyProxy.metadata.name}-svc-${instance.hash}".take(63)
+        stableClient.run().inNamespace(shinyProxy.metadata.namespace)
             .withRunConfig(RunConfigBuilder()
                 .withName("itest-curl-helper")
                 .withImage("curlimages/curl")
@@ -170,6 +173,15 @@ abstract class IntegrationTestBase {
                 .withRestartPolicy("Never")
                 .build())
             .done()
+        withTimeout(60_000) {
+            while (true) {
+                val newNumApps = getPodsForInstance(instance.hash)?.items?.filter { it.status.phase.equals("Running") }?.size ?: continue
+                if (newNumApps > oldNumApps) {
+                    break
+                }
+                delay(1_000)
+            }
+        }
     }
 
     private fun setupServiceAccount() {
