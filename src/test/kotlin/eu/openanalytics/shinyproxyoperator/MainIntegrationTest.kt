@@ -656,7 +656,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     fun `may no re-create instance after remove`() = setup(
         Mode.NAMESPACED,
         disableSecureCookies = true
-    ) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
+    ) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
         if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
         // 1. create a SP instance
         val spTestInstance = ShinyProxyTestInstance(
@@ -699,7 +699,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
         // let it all work a bit
         withTimeout(50_000) {
-            while (stableClient.replicationControllers().list().items.isNotEmpty()) {
+            while (namespacedClient.inNamespace(namespace).apps().replicaSets().list().items.isNotEmpty()) {
                 delay(1000)
                 logger.debug { "Pod still exists!" }
             }
