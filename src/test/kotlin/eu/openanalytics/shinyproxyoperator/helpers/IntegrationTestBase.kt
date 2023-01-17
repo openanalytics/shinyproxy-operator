@@ -127,7 +127,7 @@ abstract class IntegrationTestBase {
     }
 
     private suspend fun deleteNamespaces() {
-        do {
+        while (true) {
             for (managedNamespace in managedNamespaces) {
                 try {
                     val ns = stableClient.namespaces().withName(managedNamespace).get() ?: continue
@@ -141,7 +141,18 @@ abstract class IntegrationTestBase {
                 }
                 delay(1000)
             }
-        } while (managedNamespaces.any { stableClient.namespaces().withName(it).get() != null })
+            try {
+                if (managedNamespaces.all { stableClient.namespaces().withName(it).get() == null }) {
+                    break
+                }
+            } catch (_: KubernetesClientException) {
+                // ignore and try again
+            } catch (_: RejectedExecutionException) {
+                // ignore and try again
+            } catch (_: InterruptedException) {
+                // ignore and try again
+            }
+        }
     }
 
     private suspend fun deleteCRD() {
