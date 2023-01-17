@@ -294,7 +294,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertEquals("TEST_VALUE", templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" }?.value)
             assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
             assertEquals(
-                sp.metadata.name,
+                sp.metadata.name + '-' + sp.metadata.namespace,
                 templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value
             )
 

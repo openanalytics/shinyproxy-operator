@@ -194,7 +194,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
-        assertEquals(sp.metadata.name, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
+        assertEquals(sp.metadata.name + '-'+ sp.metadata.namespace, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
 
         assertEquals(1, templateSpec.containers[0].volumeMounts.size)
         assertEquals("config-volume", templateSpec.containers[0].volumeMounts[0].name)

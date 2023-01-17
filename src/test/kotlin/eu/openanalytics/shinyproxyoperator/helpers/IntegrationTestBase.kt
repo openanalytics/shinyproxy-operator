@@ -129,8 +129,8 @@ abstract class IntegrationTestBase {
     private suspend fun deleteNamespaces() {
         do {
             for (managedNamespace in managedNamespaces) {
-                val ns = stableClient.namespaces().withName(managedNamespace).get() ?: continue
                 try {
+                    val ns = stableClient.namespaces().withName(managedNamespace).get() ?: continue
                     stableClient.namespaces().resource(ns).delete()
                 } catch (_: KubernetesClientException) {
                     // this namespace is probably all being deleted
