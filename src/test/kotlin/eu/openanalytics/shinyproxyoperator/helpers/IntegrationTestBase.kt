@@ -38,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import java.util.concurrent.RejectedExecutionException
 
 
 abstract class IntegrationTestBase {
@@ -60,7 +61,7 @@ abstract class IntegrationTestBase {
             Runtime.getRuntime().addShutdownHook(Thread {
                 runBlocking {
                     deleteNamespaces()
-                    deleteCRD(stableClient)
+                    deleteCRD()
                 }
             })
 
@@ -126,20 +127,24 @@ abstract class IntegrationTestBase {
     }
 
     private suspend fun deleteNamespaces() {
-        for (managedNamespace in managedNamespaces) {
-            val ns = stableClient.namespaces().withName(managedNamespace).get() ?: continue
-            try {
-                stableClient.namespaces().delete(ns)
-            } catch (e: KubernetesClientException) {
-                // this namespace is probably all being deleted
-            }
-            while (stableClient.namespaces().withName(managedNamespace).get() != null) {
+        do {
+            for (managedNamespace in managedNamespaces) {
+                val ns = stableClient.namespaces().withName(managedNamespace).get() ?: continue
+                try {
+                    stableClient.namespaces().resource(ns).delete()
+                } catch (_: KubernetesClientException) {
+                    // this namespace is probably all being deleted
+                } catch (_: RejectedExecutionException) {
+                    // ignore error as long as ns get deleted
+                } catch (_: InterruptedException) {
+                    // ignore error as long as ns get deleted
+                }
                 delay(1000)
             }
-        }
+        } while (managedNamespaces.any { stableClient.namespaces().withName(it).get() != null })
     }
 
-    private suspend fun deleteCRD(client: DefaultKubernetesClient) {
+    private suspend fun deleteCRD() {
         val crd = stableClient.apiextensions().v1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
         stableClient.apiextensions().v1().customResourceDefinitions().delete(crd)
         delay(2000)
