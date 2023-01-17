@@ -1,7 +1,7 @@
 apiVersion: openanalytics.eu/v1
 kind: ShinyProxy
 metadata:
-  name: shinyproxy-dept2
+  name: shinyproxy
 spec:
   server:
     secureCookies: true

@@ -3,3 +3,6 @@ kind: Kustomization
 
 resources:
   - resources/shinyproxy.rbac.yaml
+
+configurations:
+  - kustomizeconfig/shinyproxy.yaml
