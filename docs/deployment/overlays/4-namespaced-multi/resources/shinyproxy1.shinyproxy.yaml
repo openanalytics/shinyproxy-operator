@@ -80,6 +80,16 @@ spec:
     - op: add
       path: /spec/serviceAccountName
       value: shinyproxy-sa
+  kubernetesIngressPatches: |
+    - op: add
+      path: /metadata/annotations
+      value:
+        nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        nginx.ingress.kubernetes.io/proxy-body-size: 300m
+    - op: add
+      path: /spec/ingressClassName
+      value: nginx
   image: openanalytics/shinyproxy:3.0.0
   imagePullPolicy: Always
   fqdn: shinyproxy-demo.local

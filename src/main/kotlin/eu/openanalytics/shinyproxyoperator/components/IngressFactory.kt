@@ -35,6 +35,8 @@ class IngressFactory(private val kubeClient: MixedOperation<Ingress, IngressList
 
     private val logger = KotlinLogging.logger {}
 
+    private val ingressPatcher = IngressPatcher()
+
     fun createOrReplaceIngress(shinyProxy: ShinyProxy, latestInstance: ShinyProxyInstance) {
         val labels = LabelFactory.labelsForShinyProxy(shinyProxy).toMutableMap()
         labels[LabelFactory.LATEST_INSTANCE_LABEL] = latestInstance.hashOfSpec
@@ -65,7 +67,8 @@ class IngressFactory(private val kubeClient: MixedOperation<Ingress, IngressList
                 .build()
             //@formatter:on
 
-        val createdIngress = kubeClient.inNamespace(shinyProxy.metadata.namespace).resource(ingressDefinition).createOrReplace()
+        val patchedIngress = ingressPatcher.patch(ingressDefinition, shinyProxy.parsedIngressPatches)
+        val createdIngress = kubeClient.inNamespace(shinyProxy.metadata.namespace).resource(patchedIngress).createOrReplace()
         logger.debug { "${shinyProxy.logPrefix()} [Component/Ingress] Created ${createdIngress.metadata.name}" }
     }
 
