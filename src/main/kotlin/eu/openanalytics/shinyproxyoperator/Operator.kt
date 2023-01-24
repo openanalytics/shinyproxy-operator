@@ -31,7 +31,7 @@ import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyListener
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.controller.IngressController
+import eu.openanalytics.shinyproxyoperator.controller.ServiceController
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.ConfigMapList
 import io.fabric8.kubernetes.api.model.Service
@@ -89,7 +89,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
     private val serviceListener: ResourceListener<Service, ServiceList, ServiceResource<Service>>
     private val configMapListener: ResourceListener<ConfigMap, ConfigMapList, Resource<ConfigMap>>
     private val ingressListener: ResourceListener<Ingress, IngressList, Resource<Ingress>>
-    private val ingressController: IngressController
+    private val serviceController: ServiceController
 
     private val channel = Channel<ShinyProxyEvent>(10000)
     val sendChannel: SendChannel<ShinyProxyEvent> = channel // public for tests
@@ -159,20 +159,20 @@ class Operator(client: NamespacedKubernetesClient? = null,
             serviceListener = ResourceListener(sendChannel, this.client.inAnyNamespace().services())
             configMapListener = ResourceListener(sendChannel, this.client.inAnyNamespace().configMaps())
             ingressListener = ResourceListener(sendChannel, this.client.inAnyNamespace().network().v1().ingresses())
-            ingressController = IngressController(this.client.inAnyNamespace().network().v1().ingresses())
+            serviceController = ServiceController(this.client.inAnyNamespace().services())
         } else {
             replicaSetListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).apps().replicaSets())
             serviceListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).services())
             configMapListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).configMaps())
             ingressListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).network().v1().ingresses())
-            ingressController = IngressController(this.client.inNamespace(namespace).network().v1().ingresses())
+            serviceController = ServiceController(this.client.inNamespace(namespace).services())
         }
     }
 
     /**
      * Controllers
      */
-    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, ingressController, reconcileListener, this.recyclableChecker)
+    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, serviceController, reconcileListener, this.recyclableChecker)
 
     private fun _checkCrdExists(name: String, shortName: String) {
         try {

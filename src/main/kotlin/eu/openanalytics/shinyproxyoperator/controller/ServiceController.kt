@@ -23,52 +23,47 @@ package eu.openanalytics.shinyproxyoperator.controller
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.components.IngressFactory
+import eu.openanalytics.shinyproxyoperator.components.ServiceFactory
+import io.fabric8.kubernetes.api.model.Service
+import io.fabric8.kubernetes.api.model.ServiceList
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
-import io.fabric8.kubernetes.api.model.networking.v1.Ingress
-import io.fabric8.kubernetes.api.model.networking.v1.IngressList
 import io.fabric8.kubernetes.client.dsl.MixedOperation
-import io.fabric8.kubernetes.client.dsl.Resource
+import io.fabric8.kubernetes.client.dsl.ServiceResource
 import io.fabric8.kubernetes.client.readiness.Readiness
 import mu.KotlinLogging
 
-class IngressController(
-    ingressClient: MixedOperation<Ingress, IngressList, Resource<Ingress>>
+class ServiceController(
+    serviceClient: MixedOperation<Service, ServiceList, ServiceResource<Service>>
 ) {
 
     private val logger = KotlinLogging.logger {}
-    private val ingressFactory = IngressFactory(ingressClient)
+    private val serviceFactory = ServiceFactory(serviceClient)
 
     fun reconcile(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy) {
-        reconcileLatestInstance(resourceRetriever, shinyProxy)
-    }
-
-    fun onRemoveInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         reconcileLatestInstance(resourceRetriever, shinyProxy)
     }
 
     private fun reconcileLatestInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy) {
         val latestInstance = shinyProxy.status.latestInstance() ?: return
 
-        val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxy(shinyProxy), shinyProxy.metadata.namespace)
-        val mustBeUpdated = ingresses.isEmpty()
-            || ingresses[0].metadata?.labels?.get(LabelFactory.LATEST_INSTANCE_LABEL) != latestInstance.hashOfSpec
-            || ingresses[0].spec?.rules?.get(0)?.http?.paths?.size != shinyProxy.status.instances.size + 1
+        val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxy(shinyProxy), shinyProxy.metadata.namespace)
+        val mustBeUpdated = services.isEmpty()
+            || services[0].metadata?.labels?.get(LabelFactory.LATEST_INSTANCE_LABEL) != latestInstance.hashOfSpec
 
         if (mustBeUpdated) {
             val replicaSet = getReplicaSet(resourceRetriever, shinyProxy, latestInstance)
             if (replicaSet == null) {
-                logger.warn { "${shinyProxy.logPrefix(latestInstance)} [Component/Ingress] Cannot reconcile Ingress since it has no ReplicaSet - probably this resource is being deleted" }
+                logger.warn { "${shinyProxy.logPrefix(latestInstance)} [Component/Service] Cannot reconcile Service since it has no ReplicaSet - probably this resource is being deleted" }
                 return
             }
             if (!Readiness.getInstance().isReady(replicaSet)) {
-                logger.warn { "${shinyProxy.logPrefix(latestInstance)} [Component/Ingress] Cannot reconcile Ingress since the corresponding ReplicaSet is not ready yet - it is probably being created" }
+                logger.warn { "${shinyProxy.logPrefix(latestInstance)} [Component/Service] Cannot reconcile Service since the corresponding ReplicaSet is not ready yet - it is probably being created" }
                 return
             }
             // ReplicaSet exists and is ready -> time to create ingress
             // By only creating the ingress now, we ensure no 502 bad gateways are generated
-            logger.debug { "${shinyProxy.logPrefix(latestInstance)} [Component/Ingress] Reconciling" }
-            ingressFactory.createOrReplaceIngress(shinyProxy, latestInstance)
+            logger.debug { "${shinyProxy.logPrefix(latestInstance)} [Component/Service] Reconciling" }
+            serviceFactory.create(shinyProxy, latestInstance)
         }
     }
 

@@ -25,20 +25,25 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.ServiceBuilder
-import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.api.model.ServiceList
+import io.fabric8.kubernetes.client.dsl.MixedOperation
+import io.fabric8.kubernetes.client.dsl.ServiceResource
 import mu.KotlinLogging
 
-class ServiceFactory(private val kubeClient: KubernetesClient) {
+class ServiceFactory(private val serviceClient: MixedOperation<Service, ServiceList, ServiceResource<Service>>) {
 
     private val logger = KotlinLogging.logger {}
 
-    fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+    fun create(shinyProxy: ShinyProxy, latestShinyProxyInstance: ShinyProxyInstance) {
+        val labels = LabelFactory.labelsForShinyProxy(shinyProxy).toMutableMap()
+        labels[LabelFactory.LATEST_INSTANCE_LABEL] = latestShinyProxyInstance.hashOfSpec
+
         //@formatter:off
         val serviceDefinition: Service = ServiceBuilder()
                 .withNewMetadata()
-                    .withName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
+                    .withName(ResourceNameFactory.createNameForService(shinyProxy))
                     .withNamespace(shinyProxy.metadata.namespace)
-                    .withLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                    .withLabels<String, String>(labels)
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
@@ -53,13 +58,13 @@ class ServiceFactory(private val kubeClient: KubernetesClient) {
                         .withPort(80)
                         .withTargetPort(IntOrString(8080))
                     .endPort()
-                    .withSelector<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                    .withSelector<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, latestShinyProxyInstance))
                 .endSpec()
                 .build()
         //@formatter:on
 
-        val createdService = kubeClient.services().inNamespace(shinyProxy.metadata.namespace).createOrReplace(serviceDefinition)
-        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/Service] Created ${createdService.metadata.name}" }
+        val createdService = serviceClient.inNamespace(shinyProxy.metadata.namespace).resource(serviceDefinition).createOrReplace()
+        logger.debug { "${shinyProxy.logPrefix(latestShinyProxyInstance)} [Component/Service] Created ${createdService.metadata.name}" }
     }
 
 }

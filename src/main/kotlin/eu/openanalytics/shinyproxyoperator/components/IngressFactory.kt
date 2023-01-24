@@ -21,32 +21,24 @@
 package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPath
 import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPathBuilder
-import io.fabric8.kubernetes.api.model.networking.v1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder
-import io.fabric8.kubernetes.api.model.networking.v1.IngressList
-import io.fabric8.kubernetes.client.dsl.MixedOperation
-import io.fabric8.kubernetes.client.dsl.Resource
+import io.fabric8.kubernetes.client.KubernetesClient
 import mu.KotlinLogging
 
-class IngressFactory(private val kubeClient: MixedOperation<Ingress, IngressList, Resource<Ingress>>) {
+class IngressFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
     private val ingressPatcher = IngressPatcher()
 
-    fun createOrReplaceIngress(shinyProxy: ShinyProxy, latestInstance: ShinyProxyInstance) {
-        val labels = LabelFactory.labelsForShinyProxy(shinyProxy).toMutableMap()
-        labels[LabelFactory.LATEST_INSTANCE_LABEL] = latestInstance.hashOfSpec
-        labels[LabelFactory.INSTANCE_LABEL] = latestInstance.hashOfSpec
-
+    fun create(shinyProxy: ShinyProxy) {
         //@formatter:off
         val ingressDefinition = IngressBuilder()
                 .withNewMetadata()
                     .withName(ResourceNameFactory.createNameForIngress(shinyProxy))
-                    .withLabels<String, String>(labels)
+                    .withLabels<String, String>(LabelFactory.labelsForShinyProxy(shinyProxy))
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
@@ -56,11 +48,11 @@ class IngressFactory(private val kubeClient: MixedOperation<Ingress, IngressList
                     .endOwnerReference()
                 .endMetadata()
                 .withNewSpec()
-                    .withIngressClassName("nginx")
+                    .withIngressClassName("nginx") // TODO
                     .addNewRule()
                         .withHost(shinyProxy.fqdn)
                         .withNewHttp()
-                            .addAllToPaths(createPaths(shinyProxy, latestInstance))
+                            .addToPaths(createPathV1(shinyProxy))
                         .endHttp()
                     .endRule()
                 .endSpec()
@@ -68,29 +60,18 @@ class IngressFactory(private val kubeClient: MixedOperation<Ingress, IngressList
             //@formatter:on
 
         val patchedIngress = ingressPatcher.patch(ingressDefinition, shinyProxy.parsedIngressPatches)
-        val createdIngress = kubeClient.inNamespace(shinyProxy.metadata.namespace).resource(patchedIngress).createOrReplace()
+        val createdIngress = kubeClient.network().v1().ingresses().inNamespace(shinyProxy.metadata.namespace).resource(patchedIngress).createOrReplace()
         logger.debug { "${shinyProxy.logPrefix()} [Component/Ingress] Created ${createdIngress.metadata.name}" }
     }
 
-    private fun createPaths(shinyProxy: ShinyProxy, latestInstance: ShinyProxyInstance): ArrayList<HTTPIngressPath> {
-        val res = arrayListOf(createPathV1(shinyProxy, shinyProxy.subPath, latestInstance))
-
-        for (instance in shinyProxy.status.instances) {
-            val path = shinyProxy.subPath + instance.hashOfSpec + "/"
-            res.add(createPathV1(shinyProxy, path, instance))
-        }
-
-        return res
-    }
-
-    private fun createPathV1(shinyProxy: ShinyProxy, path: String, shinyProxyInstance: ShinyProxyInstance): HTTPIngressPath {
+    private fun createPathV1(shinyProxy: ShinyProxy): HTTPIngressPath {
         //@formatter:off
         val builder = HTTPIngressPathBuilder()
                 .withPathType("Prefix")
-                .withPath(path)
+                .withPath(shinyProxy.subPath)
                 .withNewBackend()
                     .withNewService()
-                        .withName(ResourceNameFactory.createNameForService(shinyProxy, shinyProxyInstance))
+                        .withName(ResourceNameFactory.createNameForService(shinyProxy))
                         .withNewPort()
                             .withNumber(80)
                         .endPort()

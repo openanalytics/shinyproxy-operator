@@ -92,13 +92,13 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertReplicaSetIsCorrect(sp, numInstancesRunning)
 
         // check service
-        assertServiceIsCorrect(sp, numInstancesRunning)
+        assertServiceIsCorrect(sp)
 
         // check ingress
-        assertIngressIsCorrect(sp, numInstancesRunning, isLatest)
+        assertIngressIsCorrect(sp, numInstancesRunning)
     }
 
-    fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {
+    fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1) {
         val allIngresses = client.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(1, allIngresses.size)
         val ingress = allIngresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing".take(63) }
@@ -106,9 +106,7 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.NAME_LABEL to sp.metadata.name,
-            LabelFactory.INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec,
-            LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
+            LabelFactory.NAME_LABEL to sp.metadata.name
         ), ingress.metadata.labels)
 
         assertOwnerReferenceIsCorrect(ingress, sp)
@@ -117,28 +115,26 @@ class ShinyProxyTestInstance(private val namespace: String,
         val rule = ingress.spec.rules[0]
         assertNotNull(rule)
         assertEquals(sp.fqdn, rule.host)
-        assertEquals(numInstancesRunning + 1, rule.http.paths.size)
+        assertEquals(1, rule.http.paths.size)
         val path = rule.http.paths[0]
         assertNotNull(path)
         assertEquals(sp.subPath, path.path)
-        assertEquals("sp-${sp.metadata.name}-svc-${sp.status.latestInstance()!!.hashOfSpec}".take(63), path.backend.service.name)
+        assertEquals("sp-${sp.metadata.name}-svc".take(63), path.backend.service.name)
         assertEquals(80, path.backend.service.port.number)
-
-        for (instance in sp.status.instances) {
-            val instancePath = rule.http.paths.firstOrNull { it.path == sp.subPath + instance.hashOfSpec + "/" }
-            assertNotNull(instancePath)
-            assertEquals("sp-${sp.metadata.name}-svc-${instance.hashOfSpec}".take(63), instancePath.backend.service.name)
-            assertEquals(80, instancePath.backend.service.port.number)
-        }
     }
 
-    fun assertServiceIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1) {
+    fun assertServiceIsCorrect(sp: ShinyProxy) {
         val services = client.inNamespace(namespace).services().list().items
-        assertEquals(numInstancesRunning, services.size)
-        val service = services.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
+        assertEquals(1, services.size)
+        val service = services.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-svc".take(63) }
         assertNotNull(service)
-        assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), service.metadata.name)
-        assertLabelsAreCorrect(service, sp)
+
+        assertEquals(mapOf(
+            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+            LabelFactory.NAME_LABEL to sp.metadata.name,
+            LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
+        ), service.metadata.labels)
+
         assertOwnerReferenceIsCorrect(service, sp)
 
         assertEquals("ClusterIP", service.spec.type)
@@ -148,7 +144,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
             LabelFactory.NAME_LABEL to sp.metadata.name,
-            LabelFactory.INSTANCE_LABEL to hash
+            LabelFactory.INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec // TODO
         ), service.spec.selector)
 
     }

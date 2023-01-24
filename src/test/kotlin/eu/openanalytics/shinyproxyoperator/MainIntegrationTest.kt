@@ -184,7 +184,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 7. Delete Service -> reconcile -> assert it is still ok
             executeAsyncAfter100ms {
-                stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstance.hash}".take(63))
+                stableClient.services().withName("sp-${sp.metadata.name}-svc".take(63))
                     .delete()
                 logger.info { "Deleted Service" }
             }
@@ -299,7 +299,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             )
 
             // check service
-            spTestInstance.assertServiceIsCorrect(sp)
+            spTestInstance.assertServiceIsCorrect(spTestInstance.retrieveInstance())
 
             // check ingress
             spTestInstance.assertIngressIsCorrect(spTestInstance.retrieveInstance())
@@ -813,30 +813,24 @@ class MainIntegrationTest : IntegrationTestBase() {
         // 2. prepare the operator
         val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
-        // 3. run the operator until the ReplicaSet is ready
+        // 3. run the operator until the ReplicaSet has been created
         while (true) {
             // let the operator handle one event
             operator.shinyProxyController.receiveAndHandleEvent(resourceRetriever, shinyProxyLister)
 
             val replicaSets = stableClient.apps().replicaSets().list().items
-            if (replicaSets.size == 0) {
+            if (replicaSets.size >= 1) {
                 // if replicaset is not created -> continue handling events
-                continue
+                break
             }
-            assertEquals(1, replicaSets.size)
-            val replicaSet = replicaSets[0]
-            if (!Readiness.getInstance().isReady(replicaSet)) {
-                // if replicaset is not ready -> continue handling events
-                continue
-            }
-
-            break
         }
+        var replicaSets = stableClient.apps().replicaSets().list().items
+        assertEquals(1, replicaSets.size)
 
         // 4. check state
-        // A) when the ReplicaSet is ready, the service should already exist
-        val services = stableClient.services().list().items
-        assertEquals(1, services.size)
+        // A) when the ReplicaSet has been created (but is not yer ready), the service should not exist yet
+        var services = stableClient.services().list().items
+        assertEquals(0, services.size)
 
         // B) at this point the latestMarker should not be set yet
         var sp = shinyProxyClient.inNamespace(namespace).list().items[0]
@@ -848,22 +842,35 @@ class MainIntegrationTest : IntegrationTestBase() {
         var ingresses = stableClient.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(0, ingresses.size)
 
+        // 5. wait for the replicaset to become ready
+        while (true) {
+            replicaSets = stableClient.apps().replicaSets().list().items
+            val replicaSet = replicaSets[0]
+            if (Readiness.getInstance().isReady(replicaSet)) {
+                break
+            }
+            delay(1_000)
+        }
+
         // Test starts here:
 
-        // 5. handle one more event -> should set the latest marker and create the ingress in one step
+        // 6. handle one more event -> should set the latest marker, create the service and ingress
         operator.shinyProxyController.receiveAndHandleEvent(resourceRetriever, shinyProxyLister)
 
-        // 6. check state:
-        // A) at this point the latestMarker should be set
+        // 7. check state:
+        // A) at this point the service should have been created
+        services = stableClient.services().list().items
+        assertEquals(1, services.size)
+
+        // B) at this point the latestMarker should be set
         sp = shinyProxyClient.inNamespace(namespace).list().items[0]
         assertNotNull(sp)
         assertEquals(1, sp.status.instances.size)
         assertEquals(true, sp.status.instances[0].isLatestInstance)
 
-        // B) at this point the ingress should exist
+        // C) at this point the ingress should exist
         ingresses = stableClient.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(1, ingresses.size)
-
     }
 
 

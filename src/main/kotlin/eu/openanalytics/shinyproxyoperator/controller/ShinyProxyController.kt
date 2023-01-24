@@ -22,9 +22,9 @@ package eu.openanalytics.shinyproxyoperator.controller
 
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.ConfigMapFactory
+import eu.openanalytics.shinyproxyoperator.components.IngressFactory
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.components.ReplicaSetFactory
-import eu.openanalytics.shinyproxyoperator.components.ServiceFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.client.KubernetesClient
@@ -43,14 +43,13 @@ import mu.KotlinLogging
 class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                            private val kubernetesClient: KubernetesClient,
                            private val shinyProxyClient: ShinyProxyClient,
-                           private val ingressController: IngressController,
+                           private val serviceController: ServiceController,
                            private val reconcileListener: IReconcileListener?,
                            private val recyclableChecker: IRecyclableChecker) {
 
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
-    private val serviceFactory = ServiceFactory(kubernetesClient)
     private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
-
+    private val ingressFactory = IngressFactory(kubernetesClient)
 
     private val logger = KotlinLogging.logger {}
 
@@ -258,24 +257,21 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 3/$amountOfSteps: Ok] [Component/ReplicaSet] ReplicaSet ready" }
 
-        val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
-        if (services.isEmpty()) {
-            logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 4/$amountOfSteps: Reconciling] [Component/Service] 0 Services found -> creating Service" }
-            serviceFactory.create(shinyProxy, shinyProxyInstance)
-            return
-        }
-
-        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 4/$amountOfSteps: Ok] [Component/Service]" }
-
         updateLatestMarker(shinyProxy, shinyProxyInstance)
 
-        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 5/$amountOfSteps: Ok] [Status/LatestMarker]" }
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 4/$amountOfSteps: Ok] [Status/LatestMarker]" }
 
         // refresh the ShinyProxy variables after updating the latest marker
         val (updatedShinyProxy, updatedShinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance)
         if (updatedShinyProxy == null) return
-        ingressController.reconcile(resourceRetriever, updatedShinyProxy)
 
+        serviceController.reconcile(resourceRetriever, updatedShinyProxy)
+        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 5/$amountOfSteps: Ok] [Component/Service]" }
+
+        val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxy(updatedShinyProxy), updatedShinyProxy.metadata.namespace)
+        if (ingresses.isEmpty()) {
+            ingressFactory.create(updatedShinyProxy)
+        }
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 6/$amountOfSteps: Ok] [Component/Ingress]" }
 
         if (updatedShinyProxyInstance != null) {
@@ -319,11 +315,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         updateStatus(shinyProxy) {
             it.status.instances.remove(shinyProxyInstance)
         }
-
-        // Important: remove ingress before removing the ReplicaSet. This ensures that the routes are correctly updated in the Ingress
-        // and users aren't routed to non-existing pods
-        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 2/3]: Update Ingress" }
-        ingressController.onRemoveInstance(resourceRetriever, shinyProxy, shinyProxyInstance)
 
         scope.launch { // run async
             // delete resources after delay of 30 seconds to ensure all routes are updated before deleting replicaset

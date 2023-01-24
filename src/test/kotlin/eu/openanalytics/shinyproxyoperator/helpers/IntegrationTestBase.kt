@@ -38,7 +38,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import java.util.concurrent.RejectedExecutionException
+import org.junit.jupiter.api.AfterAll
+import org.junit.jupiter.api.AfterEach
 
 
 abstract class IntegrationTestBase {
@@ -55,15 +56,35 @@ abstract class IntegrationTestBase {
         DefaultKubernetesClient()
     }
 
+    @AfterEach
+    fun cleanup() {
+        runBlocking {
+            deleteNamespaces()
+            stableClient.httpClient.close()
+        }
+    }
+
+    companion object {
+
+        @JvmStatic
+        @AfterAll
+        fun cleanupCRD() {
+            runBlocking {
+                val client = DefaultKubernetesClient()
+                val crd = client.apiextensions().v1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
+                client.apiextensions().v1().customResourceDefinitions().delete(crd)
+                delay(2000)
+
+                while (client.apiextensions().v1().customResourceDefinitions().list().items.firstOrNull { it.spec.group == "openanalytics.eu" && it.spec.names.plural == "shinyproxies" } != null) {
+                    delay(1000)
+                }
+            }
+        }
+
+    }
+
     protected fun setup(mode: Mode, disableSecureCookies: Boolean = false, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, NamespacedKubernetesClient, Operator, ReconcileListener, MockRecyclableChecker) -> Unit) {
         runBlocking {
-
-            Runtime.getRuntime().addShutdownHook(Thread {
-                runBlocking {
-                    deleteNamespaces()
-                    deleteCRD()
-                }
-            })
 
             // 1. Create the namespace
             deleteNamespaces()
@@ -110,11 +131,9 @@ abstract class IntegrationTestBase {
                 deleteNamespaces()
             }
             Operator.getOperatorInstance().stop()
-            stableClient.httpClient.close()
         }
 
     }
-
 
     private fun createNamespaces() {
         for (managedNamespace in managedNamespaces) {
@@ -132,12 +151,8 @@ abstract class IntegrationTestBase {
                 try {
                     val ns = stableClient.namespaces().withName(managedNamespace).get() ?: continue
                     stableClient.namespaces().resource(ns).delete()
-                } catch (_: KubernetesClientException) {
+                } catch (e: KubernetesClientException) {
                     // this namespace is probably all being deleted
-                } catch (_: RejectedExecutionException) {
-                    // ignore error as long as ns get deleted
-                } catch (_: InterruptedException) {
-                    // ignore error as long as ns get deleted
                 }
                 delay(1000)
             }
@@ -146,24 +161,11 @@ abstract class IntegrationTestBase {
                     break
                 }
             } catch (_: KubernetesClientException) {
-                // ignore and try again
-            } catch (_: RejectedExecutionException) {
-                // ignore and try again
-            } catch (_: InterruptedException) {
-                // ignore and try again
+                return
             }
         }
     }
 
-    private suspend fun deleteCRD() {
-        val crd = stableClient.apiextensions().v1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
-        stableClient.apiextensions().v1().customResourceDefinitions().delete(crd)
-        delay(2000)
-
-        while (crdExists()) {
-            delay(1000)
-        }
-    }
 
     private fun crdExists(): Boolean {
         return stableClient.apiextensions().v1().customResourceDefinitions().list().items.firstOrNull {
@@ -180,7 +182,7 @@ abstract class IntegrationTestBase {
 
     protected suspend fun startApp(shinyProxy: ShinyProxy, instance: ShinyProxyTestInstance) {
         val oldNumApps = getPodsForInstance(instance.hash)?.items?.filter { it.status.phase.equals("Running") }?.size ?: 0
-        val serviceName = "sp-${shinyProxy.metadata.name}-svc-${instance.hash}".take(63)
+        val serviceName = "sp-${shinyProxy.metadata.name}-svc".take(63)
         stableClient.run().inNamespace(shinyProxy.metadata.namespace)
             .withRunConfig(RunConfigBuilder()
                 .withName("itest-curl-helper")
