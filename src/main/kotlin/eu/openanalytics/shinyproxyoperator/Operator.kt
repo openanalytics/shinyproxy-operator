@@ -60,7 +60,6 @@ import kotlin.system.exitProcess
 
 class Operator(client: NamespacedKubernetesClient? = null,
                mode: Mode? = null,
-               disableSecureCookies: Boolean? = null,
                reconcileListener: IReconcileListener? = null,
                probeInitialDelay: Int? = null,
                probeFailureThreshold: Int? = null,
@@ -73,7 +72,6 @@ class Operator(client: NamespacedKubernetesClient? = null,
     private val client: NamespacedKubernetesClient
     val mode: Mode
     val namespace: String
-    val disableSecureCookies: Boolean
     val probeInitialDelay: Int
     val probeFailureThreshold: Int
     val probeTimeout: Int
@@ -113,7 +111,6 @@ class Operator(client: NamespacedKubernetesClient? = null,
                 else -> error("Unsupported operator mode: $it")
             }
         }
-        this.disableSecureCookies = readConfigValue(disableSecureCookies, false, "SPO_DISABLE_SECURE_COOKIES") { true }
         this.probeInitialDelay = readConfigValue(probeInitialDelay, 0, "SPO_PROBE_INITIAL_DELAY", String::toInt)
         this.probeFailureThreshold = readConfigValue(probeFailureThreshold, 0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
         this.probeTimeout = readConfigValue(probeTimeout, 1, "SPO_PROBE_TIMEOUT", String::toInt)

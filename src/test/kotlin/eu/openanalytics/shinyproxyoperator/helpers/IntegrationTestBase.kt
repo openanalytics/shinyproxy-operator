@@ -83,7 +83,7 @@ abstract class IntegrationTestBase {
 
     }
 
-    protected fun setup(mode: Mode, disableSecureCookies: Boolean = false, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, NamespacedKubernetesClient, Operator, ReconcileListener, MockRecyclableChecker) -> Unit) {
+    protected fun setup(mode: Mode, block: suspend (String, ShinyProxyClient, NamespacedKubernetesClient, NamespacedKubernetesClient, Operator, ReconcileListener, MockRecyclableChecker) -> Unit) {
         runBlocking {
 
             // 1. Create the namespace
@@ -104,9 +104,9 @@ abstract class IntegrationTestBase {
             val reconcileListener = ReconcileListener()
 
             val operator = if (stableClient.isStartupProbesSupported()) {
-                Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener, recyclableChecker=recyclableChecker)
+                Operator(namespacedKubernetesClient, mode, reconcileListener, recyclableChecker=recyclableChecker)
             } else {
-                Operator(namespacedKubernetesClient, mode, disableSecureCookies, reconcileListener, 40, 2, recyclableChecker=recyclableChecker)
+                Operator(namespacedKubernetesClient, mode, reconcileListener, 40, 2, recyclableChecker=recyclableChecker)
             }
 
             Operator.setOperatorInstance(operator)

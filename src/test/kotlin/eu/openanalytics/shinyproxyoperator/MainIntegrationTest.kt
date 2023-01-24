@@ -655,7 +655,6 @@ class MainIntegrationTest : IntegrationTestBase() {
     @Test
     fun `may no re-create instance after remove`() = setup(
         Mode.NAMESPACED,
-        disableSecureCookies = true
     ) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
         if (chaosEnabled) return@setup // this test depends on timings and therefore it does not work with chaos enabled
         // 1. create a SP instance
