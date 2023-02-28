@@ -74,7 +74,7 @@ class PodTemplateSpecFactory {
                             .build(),
                             EnvVarBuilder()
                                 .withName("PROXY_REALM_ID")
-                                .withValue(shinyProxy.metadata.name + '-' + shinyProxy.metadata.namespace)
+                                .withValue(shinyProxy.realmId)
                             .build()))
                         .withVolumeMounts(VolumeMountBuilder()
                             .withName("config-volume")
