@@ -17,17 +17,13 @@ and dependencies of the operator.
   all necessary Kubernetes resources, without affecting any existing server or
   causing downtime.
 - **Redis**: Redis is used by ShinyProxy (not by the operator) to implement
-  session persistence. This ensures that when a ShinyProxy server is replaced,
-  the user is still logged in. This provides a smooth transition when the
-  operator replaces a ShinyProxy server.
-- **Skipper**: Skipper is used as an ingress controller. Currently, this is the
-  only ingress controller supported by the operator. The reason is that the
-  ingress controller is responsible for routing users to the correct ShinyProxy
-  server. Skipper is the only ingress controller we found suitable for this
-  feature. However, this does not mean you will have to replace your existing
-  ingress solution. You can deploy Skipper as an "intermediate" ingress
-  controller and forward your existing ingress controller to the Skipper
-  service. In fact, all example in this repository assume this way of working.
+  [session and app persistence](https://shinyproxy.io/documentation/configuration/#session-and-app-persistence).
+  This ensures that when a ShinyProxy server is replaced, the user is still
+  logged in and all apps remain active. Redis is always required when using the
+  operator. When deploying Redis on the Kubernetes cluster, we advise to
+  use [Redis Sentinel](https://redis.io/docs/management/sentinel/) such that
+  Redis is run in a high-available way. It is also possible to use a Redis
+  server provided by cloud providers.
 
 ## Tutorial using minikube
 
@@ -43,20 +39,20 @@ ShinyProxy operator on minikube.
 2. Start minikube:
 
    ```bash
-   minikube start --kubernetes-version='v1.21.6'  --addons=metrics-server,ingress
+   minikube start --kubernetes-version='v1.25.6'  --addons=metrics-server,ingress --container-runtime=containerd
    ````
 
 3. Clone this repository and change the working directory:
 
    ```bash
    git clone https://github.com/openanalytics/shinyproxy-operator
-   cd shinyproxy-operator/docs/deployment/overlays/1-namespaced-hpa
+   cd shinyproxy-operator/docs/deployment/overlays/1-namespaced
    ```
 
 4. Apply all resources
 
    ```bash
-   kustomize build .  | kubectl apply -f -
+   kustomize build .  | kubectl apply -f - --server-side
    ```
 
    **Note:** this command may not finish successfully from the first attempt,
@@ -92,17 +88,19 @@ ShinyProxy operator on minikube.
 7. Wait until the ShinyProxy instance is fully started. (before you will see a
    `Not Found` page).
 8. Try to launch an application and keep this application running.
-9. Change something in the `shinyproxy/shinyproxy.yaml` file and then run:
+9. Change something in the `resources/shinyproxy.shinyproxy.yaml` file (e.g.
+   the `title` property) and then run:
 
    ```bash
-   kubectl apply -f shinyproxy.yaml
+   kubectl apply -f resources/shinyproxy.shinyproxy.yaml
    ```
 
-   The operator now deploys a new ShinyProxy instance. As long as the old
-   instance is being used (i.e. apps are running on it), the old instance will
-   be kept intact. Users using the old instance, will stay on the old instance.
-   The old instance will automatically be removed once no apps are running on
-   it.
+   The operator now deploys a new ShinyProxy instance. The old instance will be
+   kept intact as long as a Websocket connection is active on the old instance.
+   The old instance will automatically be removed once it no longer has any open
+   Websocket connections. New requests will immediately be handled by the new
+   server as soon as it is ready. Try going to the main page of ShinyProxy and
+   check whether the change your made has been applied.
 10. Try the other examples:
 
     ```bash
@@ -120,87 +118,62 @@ ShinyProxy operator on minikube.
 
 ## Overview of examples
 
-The Operator is designed to be flexible and fit many type of deployments. This repository includes examples for many kinds of deployments:
+The Operator is designed to be flexible and fit many type of deployments. This
+repository includes examples for many kinds of deployments:
 
-- *1-namespaced-hpa*:
+- *1-namespaced*:
   - Operator-mode: `namespaced`
   - Operator-namespace: `shinyproxy`
-  - Skipper-namespace: `shinyproxy`
   - Redis-namespace: `shinyproxy`
-  - Skipper deployment: `Deployment` + `HorizontalPodAutoScaler`
   - ShinyProxy-namespace: `shinyproxy`
   - URLs: `https://shinyproxy-demo.local`
 
-  This is a very simple deployment of the operator, where everything runs in the same namespace.
+  This is a very simple deployment of the operator, where everything runs in the
+  same namespace.
 
-- *2-namespaced-ds*:
-  - Operator-mode: `namespaced`
-  - Operator-namespace: `shinyproxy`
-  - Skipper-namespace: `shinyproxy`
-  - Redis-namespace: `shinyproxy`
-  - Skipper deployment: `DaemonSet`
-  - ShinyProxy-namespace: `shinyproxy`
-  - URLs: `https://shinyproxy-demo.local`
-
-  This deployment is very similar to the previous one, except that it runs Skipper using a `DaemonSet` instead of an automatically scaling `Deployment`. Using the `DaemonSet` ensures that every Kubernetes nodes contains a Skipper pod. This is useful when you want a predictable amount of Skipper pods. In the previous example, the cluster automatically scales the amount of Skipper pods according to the load of these pods. When properly configured, this ensures that Skipper has enough resources to
-  do its work, while not wasting resources.
-
-- *3-clustered-hpa*:
+- *2-clustered*:
   - Operator-mode: `clustered`
   - Operator-namespace: `shinyproxy-operator`
-  - Skipper-namespace: `skipper`
   - Redis-namespace: `redis`
-  - Skipper deployment: `Deployment` + `HorizontalPodAutoScaler`
   - ShinyProxy-namespace: `shinyproxy` and `shinyproxy-dept2`
   - URLs:
     - `https://shinyproxy-demo.local`
     - `https://shinyproxy-demo2.local`
 
-  In this example, the operator runs in `clustered` mode. Therefore, the operator will look into all namespaces for `ShinyProxy` resources and deploy these resources in their respective namespace. This also requires Skipper to be run in clustered mode (in the previous examples it would only look at `Ingress`
-  definitions in the `shinyproxy` namespace.) This example also demonstrates how the Operator can be used in a multi-tenancy or multi-realm way. Each ShinyProxy server runs in its own namespace, isolated from the other servers. However, they are managed by a single operator.
+  In this example, the operator runs in `clustered` mode. Therefore, the
+  operator will look into all namespaces for `ShinyProxy` resources and deploy
+  these resources in their respective namespace. This example also demonstrates how
+  the Operator can be used in a multi-tenancy or multi-realm way. Each
+  ShinyProxy server runs in its own namespace, isolated from the other servers.
+  However, they are managed by a single operator.
 
-- *4-clustered-ds*:
-  - Operator-mode: `clustered`
-  - Operator-namespace: `shinyproxy-operator`
-  - Skipper-namespace: `skipper`
-  - Redis-namespace: `redis`
-  - Skipper deployment: `DaemonSet`
-  - ShinyProxy-namespace: `shinyproxy` and `shinyproxy-dept2`
-  - URLs:
-    - `https://shinyproxy-demo.local`
-    - `https://shinyproxy-demo2.local`
-
-  Equal to example 3, except that Skipper is deployed using a `DaemonSet` instead of `Deployment`.
-
-- *5-namespaced-hpa-app-ns*:
+- *3-namespaced-hpa-app-ns*:
   - Operator-mode: `namespaced`
   - Operator-namespace: `shinyproxy`
-  - Skipper-namespace: `shinyproxy`
   - Redis-namespace: `shinyproxy`
-  - Skipper deployment: `Deployment` + `HorizontalPodAutoScaler`
   - ShinyProxy-namespace: `shinyproxy`
   - URLs: `https://shinyproxy-demo.local`
 
   Similar to example 1, however, the `01_hello` app will now run in the
-  `my-namespace` namespace instead of the `shinyproxy` namespace. In addition to the change in the `shinyproxy.yaml`, this configuration requires the definition of the extra namespace and the modification of the `ServiceAccount`
-  of the ShinyProxy server.
+  `my-namespace` namespace instead of the `shinyproxy` namespace. In addition to
+  the change in the `shinyproxy.shinyproxy.yaml` file, this configuration
+  requires the definition of the extra namespace and the modification of
+  the `ServiceAccount` of the ShinyProxy server.
 
-- *6-namespaced-ds-multi*:
+- *4-namespaced-multi*:
   - Operator-mode: `namespaced`
   - Operator-namespace: `shinyproxy`
-  - Skipper-namespace: `shinyproxy`
   - Redis-namespace: `shinyproxy`
-  - Skipper deployment: `DaemonSet`
   - ShinyProxy-namespace: `shinyproxy`
   - URLs:
     - `https://shinyproxy-demo.local/shinyproxy1/`
     - `https://shinyproxy-demo.local/shinyproxy2/`
     - `https://shinyproxy-demo.local/shinyproxy3/`
 
-  Based on example 2, this example shows how multi-tenancy can be achieved using
-  sub-paths instead of multiple domain names. Each ShinyProxy server is made
-  available at the same domain name but at a different path under that
-  domain name.
+  Based on the second example, this example shows how multi-tenancy can be
+  achieved using sub-paths instead of multiple domain names. Each ShinyProxy
+  server is made available at the same domain name but at a different path under
+  that domain name.
 
 ## ShinyProxy CRD
 
