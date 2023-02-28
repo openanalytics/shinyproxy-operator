@@ -156,6 +156,11 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
         return@lazy specAsYaml.sha1()
     }
 
+    @get:JsonIgnore
+    val realmId: String by lazy {
+        return@lazy "${metadata.name}-${metadata.namespace}"
+    }
+
 
     fun logPrefix(shinyProxyInstance: ShinyProxyInstance): String {
         return "[${metadata.namespace}/${metadata.name}/${shinyProxyInstance.hashOfSpec}]"
