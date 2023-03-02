@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - crds/shinyproxy.crd.yaml
+  - resources/shinyproxy-operator.deployment.yaml
+  - resources/shinyproxy-operator.rbac.yaml

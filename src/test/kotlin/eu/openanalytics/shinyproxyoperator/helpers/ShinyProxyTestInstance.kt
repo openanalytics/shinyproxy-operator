@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,6 +20,8 @@
  */
 package eu.openanalytics.shinyproxyoperator.helpers
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -27,7 +29,8 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
-import io.fabric8.kubernetes.client.internal.readiness.Readiness
+import io.fabric8.kubernetes.client.readiness.Readiness
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -41,6 +44,7 @@ class ShinyProxyTestInstance(private val namespace: String,
                              private val reconcileListener: ReconcileListener) {
 
     lateinit var hash: String
+    private val objectMapper = ObjectMapper().registerKotlinModule()
 
     fun create(): ShinyProxy {
         val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).createOrReplace()
@@ -51,9 +55,25 @@ class ShinyProxyTestInstance(private val namespace: String,
         return sp
     }
 
-    suspend fun waitForOneReconcile(): ShinyProxyInstance? {
+    suspend fun waitForOneReconcile(): ShinyProxyInstance {
         return withTimeout(120_000) {
             reconcileListener.waitForNextReconcile(hash).await()
+        }
+    }
+
+    suspend fun waitForReconcileCycle() {
+        // require at least one reconcile
+        waitForOneReconcile()
+        // then wait until no reconciles happen
+        while (true) {
+            try {
+                withTimeout(10_000) {
+                    reconcileListener.waitForNextReconcile(hash).await()
+                }
+            } catch (e: TimeoutCancellationException) {
+                // no reconcile in the last 10 seconds -> ok
+                return
+            }
         }
     }
 
@@ -72,58 +92,24 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertReplicaSetIsCorrect(sp, numInstancesRunning)
 
         // check service
-        assertServiceIsCorrect(sp, numInstancesRunning)
+        assertServiceIsCorrect(sp)
 
         // check ingress
-        assertIngressIsCorrect(sp, numInstancesRunning, isLatest)
+        assertIngressIsCorrect(sp, numInstancesRunning)
     }
 
-    fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {
-        val ingresses = client.inNamespace(namespace).network().v1().ingresses().list().items
-        assertEquals(numInstancesRunning, ingresses.size)
-        val ingress = ingresses.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
+    fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1) {
+        val allIngresses = client.inNamespace(namespace).network().v1().ingresses().list().items
+        assertEquals(1, allIngresses.size)
+        val ingress = allIngresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing".take(63) }
         assertNotNull(ingress)
-        assertEquals("sp-${sp.metadata.name}-ing-${hash}".take(63), ingress.metadata.name)
 
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.NAME_LABEL to sp.metadata.name,
-            LabelFactory.INSTANCE_LABEL to hash,
-            LabelFactory.INGRESS_IS_LATEST to isLatest.toString()
+            LabelFactory.REALM_ID_LABEL to sp.metadata.name
         ), ingress.metadata.labels)
 
-        assertEquals(1, ingress.metadata.ownerReferences.size)
-        assertTrue(ingress.metadata.ownerReferences[0].controller)
-        assertEquals("ReplicaSet", ingress.metadata.ownerReferences[0].kind)
-        assertEquals("apps/v1", ingress.metadata.ownerReferences[0].apiVersion)
-        assertEquals("sp-${sp.metadata.name}-rs-${hash}".take(63), ingress.metadata.ownerReferences[0].name)
-
-        assertEquals(ingress.spec.ingressClassName, "skipper")
-
-        if (isLatest) {
-            assertEquals(mapOf(
-                "zalando.org/skipper-predicate" to "True()",
-                "zalando.org/skipper-filter" to
-                    """setRequestHeader("X-ShinyProxy-Instance", "${sp.hashOfCurrentSpec}")""" +
-                    """ -> """ +
-                    """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
-                    """ -> """ +
-                    """appendResponseHeader("Set-Cookie", "sp-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")""" +
-                    """ -> """ +
-                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
-            ), ingress.metadata.annotations)
-        } else {
-            assertEquals(mapOf(
-                "zalando.org/skipper-predicate" to """True() && Cookie("sp-instance", "$hash")""",
-                "zalando.org/skipper-filter" to
-                    """setRequestHeader("X-ShinyProxy-Instance", "$hash")""" +
-                    """ -> """ +
-                    """setRequestHeader("X-ShinyProxy-Latest-Instance", "${sp.hashOfCurrentSpec}")""" +
-                    """ -> """ +
-                    """appendResponseHeader("Set-Cookie", "sp-latest-instance=${sp.hashOfCurrentSpec}; Secure; Path=/")"""
-
-            ), ingress.metadata.annotations)
-        }
+        assertOwnerReferenceIsCorrect(ingress, sp)
 
         assertEquals(1, ingress.spec.rules.size)
         val rule = ingress.spec.rules[0]
@@ -132,18 +118,23 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(1, rule.http.paths.size)
         val path = rule.http.paths[0]
         assertNotNull(path)
-        assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), path.backend.service.name)
+        assertEquals(sp.subPath, path.path)
+        assertEquals("sp-${sp.metadata.name}-svc".take(63), path.backend.service.name)
         assertEquals(80, path.backend.service.port.number)
-
     }
 
-    fun assertServiceIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1) {
+    fun assertServiceIsCorrect(sp: ShinyProxy) {
         val services = client.inNamespace(namespace).services().list().items
-        assertEquals(numInstancesRunning, services.size)
-        val service = services.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
+        assertEquals(1, services.size)
+        val service = services.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-svc".take(63) }
         assertNotNull(service)
-        assertEquals("sp-${sp.metadata.name}-svc-${hash}".take(63), service.metadata.name)
-        assertLabelsAreCorrect(service, sp)
+
+        assertEquals(mapOf(
+            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+            LabelFactory.REALM_ID_LABEL to sp.metadata.name,
+            LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
+        ), service.metadata.labels)
+
         assertOwnerReferenceIsCorrect(service, sp)
 
         assertEquals("ClusterIP", service.spec.type)
@@ -152,8 +143,8 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(IntOrString(8080), service.spec.ports[0].targetPort)
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.NAME_LABEL to sp.metadata.name,
-            LabelFactory.INSTANCE_LABEL to hash
+            LabelFactory.REALM_ID_LABEL to sp.metadata.name,
+            LabelFactory.INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec // TODO
         ), service.spec.selector)
 
     }
@@ -199,7 +190,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
-        assertEquals(sp.metadata.name, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
+        assertEquals(sp.metadata.name + '-'+ sp.metadata.namespace, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
 
         assertEquals(1, templateSpec.containers[0].volumeMounts.size)
         assertEquals("config-volume", templateSpec.containers[0].volumeMounts[0].name)
@@ -232,7 +223,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy) {
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.NAME_LABEL to sp.metadata.name,
+            LabelFactory.REALM_ID_LABEL to sp.metadata.name,
             LabelFactory.INSTANCE_LABEL to hash
         ), resource.metadata.labels)
     }

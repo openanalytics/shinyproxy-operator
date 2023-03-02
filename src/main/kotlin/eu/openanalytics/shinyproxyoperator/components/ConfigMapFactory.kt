@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -49,7 +49,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                         .withKind("ShinyProxy")
                         .withApiVersion("openanalytics.eu/v1")
                         .withName(shinyProxy.metadata.name)
-                        .withNewUid(shinyProxy.metadata.uid)
+                        .withUid(shinyProxy.metadata.uid)
                     .endOwnerReference()
                 .endMetadata()
                 .addToData("application.yml", shinyProxy.specAsYaml)

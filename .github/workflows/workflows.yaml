@@ -9,7 +9,11 @@ jobs:
       fail-fast: false
       matrix:
         java: [ 11 ]
-        kubernetes: [ 'v1.21.6', 'v1.20.12', 'v1.19.16', 'v1.18.20', 'v1.17.17', 'v1.16.15']
+        kubernetes:
+          - 'v1.22.17'
+          - 'v1.23.15'
+          - 'v1.24.9'
+          - 'v1.25.5'
 
     steps:
       - uses: actions/checkout@v2
@@ -24,10 +28,16 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
+        uses: manusa/actions-setup-minikube@v2.7.2
         with:
-          minikube version: 'v1.16.0'
+          minikube version: 'v1.28.0'
           kubernetes version:  ${{ matrix.kubernetes }}
+          github token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull images
+        run: |
+          minikube image pull ledfan/shinyproxy:3.0.0-SNAPSHOT-20230116.114943
+          minikube image pull openanalytics/shinyproxy-demo
+          minikube image pull curlimages/curl:latest
       - name: Build with Maven
         run: mvn -B -U clean install -DskipTests
       - name: Run Tests

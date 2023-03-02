@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -30,6 +30,10 @@ data class ShinyProxyStatus(val instances: ArrayList<ShinyProxyInstance> = array
 
     fun getInstanceByHash(hash: String): ShinyProxyInstance? {
         return instances.find { it.hashOfSpec == hash }
+    }
+
+    fun latestInstance(): ShinyProxyInstance? {
+        return instances.firstOrNull { it.isLatestInstance }
     }
 
 }

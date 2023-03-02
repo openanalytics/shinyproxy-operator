@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -122,6 +122,23 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
     }
 
     @get:JsonIgnore
+    val parsedIngressPatches: JsonPatch? by lazy {
+        if (spec.get("kubernetesIngressPatches")?.isTextual == true) {
+            try {
+                // convert the raw YAML string into a JsonPatch
+                val yamlReader = ObjectMapper(YAMLFactory())
+                yamlReader.registerModule(JSR353Module())
+                return@lazy yamlReader.readValue(spec.get("kubernetesIngressPatches").textValue(), JsonPatch::class.java)
+            } catch (exception: Exception) {
+                exception.printStackTrace() // log the exception for easier debugging
+                throw exception
+            }
+
+        }
+        return@lazy null
+    }
+
+    @get:JsonIgnore
     val subPath: String by lazy {
         if (spec.get("server")?.get("servlet")?.get("context-path")?.isTextual == true) {
             val path = spec.get("server").get("servlet").get("context-path").textValue()
@@ -131,12 +148,17 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
             return@lazy path
         }
 
-        return@lazy ""
+        return@lazy "/"
     }
 
     @get:JsonIgnore
     val hashOfCurrentSpec: String by lazy {
         return@lazy specAsYaml.sha1()
+    }
+
+    @get:JsonIgnore
+    val realmId: String by lazy {
+        return@lazy "${metadata.name}-${metadata.namespace}"
     }
 
 

@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: redis
+
+resources:
+  - ../../../bases/redis-sentinel
+  - resources/redis.namespace.yaml
+
+patchesStrategicMerge:
+  - resources/redis.secret.yaml

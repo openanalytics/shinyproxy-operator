@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -41,15 +41,15 @@ class ChaosInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
 
-        if (request.method() != "GET" && request.method() != "DELETE" && Random.nextInt(0, 10) < 5) {
-            logger.warn { "Intercepting request to ${request.method()} @ ${request.url()} -> returning 500" }
+        if (request.method != "GET" && request.method != "DELETE" && Random.nextInt(0, 10) < 5) {
+            logger.warn { "Intercepting request to ${request.method} @ ${request.url} -> returning 500" }
             throw KubernetesClientException(
-                "The ${request.method()} operation could not be completed at this time, please try again",
+                "The ${request.method} operation could not be completed at this time, please try again",
                 HttpURLConnection.HTTP_INTERNAL_ERROR,
                 StatusBuilder().withCode(HttpURLConnection.HTTP_INTERNAL_ERROR).build())
         }
 
-        if ((request.method() == "POST" || request.method() == "PUT") && Random.nextInt(0, 10) < 5) {
+        if ((request.method == "POST" || request.method == "PUT") && Random.nextInt(0, 10) < 5) {
             chain.proceed(request)
             throw KubernetesClientException(
                 "Already exist",

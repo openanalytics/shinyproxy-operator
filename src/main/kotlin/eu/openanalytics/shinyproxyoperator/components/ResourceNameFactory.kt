@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -26,13 +26,7 @@ import mu.KotlinLogging
 
 object ResourceNameFactory {
 
-    private val logger = KotlinLogging.logger {}
-
     const val KUBE_RESOURCE_NAME_MAX_LENGTH = 63
-
-    fun createNameForService(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        return "sp-${shinyProxy.metadata.name}-svc-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
-    }
 
     fun createNameForConfigMap(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
         return "sp-${shinyProxy.metadata.name}-cm-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
@@ -46,8 +40,12 @@ object ResourceNameFactory {
         return "sp-${shinyProxy.metadata.name}-rs-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
-    fun createNameForIngress(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        return "sp-${shinyProxy.metadata.name}-ing-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
+    fun createNameForService(shinyProxy: ShinyProxy): String {
+        return "sp-${shinyProxy.metadata.name}-svc".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
+    }
+
+    fun createNameForIngress(shinyProxy: ShinyProxy): String {
+        return "sp-${shinyProxy.metadata.name}-ing".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
 }

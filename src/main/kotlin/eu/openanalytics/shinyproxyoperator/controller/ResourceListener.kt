@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -72,10 +72,8 @@ class ResourceListener<T : HasMetadata, L : KubernetesResourceList<T>, R : Resou
         val shinyProxy = shinyProxyLister.namespace(resource.metadata.namespace)[ownerReference.name] ?: return
         if (!isInManagedNamespace(shinyProxy)) return
         val hashOfInstance = resource.metadata.labels[LabelFactory.INSTANCE_LABEL]
-        if (hashOfInstance == null) {
-            logger.warn { "[${resource.kind}] [${resource.metadata.namespace}/${resource.metadata.name}] Cannot find hash of instance for this resource - probably the resource is being deleted" }
-            return
-        }
+            ?: shinyProxy.status.latestInstance()?.hashOfSpec
+            ?: return
 
         val shinyProxyInstance = shinyProxy.status.getInstanceByHash(hashOfInstance)
         if (shinyProxyInstance == null) {

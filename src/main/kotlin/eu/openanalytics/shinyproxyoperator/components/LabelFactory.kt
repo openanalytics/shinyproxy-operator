@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -25,28 +25,27 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 
 object LabelFactory {
 
-    fun labelsForCurrentShinyProxyInstance(shinyProxy: ShinyProxy): Map<String, String> {
-        return mapOf(
-            APP_LABEL to APP_LABEL_VALUE,
-            NAME_LABEL to shinyProxy.metadata.name,
-            INSTANCE_LABEL to shinyProxy.hashOfCurrentSpec
-        )
-    }
-
     fun labelsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Map<String, String> {
         val hashOfSpec = shinyProxyInstance.hashOfSpec
         return mapOf(
             APP_LABEL to APP_LABEL_VALUE,
-            NAME_LABEL to shinyProxy.metadata.name,
+            REALM_ID_LABEL to shinyProxy.realmId,
             INSTANCE_LABEL to hashOfSpec
+        )
+    }
+
+    fun labelsForShinyProxy(shinyProxy: ShinyProxy): Map<String, String> {
+        return mapOf(
+            APP_LABEL to APP_LABEL_VALUE,
+            REALM_ID_LABEL to shinyProxy.realmId
         )
     }
 
     const val APP_LABEL = "app"
     const val APP_LABEL_VALUE = "shinyproxy"
-    const val NAME_LABEL = "openanalytics.eu/sp-resource-name"
+    const val REALM_ID_LABEL = "openanalytics.eu/sp-realm-id"
     const val INSTANCE_LABEL = "openanalytics.eu/sp-instance"
+    const val LATEST_INSTANCE_LABEL = "openanalytics.eu/sp-latest-instance"
     const val PROXIED_APP = "openanalytics.eu/sp-proxied-app"
-    const val INGRESS_IS_LATEST = "openanalytics.eu/ingress-is-latest"
 
 }

@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2022 Open Analytics
+ * Copyright (C) 2021-2023 Open Analytics
  *
  * ===========================================================================
  *
@@ -74,7 +74,7 @@ class PodTemplateSpecFactory {
                             .build(),
                             EnvVarBuilder()
                                 .withName("PROXY_REALM_ID")
-                                .withValue(shinyProxy.metadata.name)
+                                .withValue(shinyProxy.realmId)
                             .build()))
                         .withVolumeMounts(VolumeMountBuilder()
                             .withName("config-volume")
