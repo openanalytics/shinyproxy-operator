@@ -4,8 +4,7 @@ kind: Kustomization
 
 resources:
   - resources/redis-sentinel.yaml
+  - resources/redis.pdb.yaml
 
 patchesStrategicMerge:
   - patches/redis-node.statefulset.yaml
-
-# TODO SECRET
