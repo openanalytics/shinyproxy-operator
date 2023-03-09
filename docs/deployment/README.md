@@ -182,34 +182,182 @@ The `CustomResourceDefinition` of the operator can be found in the
 and `namespaced` deployments). The following sections of this file are
 important:
 
-- `spring` config related to Spring, such as the redis connection information
-- `proxy` the configuration of ShinyProxy, this is the same configuration as if
+- `spring`: config related to Spring, such as the redis connection information
+- `proxy`: the configuration of ShinyProxy, this is the same configuration as if
   you were manually deploying ShinyProxy
-- `kubernetesPodTemplateSpecPatches` allows to patch the PodTemplate
-- `image` the docker image to use for the ShinyProxy instances
-- `fqdn` the FQDN at which the service should be available
-- `appNamespaces` a list of namespaces in which apps will be deployed. This is
+- `kubernetesPodTemplateSpecPatches`: allows to patch the `PodTemplate` of the
+  ReplicaSet created by the operator (see
+  the [example](#modify-the-shinyproxy-pod))
+- `kubernetesIngressPatches`: allows to patch the `Ingress` resources created by
+  the operator (see the [example](#modify-the-ingress-resource)
+- `image`: the docker image to use for the ShinyProxy server (
+  e.g. `openanalytics/shinyproxy:3.0.0`)
+- `imagePullPolicy`: the pull policy for ShinyProxy Image; the default value is
+  `IfNotPresent`; valid options are `Never`, `IfNotPresent` and `Always`.
+- `fqdn`: the FQDN at which the service should be available, e.g. `
+  shinyproxy-demo.local
+- `appNamespaces`: a list of namespaces in which apps will be deployed. This is
   only needed when you change the namespace of an app using the
   `kubernetes-pod-patches` feature. The namespace of the operator and ShinyProxy
   instance are automatically included
 
-## Troubleshooting
+## Modify the Ingress Resource
 
-You may get the following exception:
+The ShinyProxy Operator automatically creates an ingress resource for each
+ShinyProxy resource you create. This ingress resource points to the correct
+Kubernetes service (which is also created by the operator). The created Ingress
+resource contains everything that is needed for a working ShinyProxy deployment.
+However, in some cases it is required to modify the resource. This can be
+achieved using the `kubernetesIngressPatches` field. This field should contain a
+string which contains a list of [JSON Patches](https://jsonpatch.com/) to apply
+to the Ingress resource. The above examples already include the following patch:
 
-```text
-io.fabric8.kubernetes.client.KubernetesClientException: Failure executing: POST at: https://10.96.0.1/apis/networking.k8s.io/v1beta1/namespaces/shinyproxy/ingresses. Message: admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "shinyproxy-demo.local" and path "/" is already defined in ingress shinyproxy/nginx-to-skipper-ingress. Received status: Status(apiVersion=v1, code=400, details=null, kind=Status, message=admission webhook "validate.nginx.ingress.kubernetes.io" denied the request: host "shinyproxy-demo.local" and path "/" is already defined in ingress shinyproxy/nginx-to-skipper-ingress, metadata=ListMeta(_continue=null, remainingItemCount=null, resourceVersion=null, selfLink=null, additionalProperties={}), reason=BadRequest, status=Failure, additionalProperties={}).
+```yaml
+apiVersion: openanalytics.eu/v1
+kind: ShinyProxy
+metadata:
+  name: shinyproxy
+  namespace: shinyproxy
+spec:
+  proxy:
+    # ...
+  kubernetesIngressPatches: |
+    - op: add
+      path: /metadata/annotations
+      value:
+        nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        nginx.ingress.kubernetes.io/proxy-body-size: 300m
+    - op: add
+      path: /spec/ingressClassName
+      value: nginx
+  image: openanalytics/shinyproxy:3.0.0
+  imagePullPolicy: Always
+  fqdn: shinyproxy-demo.local
 ```
 
-This exception is caused by a
-[bug](https://github.com/kubernetes/ingress-nginx/issues/7546) in the latest
-(v1.0.0) version of the ingress-nginx controller. There are two workarounds for this bug:
+The first patch adds some additional annotations to the ShinyProx resource. For
+example, in order to set up a redirect from HTTP to HTTPS. The second patch
+changes the ingressClassName to `nginx`. Any patch is accepted, but make sure
+that the resulting Ingress resource still works for the ShinyProxy Deployment.
+The ShinyProxy Operator logs the manifest before and after applying the patch,
+this can be useful while creating the patches.
 
-- use a version of the ingress controller older than v1.0.0 (e.g. v0.49.2)
-- remove the validating webhook using, this is **not recommended** since it
-  removes an important part of how the ingress controller works. However, it is
-  an easy solution when you are following the above tutorial in minikube:
+**Note:** the previous section only applies to version 2 of the operator.
+Version 1 behaves differently since it used Skipper as (intermediate) ingress
+controller.
 
-  ```bash
-  kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
-  ```
+## Modify the ShinyProxy Pod
+
+The Operator automatically creates a ReplicaSet for each ShinyProxy resource you
+create. This ReplicaSet contains a `PodTemplate`, which contains all necessary
+settings for creating a proper ShinyProxy pod. In a lot of cases, it can be
+useful to adapt this `PodTemplate` for the specific context in which ShinyProxy
+is running. For example, it's a good idea to specify the resource requests and
+limits, or sometimes it's required to add a toleration to the pod. These
+modification can be achieved using the `kubernetesPodTemplateSpecPatches` field.
+This field should contain a string which contains a list
+of [JSON Patches](https://jsonpatch.com/) to apply to the `PodTemplate`. The
+above examples already include the following patch:
+
+```yaml
+apiVersion: openanalytics.eu/v1
+kind: ShinyProxy
+metadata:
+  name: shinyproxy
+  namespace: shinyproxy
+spec:
+  proxy:
+    # ...
+  kubernetesPodTemplateSpecPatches: |
+    - op: add
+      path: /spec/containers/0/env/-
+      value:
+        name: REDIS_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: redis
+            key: redis-password
+    - op: add
+      path: /spec/containers/0/resources
+      value:
+        limits:
+          cpu: 1
+          memory: 1Gi
+        requests:
+          cpu: 0.5
+          memory: 1Gi
+    - op: add
+      path: /spec/serviceAccountName
+      value: shinyproxy-sa
+  image: openanalytics/shinyproxy:3.0.0
+  imagePullPolicy: Always
+  fqdn: shinyproxy-demo.local
+```
+
+The above configuration contains three patches. The first patch adds an
+environment variable with the password used for connecting to the Redis server.
+The second patch configures the resource limits and requests of the ShinyProxy
+pod. Finally, the last patch configures the `ServiceAccount` of the pod.
+
+**Note:** it is important when using this feature to not break any existing
+configuration of the pod. For example, when you want to mount additional
+configmaps, use the following configuration:
+
+```yaml
+apiVersion: openanalytics.eu/v1
+kind: ShinyProxy
+metadata:
+  name: shinyproxy
+  namespace: shinyproxy
+spec:
+  kubernetesPodTemplateSpecPatches: |
+    - op: add
+      path: /spec/volumes/-
+      value:
+        name: myconfig
+        configMap:
+          name: some-configmnap
+    - op: add
+      path: /spec/containers/0/volumeMounts/-
+      value:
+        mountPath: /mnt/configmap
+        name: myconfig
+        readOnly: true
+```
+
+In this example, the `path` property of the patch always ends with a `-`, this
+indicates that the patch adds a new entry to the end of the array
+( e.g. `spec/volumes/`).
+
+The following patch breaks the behavior of the ShinyProxy pod and should
+therefore not be used:
+
+```yaml
+# NOTE: this is a demo of a WRONG configuration - do not use
+apiVersion: openanalytics.eu/v1
+kind: ShinyProxy
+metadata:
+  name: shinyproxy
+  namespace: shinyproxy
+spec:
+  kubernetesPodTemplateSpecPatches: |
+    - op: add
+      path: /spec/volumes
+      value:
+        - name: myconfig
+          configMap:
+            name: some-configmnap
+    - op: add
+      path: /spec/containers/0/volumeMounts
+      value:
+        - mountPath: /mnt/configmap
+          name: myconfig
+          readOnly: true
+```
+
+This patch replaces the existing `/spec/volumes`
+and `/spec/containers/0/volumeMounts` arrays of the pod. The ShinyProxy Operator
+automatically creates a mount for a configmap which contains the ShinyProxy
+configuration. By overriding these mounts, this configmap is not be mounted and
+the default (demo) configuration of ShinyProxy is loaded.
