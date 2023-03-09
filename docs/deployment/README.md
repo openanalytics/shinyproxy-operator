@@ -147,7 +147,7 @@ repository includes examples for many kinds of deployments:
   ShinyProxy server runs in its own namespace, isolated from the other servers.
   However, they are managed by a single operator.
 
-- *3-namespaced-hpa-app-ns*:
+- *3-namespaced-app-ns*:
   - Operator-mode: `namespaced`
   - Operator-namespace: `shinyproxy`
   - Redis-namespace: `shinyproxy`
@@ -189,7 +189,7 @@ important:
   ReplicaSet created by the operator (see
   the [example](#modify-the-shinyproxy-pod))
 - `kubernetesIngressPatches`: allows to patch the `Ingress` resources created by
-  the operator (see the [example](#modify-the-ingress-resource)
+  the operator (see the [example](#modify-the-ingress-resource))
 - `image`: the docker image to use for the ShinyProxy server (
   e.g. `openanalytics/shinyproxy:3.0.0`)
 - `imagePullPolicy`: the pull policy for ShinyProxy Image; the default value is
