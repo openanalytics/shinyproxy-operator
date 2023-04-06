@@ -191,7 +191,7 @@ important:
 - `kubernetesIngressPatches`: allows to patch the `Ingress` resources created by
   the operator (see the [example](#modify-the-ingress-resource))
 - `image`: the docker image to use for the ShinyProxy server (
-  e.g. `openanalytics/shinyproxy:3.0.0`)
+  e.g. `openanalytics/shinyproxy:3.0.1`)
 - `imagePullPolicy`: the pull policy for ShinyProxy Image; the default value is
   `IfNotPresent`; valid options are `Never`, `IfNotPresent` and `Always`.
 - `fqdn`: the FQDN at which the service should be available, e.g. `
@@ -231,7 +231,7 @@ spec:
     - op: add
       path: /spec/ingressClassName
       value: nginx
-  image: openanalytics/shinyproxy:3.0.0
+  image: openanalytics/shinyproxy:3.0.1
   imagePullPolicy: Always
   fqdn: shinyproxy-demo.local
 ```
@@ -290,7 +290,7 @@ spec:
     - op: add
       path: /spec/serviceAccountName
       value: shinyproxy-sa
-  image: openanalytics/shinyproxy:3.0.0
+  image: openanalytics/shinyproxy:3.0.1
   imagePullPolicy: Always
   fqdn: shinyproxy-demo.local
 ```

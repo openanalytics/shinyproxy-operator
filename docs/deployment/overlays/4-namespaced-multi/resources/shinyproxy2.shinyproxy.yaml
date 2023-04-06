@@ -13,8 +13,6 @@ spec:
   spring:
     session:
       store-type: redis
-      redis:
-        configure-action: none
     redis:
       host: redis
       password: ${REDIS_PASSWORD}
@@ -93,6 +91,6 @@ spec:
     - op: add
       path: /spec/ingressClassName
       value: nginx
-  image: openanalytics/shinyproxy:3.0.0
+  image: openanalytics/shinyproxy:3.0.1
   imagePullPolicy: Always
   fqdn: shinyproxy-demo.local
