@@ -6,5 +6,5 @@ resources:
   - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/redis-sentinel?ref=v2.0.0
   - resources/redis.namespace.yaml
 
-patchesStrategicMerge:
-  - resources/redis.secret.yaml
+patches:
+  - path: resources/redis.secret.yaml

@@ -25,6 +25,12 @@ and dependencies of the operator.
   Redis is run in a high-available way. It is also possible to use a Redis
   server provided by cloud providers.
 
+  **Note:** when deploying to production, it is important to change the password
+  used to secure Redis. Each example (see below) already changes the
+  password `mySecurePassword12`. For an example see
+  the [`overlays/1-namespaced/patches/redis.secret.yaml`](overlays/1-namespaced/patches/redis.secret.yaml)
+  file.
+
 ## Tutorial using minikube
 
 This section provides a step-by-step tutorial on the basic deployment of the

@@ -10,3 +10,6 @@ resources:
   - resources/shinyproxy1.shinyproxy.yaml
   - resources/shinyproxy2.shinyproxy.yaml
   - resources/shinyproxy3.shinyproxy.yaml
+
+patches:
+  - path: patches/redis.secret.yaml
