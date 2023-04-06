@@ -8,3 +8,6 @@ resources:
   - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/shinyproxy?ref=v2.0.0
   - resources/shinyproxy.namespace.yaml
   - resources/shinyproxy.shinyproxy.yaml
+
+patches:
+  - path: patches/redis.secret.yaml
