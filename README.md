@@ -174,7 +174,15 @@ Be aware of these changes when updating to version 2.0.0:
   required to set up Redis Sentinel (based on the bitnamai Redis helm chart).
 
 The best way to update to ShinyProxy 2.0.0 is by creating a fresh deployment of
-the operator and migrating users to this new deployment.
+the operator and migrating users to this new deployment. The following changes
+need to be made to the ShinyProxy configuration file:
+
+- add the property `proxy.store-mode: Redis`
+- add the property `proxy.stop-proxies-on-shutdown: false`
+- optionally add the
+  property [`kubernetesIngressPatches`](docs/deployment#modify-the-ingress-resource)
+  in order to customize the ingress created by the operator.
+- update the ShinyProxy image to `openanalytics/shinyproxy:3.0.1`
 
 ## Java Version
 
