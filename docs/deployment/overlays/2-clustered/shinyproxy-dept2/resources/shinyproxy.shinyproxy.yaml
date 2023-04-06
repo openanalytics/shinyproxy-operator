@@ -87,6 +87,12 @@ spec:
     - op: add
       path: /spec/ingressClassName
       value: nginx
+    - op: add
+      path: /spec/tls
+      value:
+        - hosts:
+          - shinyproxy-demo2.local
+         # secretName: example # uncomment and change this line if needed
   image: openanalytics/shinyproxy:3.0.1
   imagePullPolicy: Always
   fqdn: shinyproxy-demo2.local

@@ -84,12 +84,35 @@ ShinyProxy operator on minikube.
    ```
 
 6. Once all deployments are finished, you can access ShinyProxy at
-   `shinyproxy-demo.local`.
+   `shinyproxy-demo.local`. You will get a security warning from your browser
+   because if the invalid (self-signed) certificate. You can safely bypass this
+   warning during this example.
 7. Wait until the ShinyProxy instance is fully started. (before you will see a
    `Not Found` page).
 8. Try to launch an application and keep this application running.
-9. Change something in the `resources/shinyproxy.shinyproxy.yaml` file (e.g.
-   the `title` property) and then run:
+9. Change something in the `resources/shinyproxy.shinyproxy.yaml` file. For
+   example change the `title` property and instruct the operator to create two
+   ShinyProxy replicas:
+
+      ```yaml
+      apiVersion: openanalytics.eu/v1
+      kind: ShinyProxy
+      metadata:
+        name: shinyproxy
+        namespace: shinyproxy
+      spec:
+        # ...
+        proxy:
+          store-mode: Redis
+          stop-proxies-on-shutdown: false
+          title: ShinyProxy 2 # <- MAKE THE CHANGE HERE
+        # ...
+        replicas: 2 # <- ADD THIS LINE
+        image: openanalytics/shinyproxy:3.0.1
+        imagePullPolicy: Always
+        fqdn: shinyproxy-demo.local
+      ```
+10. Apply this change using `kubectl`:
 
    ```bash
    kubectl apply -f resources/shinyproxy.shinyproxy.yaml
@@ -101,20 +124,19 @@ ShinyProxy operator on minikube.
    Websocket connections. New requests will immediately be handled by the new
    server as soon as it is ready. Try going to the main page of ShinyProxy and
    check whether the change your made has been applied.
-10. Try the other examples:
+11. Try the other examples. The following commands first remove the current
+    example, next you can open another example (e.g. `2-clustered`) and deploy
+    it using `kubectl`:
 
-    ```bash
-    kubectl delete namespace/shinyproxy
-    kubectl delete namespace/shinyproxy-operator                 # may fail
-    kubectl delete namespace/shinyproxy-dept2                    # may fail
-    kubectl delete namespace/my-namespace                        # may fail
-    kubectl delete namespace/redis                               # may fail
-    kubectl delete namespace/skipper                             # may fail
-    kubectl delete -n default ingress/nginx-to-skipper-ingress  # may fail
-    kubectl delete -n skipper ingress/nginx-to-skipper-ingress  # may fail
-    cd directory_of_example
-    kustomize build .  | kubectl apply -f -
-    ```
+```bash
+kubectl delete namespace/shinyproxy
+kubectl delete namespace/shinyproxy-operator                 # may fail
+kubectl delete namespace/shinyproxy-dept2                    # may fail
+kubectl delete namespace/my-namespace                        # may fail
+kubectl delete namespace/redis                               # may fail
+cd ../2-clustered
+kustomize build .  | kubectl apply -f -
+```
 
 ## Overview of examples
 
@@ -231,6 +253,12 @@ spec:
     - op: add
       path: /spec/ingressClassName
       value: nginx
+    - op: add
+      path: /spec/tls
+      value:
+        - hosts:
+          - shinyproxy-demo.local
+         # secretName: example # uncomment and change this line if needed
   image: openanalytics/shinyproxy:3.0.1
   imagePullPolicy: Always
   fqdn: shinyproxy-demo.local
@@ -238,10 +266,12 @@ spec:
 
 The first patch adds some additional annotations to the ShinyProx resource. For
 example, in order to set up a redirect from HTTP to HTTPS. The second patch
-changes the ingressClassName to `nginx`. Any patch is accepted, but make sure
-that the resulting Ingress resource still works for the ShinyProxy Deployment.
-The ShinyProxy Operator logs the manifest before and after applying the patch,
-this can be useful while creating the patches.
+changes the ingressClassName to `nginx`. Finally, the last patch configures TLS
+for the ingress resource. In a production environment, you can uncomment the
+line with the `secretName` to refer to a proper secret. Any patch is accepted,
+but make sure that the resulting Ingress resource still works for the ShinyProxy
+Deployment. The ShinyProxy Operator logs the manifest before and after applying
+the patch, this can be useful while creating the patches.
 
 **Note:** the previous section only applies to version 2 of the operator.
 Version 1 behaves differently since it used Skipper as (intermediate) ingress
