@@ -27,7 +27,7 @@ and dependencies of the operator.
 
   **Note:** when deploying to production, it is important to change the password
   used to secure Redis. Each example (see below) already changes the
-  password `mySecurePassword12`. For an example see
+  password to `mySecurePassword12`. For an example see
   the [`overlays/1-namespaced/patches/redis.secret.yaml`](overlays/1-namespaced/patches/redis.secret.yaml)
   file.
 
