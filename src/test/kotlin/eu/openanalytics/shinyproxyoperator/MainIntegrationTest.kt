@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
+import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MainIntegrationTest : IntegrationTestBase() {
@@ -904,4 +906,159 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.assertInstanceIsCorrect()
             job.cancel()
         }
+
+    @Test
+    fun `operator should have correct antiAffinity defaults`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+
+            // 3. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 4. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 5. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 6. check antiAffinity rules
+            val replicaSets = stableClient.inNamespace(namespace).apps().replicaSets().list().items
+            assertEquals(1, replicaSets.size)
+            val replicaSet = replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
+            assertNotNull(replicaSet)
+
+            assertNotNull(replicaSet.spec.template.spec.affinity)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.podAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.nodeAffinity)
+            assertEquals(0, replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution.size)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution)
+            assertEquals(1, replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution.size)
+            val rule = replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]
+            assertEquals(1, rule.weight)
+            assertEquals("kubernetes.io/hostname", rule.podAffinityTerm.topologyKey)
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash
+            ), rule.podAffinityTerm.labelSelector.matchLabels)
+
+            job.cancel()
+        }
+
+    @Test
+    fun `operator should have correct antiAffinity when required is true`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "affinity_required.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+
+            // 3. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 4. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 5. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 6. check antiAffinity rules
+            val replicaSets = stableClient.inNamespace(namespace).apps().replicaSets().list().items
+            assertEquals(1, replicaSets.size)
+            val replicaSet = replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
+            assertNotNull(replicaSet)
+
+            assertNotNull(replicaSet.spec.template.spec.affinity)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.podAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.nodeAffinity)
+            assertEquals(0, replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution.size)
+            assertEquals(1, replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution.size)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution)
+            val rule = replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution[0]
+            assertEquals("kubernetes.io/hostname", rule.topologyKey)
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash
+            ), rule.labelSelector.matchLabels)
+
+            job.cancel()
+        }
+
+
+    @Test
+    fun `operator should have correct antiAffinity when topologyKey is set`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "affinity_toplogykey.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+
+            // 3. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 4. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 5. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 6. check antiAffinity rules
+            val replicaSets = stableClient.inNamespace(namespace).apps().replicaSets().list().items
+            assertEquals(1, replicaSets.size)
+            val replicaSet = replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
+            assertNotNull(replicaSet)
+
+            assertNotNull(replicaSet.spec.template.spec.affinity)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.podAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.nodeAffinity)
+            assertEquals(0, replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution.size)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution)
+            assertEquals(1, replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution.size)
+            val rule = replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]
+            assertEquals(1, rule.weight)
+            assertEquals("example.com/custom-topology-key", rule.podAffinityTerm.topologyKey)
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash
+            ), rule.podAffinityTerm.labelSelector.matchLabels)
+
+            job.cancel()
+        }
+
+
 }

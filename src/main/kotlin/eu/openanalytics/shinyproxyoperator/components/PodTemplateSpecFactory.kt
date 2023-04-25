@@ -112,6 +112,7 @@ class PodTemplateSpecFactory {
                             .withPeriodSeconds(5)
                         .endStartupProbe()
                     .endContainer()
+                    .withAffinity(createAffinity(shinyProxy, shinyProxyInstance))
                     .withVolumes(VolumeBuilder()
                             .withName("config-volume")
                             .withConfigMap(ConfigMapVolumeSourceBuilder()
@@ -123,6 +124,39 @@ class PodTemplateSpecFactory {
         //@formatter:on
 
         return podTemplatePatcher.patch(template, shinyProxy.parsedKubernetesPodTemplateSpecPatches)
+    }
+
+    private fun createAffinity(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Affinity {
+        if (shinyProxy.antiAffinityRequired) {
+            //@formatter:off
+            return AffinityBuilder()
+                .withNewPodAntiAffinity()
+                    .addNewRequiredDuringSchedulingIgnoredDuringExecution()
+                        .withNewLabelSelector()
+                            .withMatchLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                        .endLabelSelector()
+                        .withTopologyKey(shinyProxy.antiAffinityTopologyKey)
+                    .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endPodAntiAffinity()
+                .build()
+            //@formatter:on
+        } else {
+            //@formatter:off
+            return AffinityBuilder()
+                .withNewPodAntiAffinity()
+                    .addNewPreferredDuringSchedulingIgnoredDuringExecution()
+                        .withWeight(1)
+                        .withNewPodAffinityTerm()
+                            .withNewLabelSelector()
+                                .withMatchLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                            .endLabelSelector()
+                        .withTopologyKey(shinyProxy.antiAffinityTopologyKey)
+                        .endPodAffinityTerm()
+                    .endPreferredDuringSchedulingIgnoredDuringExecution()
+                .endPodAntiAffinity()
+                .build()
+            //@formatter:on
+        }
     }
 
 

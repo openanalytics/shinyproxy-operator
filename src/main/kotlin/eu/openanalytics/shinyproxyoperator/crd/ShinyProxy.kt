@@ -161,6 +161,21 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
         return@lazy "${metadata.name}-${metadata.namespace}"
     }
 
+    @get:JsonIgnore
+    val antiAffinityTopologyKey: String by lazy {
+        if (spec.get("antiAffinityTopologyKey")?.isTextual == true) {
+            return@lazy spec.get("antiAffinityTopologyKey").textValue()
+        }
+        return@lazy "kubernetes.io/hostname"
+    }
+
+    @get:JsonIgnore
+    val antiAffinityRequired: Boolean by lazy {
+        if (spec.get("antiAffinityRequired")?.isBoolean == true) {
+            return@lazy spec.get("antiAffinityRequired").booleanValue()
+        }
+        return@lazy false
+    }
 
     fun logPrefix(shinyProxyInstance: ShinyProxyInstance): String {
         return "[${metadata.namespace}/${metadata.name}/${shinyProxyInstance.hashOfSpec}]"
