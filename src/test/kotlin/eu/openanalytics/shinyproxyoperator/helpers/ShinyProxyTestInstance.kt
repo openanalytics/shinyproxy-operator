@@ -106,7 +106,7 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.REALM_ID_LABEL to sp.metadata.name
+            LabelFactory.REALM_ID_LABEL to sp.realmId
         ), ingress.metadata.labels)
 
         assertOwnerReferenceIsCorrect(ingress, sp)
@@ -131,7 +131,7 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.REALM_ID_LABEL to sp.metadata.name,
+            LabelFactory.REALM_ID_LABEL to sp.realmId,
             LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
         ), service.metadata.labels)
 
@@ -143,7 +143,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(IntOrString(8080), service.spec.ports[0].targetPort)
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.REALM_ID_LABEL to sp.metadata.name,
+            LabelFactory.REALM_ID_LABEL to sp.realmId,
             LabelFactory.INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec // TODO
         ), service.spec.selector)
 
@@ -223,7 +223,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy) {
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.REALM_ID_LABEL to sp.metadata.name,
+            LabelFactory.REALM_ID_LABEL to sp.realmId,
             LabelFactory.INSTANCE_LABEL to hash
         ), resource.metadata.labels)
     }
