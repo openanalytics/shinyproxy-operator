@@ -1017,7 +1017,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 namespace,
                 namespacedClient,
                 shinyProxyClient,
-                "affinity_toplogykey.yaml",
+                "affinity_topologykey.yaml",
                 reconcileListener
             )
             val sp = spTestInstance.create()
