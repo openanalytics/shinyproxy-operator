@@ -3,7 +3,7 @@ kind: ShinyProxy
 metadata:
   name: example-shinyproxy
 spec:
-  antiAffinityTopologyKey: example.com/custom-topology-key
+  antiAffinityRequired: true
   fqdn: itest.local
   image: openanalytics/shinyproxy:2.6.1
   proxy:
