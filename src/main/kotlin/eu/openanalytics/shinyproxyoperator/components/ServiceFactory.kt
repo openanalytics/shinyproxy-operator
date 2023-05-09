@@ -34,6 +34,8 @@ class ServiceFactory(private val serviceClient: MixedOperation<Service, ServiceL
 
     private val logger = KotlinLogging.logger {}
 
+    private val servicePatcher = ServicePatcher()
+
     fun create(shinyProxy: ShinyProxy, latestShinyProxyInstance: ShinyProxyInstance) {
         val labels = LabelFactory.labelsForShinyProxy(shinyProxy).toMutableMap()
         labels[LabelFactory.LATEST_INSTANCE_LABEL] = latestShinyProxyInstance.hashOfSpec
@@ -63,7 +65,8 @@ class ServiceFactory(private val serviceClient: MixedOperation<Service, ServiceL
                 .build()
         //@formatter:on
 
-        val createdService = serviceClient.inNamespace(shinyProxy.metadata.namespace).resource(serviceDefinition).serverSideApply()
+        val patchedService = servicePatcher.patch(serviceDefinition, shinyProxy.parsedServicePatches)
+        val createdService = serviceClient.inNamespace(shinyProxy.metadata.namespace).resource(patchedService).serverSideApply()
         logger.debug { "${shinyProxy.logPrefix(latestShinyProxyInstance)} [Component/Service] Created ${createdService.metadata.name}" }
     }
 
