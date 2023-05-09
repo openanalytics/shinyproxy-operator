@@ -139,6 +139,23 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
     }
 
     @get:JsonIgnore
+    val parsedServicePatches: JsonPatch? by lazy {
+        if (spec.get("kubernetesServicePatches")?.isTextual == true) {
+            try {
+                // convert the raw YAML string into a JsonPatch
+                val yamlReader = ObjectMapper(YAMLFactory())
+                yamlReader.registerModule(JSR353Module())
+                return@lazy yamlReader.readValue(spec.get("kubernetesServicePatches").textValue(), JsonPatch::class.java)
+            } catch (exception: Exception) {
+                exception.printStackTrace() // log the exception for easier debugging
+                throw exception
+            }
+
+        }
+        return@lazy null
+    }
+
+    @get:JsonIgnore
     val subPath: String by lazy {
         if (spec.get("server")?.get("servlet")?.get("context-path")?.isTextual == true) {
             val path = spec.get("server").get("servlet").get("context-path").textValue()
