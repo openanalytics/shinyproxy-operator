@@ -21,6 +21,7 @@
 package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPath
 import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPathBuilder
 import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder
@@ -33,12 +34,14 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
 
     private val ingressPatcher = IngressPatcher()
 
-    fun create(shinyProxy: ShinyProxy) {
+    fun create(shinyProxy: ShinyProxy, latestShinyProxyInstance: ShinyProxyInstance) {
+        val labels = LabelFactory.labelsForShinyProxy(shinyProxy).toMutableMap()
+        labels[LabelFactory.LATEST_INSTANCE_LABEL] = latestShinyProxyInstance.hashOfSpec
         //@formatter:off
         val ingressDefinition = IngressBuilder()
                 .withNewMetadata()
                     .withName(ResourceNameFactory.createNameForIngress(shinyProxy))
-                    .withLabels<String, String>(LabelFactory.labelsForShinyProxy(shinyProxy))
+                    .withLabels<String, String>(labels)
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
@@ -48,7 +51,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                     .endOwnerReference()
                 .endMetadata()
                 .withNewSpec()
-                    .withIngressClassName("nginx") // TODO
+                    .withIngressClassName("nginx")
                     .addNewRule()
                         .withHost(shinyProxy.fqdn)
                         .withNewHttp()

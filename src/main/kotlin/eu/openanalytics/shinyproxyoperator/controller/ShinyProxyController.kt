@@ -22,7 +22,6 @@ package eu.openanalytics.shinyproxyoperator.controller
 
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.ConfigMapFactory
-import eu.openanalytics.shinyproxyoperator.components.IngressFactory
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.components.ReplicaSetFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -44,12 +43,12 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                            private val kubernetesClient: KubernetesClient,
                            private val shinyProxyClient: ShinyProxyClient,
                            private val serviceController: ServiceController,
+                           private val ingressController: IngressController,
                            private val reconcileListener: IReconcileListener?,
                            private val recyclableChecker: IRecyclableChecker) {
 
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
-    private val ingressFactory = IngressFactory(kubernetesClient)
 
     private val logger = KotlinLogging.logger {}
 
@@ -268,10 +267,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         serviceController.reconcile(resourceRetriever, updatedShinyProxy)
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 5/$amountOfSteps: Ok] [Component/Service]" }
 
-        val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxy(updatedShinyProxy), updatedShinyProxy.metadata.namespace)
-        if (ingresses.isEmpty()) {
-            ingressFactory.create(updatedShinyProxy)
-        }
+        ingressController.reconcile(resourceRetriever, updatedShinyProxy)
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 6/$amountOfSteps: Ok] [Component/Ingress]" }
 
         if (updatedShinyProxyInstance != null) {

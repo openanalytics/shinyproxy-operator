@@ -95,10 +95,10 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertServiceIsCorrect(sp)
 
         // check ingress
-        assertIngressIsCorrect(sp, numInstancesRunning)
+        assertIngressIsCorrect(sp)
     }
 
-    fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1) {
+    fun assertIngressIsCorrect(sp: ShinyProxy) {
         val allIngresses = client.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(1, allIngresses.size)
         val ingress = allIngresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing".take(63) }
@@ -106,7 +106,8 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.REALM_ID_LABEL to sp.realmId
+            LabelFactory.REALM_ID_LABEL to sp.realmId,
+            LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
         ), ingress.metadata.labels)
 
         assertOwnerReferenceIsCorrect(ingress, sp)
