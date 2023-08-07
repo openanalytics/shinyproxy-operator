@@ -41,7 +41,6 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
         return ShinyProxyStatus()
     }
 
-
     @get:JsonIgnore
     val image: String by lazy {
         if (spec.get("image")?.isTextual == true) {
@@ -64,6 +63,14 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
             return@lazy spec.get("fqdn").textValue()
         }
         throw IllegalStateException("Cannot create ShinyProxy instance when no FQDN is specified!")
+    }
+
+    @get:JsonIgnore
+    val additionalFqdns: List<String> by lazy {
+        if (spec.get("additionalFqdns")?.isArray == true) {
+            return@lazy spec.get("additionalFqdns").elements().asSequence().map { it.textValue() }.toList();
+        }
+        return@lazy listOf()
     }
 
     @get:JsonIgnore

@@ -1060,5 +1060,79 @@ class MainIntegrationTest : IntegrationTestBase() {
             job.cancel()
         }
 
+    @Test
+    fun `test additional fqns`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "additional_fqdns.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            val sp = spTestInstance.retrieveInstance()
+            assertNotNull(sp)
+            val instance = sp.status.instances[0]
+            assertNotNull(instance)
+            assertTrue(instance.isLatestInstance)
+
+            // check configmap
+            spTestInstance.assertConfigMapIsCorrect(sp)
+
+           // check replicaset
+            spTestInstance.assertReplicaSetIsCorrect(sp)
+
+            // check service
+            spTestInstance.assertServiceIsCorrect(spTestInstance.retrieveInstance())
+
+            // check ingress
+            val allIngresses = namespacedClient.network().v1().ingresses().list().items
+            assertEquals(1, allIngresses.size)
+            val ingress = allIngresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing".take(63) }
+            assertNotNull(ingress)
+
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
+            ), ingress.metadata.labels)
+
+            assertEquals(2, ingress.spec.rules.size)
+            val rule1 = ingress.spec.rules[0]
+            assertNotNull(rule1)
+            assertEquals(sp.fqdn, rule1.host)
+            assertEquals(1, rule1.http.paths.size)
+            val path1 = rule1.http.paths[0]
+            assertNotNull(path1)
+            assertEquals(sp.subPath, path1.path)
+            assertEquals("sp-${sp.metadata.name}-svc".take(63), path1.backend.service.name)
+            assertEquals(80, path1.backend.service.port.number)
+
+            val rule2 = ingress.spec.rules[1]
+            assertNotNull(rule2)
+            assertEquals(sp.additionalFqdns[0], rule2.host)
+            assertEquals(1, rule2.http.paths.size)
+            val path2 = rule2.http.paths[0]
+            assertNotNull(path2)
+            assertEquals(sp.subPath, path2.path)
+            assertEquals("sp-${sp.metadata.name}-svc".take(63), path2.backend.service.name)
+            assertEquals(80, path2.backend.service.port.number)
+
+            job.cancel()
+        }
+
 
 }
