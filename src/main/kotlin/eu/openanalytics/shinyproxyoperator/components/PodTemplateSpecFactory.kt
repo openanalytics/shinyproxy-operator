@@ -33,6 +33,12 @@ class PodTemplateSpecFactory {
 
         val operator = Operator.getOperatorInstance()
 
+        val version = if (shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {
+            System.currentTimeMillis()
+        } else {
+            0
+        }
+
         //@formatter:off
         val template = PodTemplateSpecBuilder()
                 .withNewMetadata()
@@ -75,6 +81,10 @@ class PodTemplateSpecFactory {
                             EnvVarBuilder()
                                 .withName("PROXY_REALM_ID")
                                 .withValue(shinyProxy.realmId)
+                            .build(),
+                            EnvVarBuilder()
+                                .withName("PROXY_VERSION")
+                                .withValue(version.toString())
                             .build()))
                         .withVolumeMounts(VolumeMountBuilder()
                             .withName("config-volume")
