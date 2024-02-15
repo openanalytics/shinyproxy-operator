@@ -23,9 +23,6 @@ package eu.openanalytics.shinyproxyoperator.components
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module
-import io.fabric8.kubernetes.api.model.HTTPGetAction
-import io.fabric8.kubernetes.api.model.IntOrString
-import io.fabric8.kubernetes.api.model.PodTemplateSpec
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress
 import mu.KotlinLogging
 import javax.json.JsonPatch

@@ -68,7 +68,7 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
     @get:JsonIgnore
     val additionalFqdns: List<String> by lazy {
         if (spec.get("additionalFqdns")?.isArray == true) {
-            return@lazy spec.get("additionalFqdns").elements().asSequence().map { it.textValue() }.toList();
+            return@lazy spec.get("additionalFqdns").elements().asSequence().map { it.textValue() }.toList()
         }
         return@lazy listOf()
     }

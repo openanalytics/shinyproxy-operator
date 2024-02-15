@@ -41,7 +41,6 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1.IngressList
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.Resource
@@ -77,9 +76,9 @@ class Operator(client: NamespacedKubernetesClient? = null,
     val probeFailureThreshold: Int
     val probeTimeout: Int
     val startupProbeInitialDelay: Int
-    val processMaxLifetime: Long
 
-    val podRetriever: PodRetriever
+    private val processMaxLifetime: Long
+    private val podRetriever: PodRetriever
     private val shinyProxyClient: ShinyProxyClient
     private val recyclableChecker: IRecyclableChecker
 
@@ -103,7 +102,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         if (client != null) {
             this.client = client
         } else {
-            this.client = DefaultKubernetesClient()
+            this.client = createKubernetesClient()
         }
 
         this.mode = readConfigValue(mode, Mode.CLUSTERED, "SPO_MODE") {

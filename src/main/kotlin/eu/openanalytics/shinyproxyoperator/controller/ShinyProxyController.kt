@@ -162,7 +162,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         fun tryUpdateStatus() {
             val freshShinyProxy = refreshShinyProxy(shinyProxy)
             updater(freshShinyProxy)
-            shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(freshShinyProxy)
+            shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).resource(freshShinyProxy).updateStatus()
         }
 
         for (i in 1..5) {

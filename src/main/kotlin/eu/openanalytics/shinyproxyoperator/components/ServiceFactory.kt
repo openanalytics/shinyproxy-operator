@@ -63,7 +63,7 @@ class ServiceFactory(private val serviceClient: MixedOperation<Service, ServiceL
                 .build()
         //@formatter:on
 
-        val createdService = serviceClient.inNamespace(shinyProxy.metadata.namespace).resource(serviceDefinition).createOrReplace()
+        val createdService = serviceClient.inNamespace(shinyProxy.metadata.namespace).resource(serviceDefinition).serverSideApply()
         logger.debug { "${shinyProxy.logPrefix(latestShinyProxyInstance)} [Component/Service] Created ${createdService.metadata.name}" }
     }
 

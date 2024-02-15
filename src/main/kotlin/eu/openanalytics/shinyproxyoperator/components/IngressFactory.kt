@@ -25,7 +25,6 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPath
 import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPathBuilder
 import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder
-import io.fabric8.kubernetes.api.model.networking.v1.IngressRule
 import io.fabric8.kubernetes.api.model.networking.v1.IngressRuleBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import mu.KotlinLogging
@@ -71,7 +70,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
             //@formatter:on
 
         val patchedIngress = ingressPatcher.patch(ingressDefinition, shinyProxy.parsedIngressPatches)
-        val createdIngress = kubeClient.network().v1().ingresses().inNamespace(shinyProxy.metadata.namespace).resource(patchedIngress).createOrReplace()
+        val createdIngress = kubeClient.network().v1().ingresses().inNamespace(shinyProxy.metadata.namespace).resource(patchedIngress).serverSideApply()
         logger.debug { "${shinyProxy.logPrefix()} [Component/Ingress] Created ${createdIngress.metadata.name}" }
     }
 

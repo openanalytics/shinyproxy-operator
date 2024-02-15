@@ -22,11 +22,10 @@ package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import mu.KotlinLogging
 
 object ResourceNameFactory {
 
-    const val KUBE_RESOURCE_NAME_MAX_LENGTH = 63
+    private const val KUBE_RESOURCE_NAME_MAX_LENGTH = 63
 
     fun createNameForConfigMap(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
         return "sp-${shinyProxy.metadata.name}-cm-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)

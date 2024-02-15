@@ -25,9 +25,9 @@ import eu.openanalytics.shinyproxyoperator.Operator
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.createKubernetesClient
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.api.model.PodList
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
@@ -49,11 +49,11 @@ abstract class IntegrationTestBase {
 
     protected val chaosEnabled = System.getenv("SPO_TEST_CHAOS") != null
 
-    private val stableClient = DefaultKubernetesClient()
-    private val chaosClient: DefaultKubernetesClient = if (chaosEnabled) {
+    private val stableClient: NamespacedKubernetesClient = createKubernetesClient()
+    private val chaosClient: NamespacedKubernetesClient = if (chaosEnabled) {
         ChaosInterceptor.createChaosKubernetesClient()
     } else {
-        DefaultKubernetesClient()
+        createKubernetesClient()
     }
 
     @AfterEach
@@ -70,9 +70,9 @@ abstract class IntegrationTestBase {
         @AfterAll
         fun cleanupCRD() {
             runBlocking {
-                val client = DefaultKubernetesClient()
+                val client = createKubernetesClient()
                 val crd = client.apiextensions().v1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
-                client.apiextensions().v1().customResourceDefinitions().delete(crd)
+                client.apiextensions().v1().customResourceDefinitions().resource(crd).delete()
                 delay(2000)
 
                 while (client.apiextensions().v1().customResourceDefinitions().list().items.firstOrNull { it.spec.group == "openanalytics.eu" && it.spec.names.plural == "shinyproxies" } != null) {
@@ -95,8 +95,7 @@ abstract class IntegrationTestBase {
 
             // 2. create the CRD
             if (!crdExists()) {
-                val crd = stableClient.apiextensions().v1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).get()
-                stableClient.apiextensions().v1().customResourceDefinitions().createOrReplace(crd)
+                stableClient.apiextensions().v1().customResourceDefinitions().load(this.javaClass.getResource("/crd.yaml")).serverSideApply()
             }
 
             // 3. create the operator
@@ -121,7 +120,7 @@ abstract class IntegrationTestBase {
                 // 5. remove all instances
                 try {
                     for (sp in shinyProxyClient.inNamespace(namespace).list().items) {
-                        shinyProxyClient.delete(sp)
+                        shinyProxyClient.resource(sp).delete()
                     }
                 } catch (e: KubernetesClientException) {
                     // no SP created
@@ -137,11 +136,12 @@ abstract class IntegrationTestBase {
 
     private fun createNamespaces() {
         for (managedNamespace in managedNamespaces) {
-            stableClient.namespaces().create(NamespaceBuilder()
+            stableClient.namespaces().resource(NamespaceBuilder()
                 .withNewMetadata()
                 .withName(managedNamespace)
                 .endMetadata()
                 .build())
+                .serverSideApply()
         }
     }
 
@@ -203,7 +203,7 @@ abstract class IntegrationTestBase {
     }
 
     private fun setupServiceAccount() {
-        stableClient.load(this.javaClass.getResourceAsStream("/configs/serviceaccount.yaml")).createOrReplace()
+        stableClient.load(this.javaClass.getResourceAsStream("/configs/serviceaccount.yaml")).serverSideApply()
     }
 
     protected fun getPodsForInstance(instanceHash: String): PodList? {

@@ -47,7 +47,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     private val objectMapper = ObjectMapper().registerKotlinModule()
 
     fun create(): ShinyProxy {
-        val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).createOrReplace()
+        val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).serverSideApply()
         hash = sp.hashOfCurrentSpec
 
         // assert that it has been created
@@ -187,10 +187,11 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(sp.image, templateSpec.containers[0].image)
         assertEquals(sp.imagePullPolicy, templateSpec.containers[0].imagePullPolicy)
 
-        assertEquals(3, templateSpec.containers[0].env.size)
+        assertEquals(4, templateSpec.containers[0].env.size)
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
+        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_VERSION" })
         assertEquals(sp.metadata.name + '-'+ sp.metadata.namespace, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
 
         assertEquals(1, templateSpec.containers[0].volumeMounts.size)

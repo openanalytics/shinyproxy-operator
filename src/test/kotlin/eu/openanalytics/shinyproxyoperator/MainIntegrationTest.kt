@@ -289,16 +289,16 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             assertEquals(null, templateSpec.containers[0].startupProbe) // changed by patch
 
-            assertEquals(4, templateSpec.containers[0].env.size) // changed by patch
+            assertEquals(5, templateSpec.containers[0].env.size) // changed by patch
             assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
             assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
             assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" })
             assertEquals("TEST_VALUE", templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" }?.value)
             assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
-            assertEquals(
-                sp.metadata.name + '-' + sp.metadata.namespace,
+            assertEquals(sp.metadata.name + '-' + sp.metadata.namespace,
                 templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value
             )
+            assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_VERSION" })
 
             // check service
             spTestInstance.assertServiceIsCorrect(spTestInstance.retrieveInstance())
@@ -880,7 +880,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     fun `operator should properly handle 409 conflicts by replacing the resource`() =
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create conflicting resources
-            stableClient.load(this.javaClass.getResourceAsStream("/config/conflict.yaml")).createOrReplace()
+            stableClient.load(this.javaClass.getResourceAsStream("/config/conflict.yaml")).serverSideApply()
 
             // 2. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
