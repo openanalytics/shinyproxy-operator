@@ -10,10 +10,12 @@ jobs:
       matrix:
         java: [ 11 ]
         kubernetes:
-          - 'v1.22.17'
-          - 'v1.23.15'
-          - 'v1.24.9'
-          - 'v1.25.5'
+          - 'v1.24.17'
+          - 'v1.25.15'
+          - 'v1.26.14'
+          - 'v1.27.11'
+          - 'v1.28.7'
+          - 'v1.29.2'
 
     steps:
       - uses: actions/checkout@v2
