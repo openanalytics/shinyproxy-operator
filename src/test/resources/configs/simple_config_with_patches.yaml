@@ -44,7 +44,7 @@ spec:
         failureThreshold: 1
         httpGet:
           path: /actuator/health/liveness
-          port: 9090
+          port: "9090"
           scheme: HTTP
         periodSeconds: 1
         initialDelaySeconds: 30
@@ -56,7 +56,7 @@ spec:
         failureThreshold: 1
         httpGet:
           path: /actuator/health/readiness
-          port: 9090
+          port: "9090"
           scheme: HTTP
         periodSeconds: 1
         initialDelaySeconds: 30

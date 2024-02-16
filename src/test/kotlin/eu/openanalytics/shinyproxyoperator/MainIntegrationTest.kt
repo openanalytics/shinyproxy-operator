@@ -880,7 +880,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     fun `operator should properly handle 409 conflicts by replacing the resource`() =
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create conflicting resources
-            stableClient.load(this.javaClass.getResourceAsStream("/config/conflict.yaml")).serverSideApply()
+            stableClient.load(this.javaClass.getResourceAsStream("/configs/conflict.yaml")).serverSideApply()
 
             // 2. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
