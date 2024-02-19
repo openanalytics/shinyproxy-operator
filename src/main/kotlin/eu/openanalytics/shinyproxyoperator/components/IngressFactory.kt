@@ -33,7 +33,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
-    private val ingressPatcher = IngressPatcher()
+    private val ingressPatcher = Patcher()
 
     fun create(shinyProxy: ShinyProxy, latestShinyProxyInstance: ShinyProxyInstance) {
         val labels = LabelFactory.labelsForShinyProxy(shinyProxy).toMutableMap()

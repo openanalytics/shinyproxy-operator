@@ -34,7 +34,7 @@ class ServiceFactory(private val serviceClient: MixedOperation<Service, ServiceL
 
     private val logger = KotlinLogging.logger {}
 
-    private val servicePatcher = ServicePatcher()
+    private val servicePatcher = Patcher()
 
     fun create(shinyProxy: ShinyProxy, latestShinyProxyInstance: ShinyProxyInstance) {
         val labels = LabelFactory.labelsForShinyProxy(shinyProxy).toMutableMap()

@@ -27,7 +27,7 @@ import io.fabric8.kubernetes.api.model.*
 
 class PodTemplateSpecFactory {
 
-    private val podTemplatePatcher = PodTemplateSpecPatcher()
+    private val podTemplatePatcher = Patcher()
 
     fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): PodTemplateSpec {
 
