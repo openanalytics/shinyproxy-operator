@@ -32,35 +32,8 @@ spec:
       - id: 06_tabsets
         container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
         container-image: openanalytics/shinyproxy-demo
-  kubernetesPodTemplateSpecPatches: |
+  kubernetesServicePatches: |
     - op: add
-      path: /spec/containers/0/env/-
+      path: /metadata/annotations
       value:
-        name: TEST_VAR
-        value: TEST_VALUE
-    - op: replace
-      path: /spec/containers/0/livenessProbe
-      value:
-        failureThreshold: 1
-        httpGet:
-          path: /actuator/health/liveness
-          port: 9090
-          scheme: HTTP
-        periodSeconds: 1
-        initialDelaySeconds: 30
-        successThreshold: 1
-        timeoutSeconds: 1
-    - op: replace
-      path: /spec/containers/0/readinessProbe
-      value:
-        failureThreshold: 1
-        httpGet:
-          path: /actuator/health/readiness
-          port: 9090
-          scheme: HTTP
-        periodSeconds: 1
-        initialDelaySeconds: 30
-        successThreshold: 1
-        timeoutSeconds: 1
-    - op: remove
-      path: /spec/containers/0/startupProbe
+        my-service-ingress-patch: "abc"

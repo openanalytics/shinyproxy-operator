@@ -26,6 +26,7 @@ import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.createKubernetesClient
+import eu.openanalytics.shinyproxyoperator.logger
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.api.model.PodList
 import io.fabric8.kubernetes.client.KubernetesClient
@@ -184,15 +185,22 @@ abstract class IntegrationTestBase {
         val oldNumApps = getPodsForInstance(instance.hash)?.items?.filter { it.status.phase.equals("Running") }?.size ?: 0
         val serviceName = "sp-${shinyProxy.metadata.name}-svc".take(63)
         stableClient.run().inNamespace(shinyProxy.metadata.namespace)
-            .withRunConfig(RunConfigBuilder()
-                .withName("itest-curl-helper")
-                .withImage("curlimages/curl")
-                .withArgs("-X", "POST", "-u", "demo:demo", "${serviceName}/api/proxy/01_hello")
-                .withRestartPolicy("Never")
-                .build())
+            .withNewRunConfig()
+            .withName("itest-curl-helper")
+            .withImage("curlimages/curl")
+            .withArgs("-X", "POST", "-u", "demo:demo", "${serviceName}/api/proxy/01_hello")
+            .withRestartPolicy("Never")
             .done()
+        delay(5_000)
         withTimeout(60_000) {
             while (true) {
+                try {
+                    logger.info { "Pod: ${stableClient.kubernetesSerialization.asJson(stableClient.pods().inNamespace(shinyProxy.metadata.namespace).withName("itest-curl-helper").get())}" }
+                    logger.info { "Pod: ${stableClient.pods().inNamespace(shinyProxy.metadata.namespace).withName("itest-curl-helper").log}" }
+                } catch (e: Throwable) {
+                    logger. info { e }
+                }
+
                 val newNumApps = getPodsForInstance(instance.hash)?.items?.filter { it.status.phase.equals("Running") }?.size ?: continue
                 if (newNumApps > oldNumApps) {
                     break

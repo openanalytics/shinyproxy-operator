@@ -210,7 +210,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `sp in other namespaced should be ignored when using namespaced mode`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create a SP instance in other namespace
             val spTestInstance = ShinyProxyTestInstance(
                 "itest-2",
@@ -494,7 +494,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `configuration with subpath not ending in slash`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener , _->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
                 namespace,
@@ -1092,7 +1092,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             // check configmap
             spTestInstance.assertConfigMapIsCorrect(sp)
 
-           // check replicaset
+            // check replicaset
             spTestInstance.assertReplicaSetIsCorrect(sp)
 
             // check service
@@ -1134,5 +1134,82 @@ class MainIntegrationTest : IntegrationTestBase() {
             job.cancel()
         }
 
+    @Test
+    fun `ingress patch`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_with_ingress_patches.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+            val sp = spTestInstance.retrieveInstance()
+
+            val allIngresses = namespacedClient.network().v1().ingresses().list().items
+            assertEquals(1, allIngresses.size)
+            val ingress = allIngresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing".take(63) }
+            assertNotNull(ingress)
+
+            assertEquals(mapOf(
+                "nginx.ingress.kubernetes.io/proxy-buffer-size" to "128k",
+                "nginx.ingress.kubernetes.io/ssl-redirect" to "true",
+                "nginx.ingress.kubernetes.io/proxy-body-size" to "300m"
+            ), ingress.metadata.annotations)
+
+            job.cancel()
+        }
+
+    @Test
+    fun `service patch`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_with_service_patches.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+            // 2. start the operator and let it do it's work
+            val job = GlobalScope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+            val sp = spTestInstance.retrieveInstance()
+
+            val services = namespacedClient.inNamespace(namespace).services().list().items
+            assertEquals(1, services.size)
+            val service = services.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-svc".take(63) }
+            assertNotNull(service)
+
+            assertEquals(mapOf(
+                "my-service-ingress-patch" to "abc"
+            ), service.metadata.annotations)
+
+            job.cancel()
+        }
 
 }
