@@ -25,6 +25,6 @@ import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 
 interface IRecyclableChecker {
 
-    fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean
+    suspend fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean
 
 }
