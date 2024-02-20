@@ -29,10 +29,12 @@ import eu.openanalytics.shinyproxyoperator.createKubernetesClient
 import eu.openanalytics.shinyproxyoperator.logger
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.api.model.PodList
+import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
-import io.fabric8.kubernetes.client.extended.run.RunConfigBuilder
+import io.fabric8.kubernetes.client.dsl.Resource
+import io.fabric8.kubernetes.client.dsl.RollableScalableResource
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -219,6 +221,13 @@ abstract class IntegrationTestBase {
             LabelFactory.PROXIED_APP to "true",
             LabelFactory.INSTANCE_LABEL to instanceHash
         )).list()
+    }
+
+    protected fun <T> getAndDelete(resource: Resource<T>) {
+        if (resource.get() == null) {
+            throw IllegalStateException("Trying to delete resource but it does not exist!")
+        }
+        resource.delete()
     }
 
 }

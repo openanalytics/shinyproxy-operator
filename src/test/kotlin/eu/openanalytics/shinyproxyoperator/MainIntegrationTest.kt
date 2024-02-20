@@ -165,19 +165,26 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.assertInstanceIsCorrect()
 
             // 5. Delete Replicaset -> reconcile -> assert it is still ok
+            val replicaSetName = "sp-${sp.metadata.name}-rs-0-${spTestInstance.hash}".take(63)
             executeAsyncAfter100ms {
-                stableClient.apps().replicaSets()
-                    .withName("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63)).delete()
+                getAndDelete(stableClient.apps().replicaSets().withName(replicaSetName))
                 logger.info { "Deleted ReplicaSet" }
             }
             spTestInstance.waitForReconcileCycle()
             logger.info { "Reconciled after deleting RS" }
+            // wait for replicaset to be ready
+            withTimeout(50_000) {
+                while (stableClient.apps().replicaSets().withName(replicaSetName)?.get()?.status?.readyReplicas != 1){
+                    logger.info { "Replicaset not yet ready" }
+                    delay(1000)
+                }
+            }
+            logger.info { "Replicaset ready" }
             spTestInstance.assertInstanceIsCorrect()
 
             // 6. Delete ConfigMap -> reconcile -> assert it is still ok
             executeAsyncAfter100ms {
-                stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63))
-                    .delete()
+                getAndDelete(stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63)))
                 logger.info { "Deleted ConfigMap" }
             }
             spTestInstance.waitForOneReconcile()
@@ -186,8 +193,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 7. Delete Service -> reconcile -> assert it is still ok
             executeAsyncAfter100ms {
-                stableClient.services().withName("sp-${sp.metadata.name}-svc".take(63))
-                    .delete()
+                getAndDelete(stableClient.services().withName("sp-${sp.metadata.name}-svc".take(63)))
                 logger.info { "Deleted Service" }
             }
             spTestInstance.waitForOneReconcile()
@@ -196,8 +202,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 8. Delete Ingress -> reconcile -> assert it is still ok
             executeAsyncAfter100ms {
-                stableClient.network().v1().ingresses()
-                    .withName("sp-${sp.metadata.name}-ing".take(63)).delete()
+                getAndDelete(stableClient.network().v1().ingresses().withName("sp-${sp.metadata.name}-ing".take(63)))
                 logger.info { "Deleted Ingress" }
             }
             spTestInstance.waitForReconcileCycle()
@@ -354,12 +359,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             recyclableChecker.isRecyclable = true
 
             // 8. wait for delete to happen
-            while (stableClient.pods().withName("sp-${sp.metadata.name}-pod-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63)).get() != null) {
-                delay(1000)
-                logger.debug { "Pod still exists!" }
-            }
+            spTestInstanceOriginal.waitForDeletion(sp)
 
             // 9. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
@@ -427,12 +427,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             recyclableChecker.isRecyclable = true
 
             // 10. wait for delete to happen
-            while (stableClient.pods().withName("sp-${sp.metadata.name}-pod-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63)).get() != null) {
-                delay(1000)
-                logger.debug { "Pod still exists!" }
-            }
+            spTestInstanceOriginal.waitForDeletion(sp)
 
             // 11. assert older instance does not exist anymore
             assertThrows<IllegalStateException>("Instance not found") {
@@ -636,12 +631,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstanceUpdated.waitForOneReconcile()
 
             // 7. wait for delete to happen
-            while (stableClient.pods().withName("sp-${sp.metadata.name}-pod-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63)).get() != null) {
-                delay(1000)
-                logger.debug { "Pod still exists!" }
-            }
+            spTestInstanceOriginal.waitForDeletion(sp)
 
             // 8. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
@@ -712,8 +702,8 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `restore old config version`() =
-    // idea of test: launch instance A, update config to get instance B, and the update config again
-        // using the same config as A, resulting in instance A' (which is the same instance as A, as A was never removed!)
+        // idea of test: launch instance A, update config to get instance B, and the update config again
+        // the operator will start a new instance, with an increased revision
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, recyclableChecker ->
             // 1. create a SP instance
             val instanceA = ShinyProxyTestInstance(
@@ -776,22 +766,25 @@ class MainIntegrationTest : IntegrationTestBase() {
             // 10. wait until instance is created
             instanceAPrime.waitForOneReconcile()
 
-            // 11. wait for delete to happen
+            // 11. wait for delete of instance A to happen
             recyclableChecker.isRecyclable = true
-            while (stableClient.pods().withName("sp-${spB.metadata.name}-pod-${instanceB.hash}".take(63)).get() != null
-                || stableClient.configMaps().withName("sp-${spB.metadata.name}-cm-${instanceB.hash}".take(63)).get() != null
-                || stableClient.services().withName("sp-${spB.metadata.name}-svc-${instanceB.hash}".take(63)).get() != null) {
-                delay(1000)
-                logger.debug { "Pod still exists!" }
+            instanceA.waitForDeletion(spA)
+
+            // 12. assert instance A does not exists anymore
+            assertThrows<IllegalStateException>("Instance not found") {
+                instanceA.retrieveInstance(0)
             }
 
-            // 12. assert instance B does not exists anymore
+            // 13. wait for delete of instance B to happen
+            instanceB.waitForDeletion(spB)
+
+            // 14. assert instance B does not exists anymore
             assertThrows<IllegalStateException>("Instance not found") {
                 instanceB.retrieveInstance()
             }
 
             // 13. assert instance A' is correct
-            instanceAPrime.assertInstanceIsCorrect(1, true)
+            instanceAPrime.assertInstanceIsCorrect(1, true, 1)
 
             job.cancel()
 
@@ -952,7 +945,8 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertEquals(mapOf(
                 LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
                 LabelFactory.REALM_ID_LABEL to sp.realmId,
-                LabelFactory.INSTANCE_LABEL to spTestInstance.hash
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
+                LabelFactory.REVISION_LABEL to "0"
             ), rule.podAffinityTerm.labelSelector.matchLabels)
 
             job.cancel()
@@ -1002,7 +996,8 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertEquals(mapOf(
                 LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
                 LabelFactory.REALM_ID_LABEL to sp.realmId,
-                LabelFactory.INSTANCE_LABEL to spTestInstance.hash
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
+                LabelFactory.REVISION_LABEL to "0"
             ), rule.labelSelector.matchLabels)
 
             job.cancel()
@@ -1054,7 +1049,8 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertEquals(mapOf(
                 LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
                 LabelFactory.REALM_ID_LABEL to sp.realmId,
-                LabelFactory.INSTANCE_LABEL to spTestInstance.hash
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
+                LabelFactory.REVISION_LABEL to "0"
             ), rule.podAffinityTerm.labelSelector.matchLabels)
 
             job.cancel()

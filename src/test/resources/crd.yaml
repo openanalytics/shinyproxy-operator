@@ -148,6 +148,8 @@ spec:
                         type: string
                       isLatestInstance:
                         type: boolean
+                      revision:
+                        type: integer
       subresources:
         status: {}
     - name: v1alpha1
@@ -290,4 +292,3 @@ spec:
                         type: boolean
       subresources:
         status: {}
-

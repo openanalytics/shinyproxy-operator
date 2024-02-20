@@ -33,6 +33,7 @@ import io.fabric8.kubernetes.model.annotation.Group
 import io.fabric8.kubernetes.model.annotation.Version
 import javax.json.JsonPatch
 
+
 @Version("v1")
 @Group("openanalytics.eu")
 class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
@@ -202,7 +203,7 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
     }
 
     fun logPrefix(shinyProxyInstance: ShinyProxyInstance): String {
-        return "[${metadata.namespace}/${metadata.name}/${shinyProxyInstance.hashOfSpec}]"
+        return "[${metadata.namespace}/${metadata.name}/${shinyProxyInstance.hashOfSpec}/${shinyProxyInstance.revision}]"
     }
 
     fun logPrefix(): String {

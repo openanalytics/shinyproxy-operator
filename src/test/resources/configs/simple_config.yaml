@@ -10,12 +10,14 @@ spec:
     logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
     landingPage: /
     heartbeatRate: 10000
-    heartbeatTimeout: 60000
+    heartbeatTimeout: -1
     port: 8080
     authentication: simple
     containerBackend: kubernetes
+    stop-proxies-on-shutdown: false
     kubernetes:
       namespace: itest
+      internal-networking: true
     users:
       - name: demo
         password: demo

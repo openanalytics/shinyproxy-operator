@@ -30,7 +30,8 @@ object LabelFactory {
         return mapOf(
             APP_LABEL to APP_LABEL_VALUE,
             REALM_ID_LABEL to shinyProxy.realmId,
-            INSTANCE_LABEL to hashOfSpec
+            INSTANCE_LABEL to hashOfSpec,
+            REVISION_LABEL to shinyProxyInstance.revision.toString()
         )
     }
 
@@ -45,6 +46,7 @@ object LabelFactory {
     const val APP_LABEL_VALUE = "shinyproxy"
     const val REALM_ID_LABEL = "openanalytics.eu/sp-realm-id"
     const val INSTANCE_LABEL = "openanalytics.eu/sp-instance"
+    const val REVISION_LABEL = "openanalytics.eu/sp-instance-revision"
     const val LATEST_INSTANCE_LABEL = "openanalytics.eu/sp-latest-instance"
     const val PROXIED_APP = "openanalytics.eu/sp-proxied-app"
 

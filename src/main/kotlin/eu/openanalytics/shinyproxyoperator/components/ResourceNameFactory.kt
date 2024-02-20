@@ -32,11 +32,11 @@ object ResourceNameFactory {
     }
 
     fun createNameForPod(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        return "sp-${shinyProxy.metadata.name}-pod-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
+        return "sp-${shinyProxy.metadata.name}-pod-${shinyProxyInstance.revision}-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
     fun createNameForReplicaSet(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        return "sp-${shinyProxy.metadata.name}-rs-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
+        return "sp-${shinyProxy.metadata.name}-rs-${shinyProxyInstance.revision}-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
     fun createNameForService(shinyProxy: ShinyProxy): String {
