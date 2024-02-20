@@ -29,7 +29,9 @@ class TestExecutionListener : SummaryGeneratingListener() {
 
     init {
         Runtime.getRuntime().addShutdownHook(Thread {
-            summary.printTo(PrintWriter(System.out))
+            if (summary != null) {
+                summary.printTo(PrintWriter(System.out))
+            }
         })
     }
 
@@ -57,6 +59,9 @@ class TestExecutionListener : SummaryGeneratingListener() {
 
         println()
         println("\t\t--> Finished test \"${testIdentifier.displayName}\": $testExecutionResult")
+        if (testExecutionResult.throwable.isPresent) {
+            testExecutionResult.throwable.get().printStackTrace()
+        }
         println()
     }
 

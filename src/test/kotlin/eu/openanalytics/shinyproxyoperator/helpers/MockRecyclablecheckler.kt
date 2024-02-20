@@ -30,7 +30,7 @@ class MockRecyclableChecker : IRecyclableChecker {
     @Volatile
     var isRecyclable: Boolean = false
 
-    override fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean {
+    override suspend fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean {
         return isRecyclable
     }
 

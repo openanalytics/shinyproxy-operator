@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ 11 ]
+        java: [ 17 ]
         kubernetes:
           - 'v1.24.17'
           - 'v1.25.15'
@@ -35,9 +35,10 @@ jobs:
           minikube version: 'v1.32.0'
           kubernetes version:  ${{ matrix.kubernetes }}
           github token: ${{ secrets.GITHUB_TOKEN }}
+          driver: docker
       - name: Pull images
         run: |
-          minikube image pull openanalytics/shinyproxy-demo
+          minikube image pull openanalytics/shinyproxy-integration-test-app
           minikube image pull curlimages/curl:latest
       - name: Build with Maven
         run: mvn -B -U clean install -DskipTests

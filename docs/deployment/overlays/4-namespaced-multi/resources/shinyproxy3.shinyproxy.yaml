@@ -46,11 +46,11 @@ spec:
         display-name: Hello Application
         description: Application which demonstrates the basics of a Shiny app
         container-cmd: ["R", "-e", "shinyproxy::run_01_hello()"]
-        container-image: openanalytics/shinyproxy-demo
+        container-image: openanalytics/shinyproxy-integration-test-app
         access-groups: [scientists, mathematicians]
       - id: 06_tabsets
         container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
-        container-image: openanalytics/shinyproxy-demo
+        container-image: openanalytics/shinyproxy-integration-test-app
         access-groups: scientists
       - id: rstudio
         displayName: RStudio

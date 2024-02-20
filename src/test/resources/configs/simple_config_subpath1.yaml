@@ -28,10 +28,10 @@ spec:
         displayName: Hello Application
         description: Application which demonstrates the basics of a Shiny app
         containerCmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
-        containerImage: openanalytics/shinyproxy-demo
+        containerImage: openanalytics/shinyproxy-integration-test-app
       - id: 06_tabsets
         container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
-        container-image: openanalytics/shinyproxy-demo
+        container-image: openanalytics/shinyproxy-integration-test-app
   server:
     servlet:
       context-path: /sub-path
