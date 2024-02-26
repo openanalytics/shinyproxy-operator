@@ -27,7 +27,6 @@ import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.readiness.Readiness
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -97,7 +96,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             assertTrue(checked) // actually checked that ingress wasn't created when the ReplicaSet wasn't ready yet
 
-            val job = GlobalScope.launch {
+            scope.launch {
                 // let the operator finish its business
                 operator.run(resourceRetriever, shinyProxyLister)
             }
@@ -107,7 +106,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 5. assert correctness
             spTestInstance.assertInstanceIsCorrect()
-            job.cancel()
         }
 
     @Test
@@ -125,7 +123,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
             // 2. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -134,7 +132,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 4. assert correctness
             spTestInstance.assertInstanceIsCorrect()
-            job.cancel()
         }
 
     @Test
@@ -153,7 +150,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -208,9 +205,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.waitForReconcileCycle()
             spTestInstance.assertInstanceIsCorrect()
             logger.info { "Reconciled after deleting Ingress" }
-
-            job.cancel()
-            logger.info { "Operator stopped" }
         }
 
     @Test
@@ -228,7 +222,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -237,8 +231,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // assert that there are no ReplicaSets created
             assertEquals(0, stableClient.apps().replicaSets().list().items.size)
-
-            job.cancel()
         }
 
     @Test
@@ -256,7 +248,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -310,8 +302,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // check ingress
             spTestInstance.assertIngressIsCorrect(spTestInstance.retrieveInstance())
-
-            job.cancel()
         }
 
     @Test
@@ -330,7 +320,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -368,8 +358,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertThrows<IllegalStateException>("Instance not found") {
                 spTestInstanceOriginal.retrieveInstance()
             }
-
-            job.cancel()
         }
 
     @Test
@@ -388,7 +376,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -439,8 +427,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 13. assert app still exists
             assertEquals(1, getPodsForInstance(spTestInstanceOriginal.hash)?.items?.size)
-
-            job.cancel()
         }
 
     @Test
@@ -458,7 +444,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -483,8 +469,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 7. assert correctness
             spTestInstance2.assertInstanceIsCorrect()
-
-            job.cancel()
         }
 
     @Test
@@ -502,7 +486,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -516,8 +500,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
             assertEquals(1, ingresses.size)
             assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"));
-
-            job.cancel()
         }
 
 
@@ -536,7 +518,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -551,8 +533,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
             assertEquals(1, ingresses.size)
             assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"));
-
-            job.cancel()
         }
 
     /**
@@ -574,7 +554,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            val job = scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -640,8 +620,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertThrows<IllegalStateException>("Instance not found") {
                 spTestInstanceOriginal.retrieveInstance()
             }
-
-            job.cancel()
         }
 
     @Test
@@ -662,7 +640,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
         // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
+        val job = scope.launch {
             operator.run(resourceRetriever, shinyProxyLister)
         }
 
@@ -677,7 +655,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         val instance = spTestInstance.retrieveInstance().status.instances.first()
 
         // 5. schedule reconcile directly after deleting
-        GlobalScope.launch {
+        scope.launch {
             repeat(10) {
                 delay(10)
                 logger.debug { "Trying to trigger bug, by triggering reconcile with old status" }
@@ -717,7 +695,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
             // 2. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -785,9 +763,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 13. assert instance A' is correct
             instanceAPrime.assertInstanceIsCorrect(1, true, 1)
-
-            job.cancel()
-
         }
 
     // see #25154
@@ -888,7 +863,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
             // 3. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -897,7 +872,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 5. assert correctness
             spTestInstance.assertInstanceIsCorrect()
-            job.cancel()
         }
 
     @Test
@@ -916,7 +890,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
             // 3. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -948,8 +922,6 @@ class MainIntegrationTest : IntegrationTestBase() {
                 LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
                 LabelFactory.REVISION_LABEL to "0"
             ), rule.podAffinityTerm.labelSelector.matchLabels)
-
-            job.cancel()
         }
 
     @Test
@@ -968,7 +940,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
             // 3. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -999,8 +971,6 @@ class MainIntegrationTest : IntegrationTestBase() {
                 LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
                 LabelFactory.REVISION_LABEL to "0"
             ), rule.labelSelector.matchLabels)
-
-            job.cancel()
         }
 
 
@@ -1020,7 +990,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
             // 3. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -1052,8 +1022,6 @@ class MainIntegrationTest : IntegrationTestBase() {
                 LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
                 LabelFactory.REVISION_LABEL to "0"
             ), rule.podAffinityTerm.labelSelector.matchLabels)
-
-            job.cancel()
         }
 
     @Test
@@ -1071,7 +1039,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
             // 2. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -1126,8 +1094,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertEquals(sp.subPath, path2.path)
             assertEquals("sp-${sp.metadata.name}-svc".take(63), path2.backend.service.name)
             assertEquals(80, path2.backend.service.port.number)
-
-            job.cancel()
         }
 
     @Test
@@ -1145,7 +1111,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
             // 2. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -1186,8 +1152,6 @@ class MainIntegrationTest : IntegrationTestBase() {
                 "nginx.ingress.kubernetes.io/ssl-redirect" to "true",
                 "nginx.ingress.kubernetes.io/proxy-body-size" to "300m"
             ), ingress.metadata.annotations)
-
-            job.cancel()
         }
 
     @Test
@@ -1205,7 +1169,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
             // 2. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -1224,8 +1188,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertEquals(mapOf(
                 "my-service-ingress-patch" to "abc"
             ), service.metadata.annotations)
-
-            job.cancel()
         }
 
 }

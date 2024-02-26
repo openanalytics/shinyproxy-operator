@@ -60,7 +60,9 @@ class TestExecutionListener : SummaryGeneratingListener() {
         println()
         println("\t\t--> Finished test \"${testIdentifier.displayName}\": $testExecutionResult")
         if (testExecutionResult.throwable.isPresent) {
-            testExecutionResult.throwable.get().printStackTrace()
+            println()
+            print("\t\t--> ")
+            println(testExecutionResult.throwable.get().stackTraceToString())
         }
         println()
     }

@@ -35,8 +35,11 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -59,9 +62,12 @@ abstract class IntegrationTestBase {
         createKubernetesClient()
     }
 
+    protected val scope = CoroutineScope(Dispatchers.Default)
+
     @AfterEach
     fun cleanup() {
         runBlocking {
+            scope.cancel()
             deleteNamespaces()
             stableClient.httpClient.close()
         }
