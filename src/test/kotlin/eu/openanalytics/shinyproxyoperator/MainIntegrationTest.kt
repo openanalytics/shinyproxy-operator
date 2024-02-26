@@ -1153,14 +1153,34 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.waitForOneReconcile()
 
             // 4. assert correctness
-            spTestInstance.assertInstanceIsCorrect()
             val sp = spTestInstance.retrieveInstance()
+            assertNotNull(sp)
+            val instance = sp.status.instances[0]
+            assertNotNull(instance)
+            assertTrue(instance.isLatestInstance)
 
+            // check configmap
+            spTestInstance.assertConfigMapIsCorrect(sp)
+
+            // check replicaset
+            spTestInstance.assertReplicaSetIsCorrect(sp)
+
+            // check service
+            spTestInstance.assertServiceIsCorrect(spTestInstance.retrieveInstance())
+
+            // check ingress
             val allIngresses = namespacedClient.network().v1().ingresses().list().items
             assertEquals(1, allIngresses.size)
             val ingress = allIngresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing".take(63) }
             assertNotNull(ingress)
 
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
+            ), ingress.metadata.labels)
+
+            // nginx.org annotation was replaced
             assertEquals(mapOf(
                 "nginx.ingress.kubernetes.io/proxy-buffer-size" to "128k",
                 "nginx.ingress.kubernetes.io/ssl-redirect" to "true",

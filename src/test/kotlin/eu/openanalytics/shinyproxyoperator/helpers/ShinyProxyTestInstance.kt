@@ -127,6 +127,12 @@ class ShinyProxyTestInstance(private val namespace: String,
             LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
         ), ingress.metadata.labels)
 
+        assertEquals(mapOf(
+            "nginx.org/websocket-services" to "sp-${sp.metadata.name}-svc".take(63),
+        ),
+            ingress.metadata.annotations
+        )
+
         assertOwnerReferenceIsCorrect(ingress, sp)
 
         assertEquals(1, ingress.spec.rules.size)

@@ -54,6 +54,7 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                 .withNewMetadata()
                     .withName(ResourceNameFactory.createNameForIngress(shinyProxy))
                     .withLabels<String, String>(labels)
+                    .withAnnotations<String, String>(mapOf("nginx.org/websocket-services" to ResourceNameFactory.createNameForService(shinyProxy)))
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
