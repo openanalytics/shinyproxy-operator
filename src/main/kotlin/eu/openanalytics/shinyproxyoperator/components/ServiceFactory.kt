@@ -66,7 +66,7 @@ class ServiceFactory(private val serviceClient: MixedOperation<Service, ServiceL
         //@formatter:on
 
         val patchedService = servicePatcher.patch(serviceDefinition, shinyProxy.parsedServicePatches)
-        val createdService = serviceClient.inNamespace(shinyProxy.metadata.namespace).resource(patchedService).serverSideApply()
+        val createdService = serviceClient.inNamespace(shinyProxy.metadata.namespace).resource(patchedService).forceConflicts().serverSideApply()
         logger.debug { "${shinyProxy.logPrefix(latestShinyProxyInstance)} [Component/Service] Created ${createdService.metadata.name}" }
     }
 
