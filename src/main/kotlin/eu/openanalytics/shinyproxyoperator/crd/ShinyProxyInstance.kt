@@ -20,4 +20,4 @@
  */
 package eu.openanalytics.shinyproxyoperator.crd
 
-data class ShinyProxyInstance(val hashOfSpec: String, var isLatestInstance: Boolean, val revision: Int = 0)
+data class ShinyProxyInstance(val hashOfSpec: String, var isLatestInstance: Boolean, val revision: Int? = null)

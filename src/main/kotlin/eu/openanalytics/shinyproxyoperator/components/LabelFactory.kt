@@ -27,12 +27,16 @@ object LabelFactory {
 
     fun labelsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Map<String, String> {
         val hashOfSpec = shinyProxyInstance.hashOfSpec
-        return mapOf(
+        val labels = hashMapOf(
             APP_LABEL to APP_LABEL_VALUE,
             REALM_ID_LABEL to shinyProxy.realmId,
             INSTANCE_LABEL to hashOfSpec,
-            REVISION_LABEL to shinyProxyInstance.revision.toString()
         )
+        if (shinyProxyInstance.revision != null) {
+            // only match on revision label, if a revision is set, ensure backwards compatibility
+            labels[REVISION_LABEL] = shinyProxyInstance.revision.toString()
+        }
+        return labels
     }
 
     fun labelsForShinyProxy(shinyProxy: ShinyProxy): Map<String, String> {

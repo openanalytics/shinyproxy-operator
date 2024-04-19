@@ -135,7 +135,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         val revision = if (existingInstance != null) {
             logger.info { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is not the latest instance. Therefore this instance will become the latest again" }
             // reconcile will take care of making this the latest instance again
-            existingInstance.revision + 1
+            (existingInstance.revision ?: 0) + 1
         } else {
             0
         }
@@ -286,7 +286,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 val instancesToCheck = shinyProxy.status.instances.toList()
                 for (shinyProxyInstance in instancesToCheck) {
                     val latestRevision = shinyProxy.status.getInstanceByHash(shinyProxyInstance.hashOfSpec)?.revision ?: 0
-                    if (shinyProxyInstance.isLatestInstance || (shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec && shinyProxyInstance.revision >= latestRevision)) {
+                    if (shinyProxyInstance.isLatestInstance || (shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec && shinyProxyInstance.revision != null && shinyProxyInstance.revision >= latestRevision)) {
                         // shinyProxyInstance is either the latest or the soon to be latest instance
                         continue
                     }
@@ -321,9 +321,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             delay(30_000)
             logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 3/3]: Delete resources" }
 
-            for (service in resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
-                kubernetesClient.resource(service).delete()
-            }
             for (replicaSet in resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
                 kubernetesClient.resource(replicaSet).delete()
             }
