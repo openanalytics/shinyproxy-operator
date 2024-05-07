@@ -11,12 +11,13 @@ spec:
   spring:
     session:
       store-type: redis
-    redis:
-      password: ${REDIS_PASSWORD}
-      sentinel:
-        master: shinyproxy
+    data:
+      redis:
         password: ${REDIS_PASSWORD}
-        nodes: redis-node-0.redis-headless:26379, redis-node-1.redis-headless:26379, redis-node-2.redis-headless:26379
+        sentinel:
+          master: shinyproxy
+          password: ${REDIS_PASSWORD}
+          nodes: redis-node-0.redis-headless:26379, redis-node-1.redis-headless:26379, redis-node-2.redis-headless:26379
   proxy:
     store-mode: Redis
     stop-proxies-on-shutdown: false
@@ -43,7 +44,7 @@ spec:
         display-name: Hello Application
         description: Application which demonstrates the basics of a Shiny app
         container-cmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
-        container-image: openanalytics/shinyproxy-integration-test-app
+        container-image: openanalytics/shinyproxy-demo
         access-groups: [ scientists, mathematicians ]
         kubernetes-pod-patches: |
           - op: replace
@@ -51,7 +52,7 @@ spec:
             value: my-namespace
       - id: 06_tabsets
         container-cmd: ["R", "-e", "shinyproxy::run_06_tabsets()"]
-        container-image: openanalytics/shinyproxy-integration-test-app
+        container-image: openanalytics/shinyproxy-demo
         access-groups: scientists
       - id: rstudio
         displayName: RStudio
