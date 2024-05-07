@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
+import kotlinx.coroutines.delay
 import mu.KotlinLogging
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -46,21 +47,33 @@ class RecyclableChecker(
 
     data class Response(@JsonProperty("isRecyclable") val isRecyclable: Boolean, @JsonProperty("activeConnections") val activeConnections: Int)
 
-    override fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean {
+    override suspend fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean {
         val pods = podRetriever.getShinyProxyPods(shinyProxy, shinyProxyInstance)
 
         for (pod in pods) {
             for (i in 1..5) {
-                val resp = checkServer(pod.status.podIP)
-                if (resp == null) {
-                    // no response received, try to check again
-                    logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} unreachable for recyclable check (using ${pod.status.podIP})" }
-                    Thread.sleep(500)
-                    continue
-                }
-                if (!resp.isRecyclable) {
-                    logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Replica is not recyclable." }
-                    return false
+                try {
+                    val podIP: String? = pod.status.podIP
+                    if (podIP == null) {
+                        // no response received, try to check again
+                        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} no ip found during recyclable check" }
+                        delay(500)
+                        continue
+                    }
+                    val resp = checkServer(pod.status.podIP)
+                    if (resp == null) {
+                        // no response received, try to check again
+                        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} unreachable for recyclable check (using ${pod.status.podIP})" }
+                        delay(500)
+                        continue
+                    }
+                    if (!resp.isRecyclable) {
+                        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Replica is not recyclable." }
+                        return false
+                    }
+                } catch (e: Throwable) {
+                    logger.warn(e) { "${shinyProxy.logPrefix(shinyProxyInstance)} exception during recyclable check" }
+                    delay(500)
                 }
             }
         }

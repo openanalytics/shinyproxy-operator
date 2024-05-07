@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -33,6 +33,7 @@ import io.fabric8.kubernetes.model.annotation.Group
 import io.fabric8.kubernetes.model.annotation.Version
 import javax.json.JsonPatch
 
+
 @Version("v1")
 @Group("openanalytics.eu")
 class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
@@ -40,7 +41,6 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
     override fun initStatus(): ShinyProxyStatus {
         return ShinyProxyStatus()
     }
-
 
     @get:JsonIgnore
     val image: String by lazy {
@@ -64,6 +64,14 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
             return@lazy spec.get("fqdn").textValue()
         }
         throw IllegalStateException("Cannot create ShinyProxy instance when no FQDN is specified!")
+    }
+
+    @get:JsonIgnore
+    val additionalFqdns: List<String> by lazy {
+        if (spec.get("additionalFqdns")?.isArray == true) {
+            return@lazy spec.get("additionalFqdns").elements().asSequence().map { it.textValue() }.toList()
+        }
+        return@lazy listOf()
     }
 
     @get:JsonIgnore
@@ -139,6 +147,23 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
     }
 
     @get:JsonIgnore
+    val parsedServicePatches: JsonPatch? by lazy {
+        if (spec.get("kubernetesServicePatches")?.isTextual == true) {
+            try {
+                // convert the raw YAML string into a JsonPatch
+                val yamlReader = ObjectMapper(YAMLFactory())
+                yamlReader.registerModule(JSR353Module())
+                return@lazy yamlReader.readValue(spec.get("kubernetesServicePatches").textValue(), JsonPatch::class.java)
+            } catch (exception: Exception) {
+                exception.printStackTrace() // log the exception for easier debugging
+                throw exception
+            }
+
+        }
+        return@lazy null
+    }
+
+    @get:JsonIgnore
     val subPath: String by lazy {
         if (spec.get("server")?.get("servlet")?.get("context-path")?.isTextual == true) {
             val path = spec.get("server").get("servlet").get("context-path").textValue()
@@ -161,9 +186,24 @@ class ShinyProxy : CustomResource<JsonNode, ShinyProxyStatus>(), Namespaced {
         return@lazy "${metadata.name}-${metadata.namespace}"
     }
 
+    @get:JsonIgnore
+    val antiAffinityTopologyKey: String by lazy {
+        if (spec.get("antiAffinityTopologyKey")?.isTextual == true) {
+            return@lazy spec.get("antiAffinityTopologyKey").textValue()
+        }
+        return@lazy "kubernetes.io/hostname"
+    }
+
+    @get:JsonIgnore
+    val antiAffinityRequired: Boolean by lazy {
+        if (spec.get("antiAffinityRequired")?.isBoolean == true) {
+            return@lazy spec.get("antiAffinityRequired").booleanValue()
+        }
+        return@lazy false
+    }
 
     fun logPrefix(shinyProxyInstance: ShinyProxyInstance): String {
-        return "[${metadata.namespace}/${metadata.name}/${shinyProxyInstance.hashOfSpec}]"
+        return "[${metadata.namespace}/${metadata.name}/${shinyProxyInstance.hashOfSpec}/${shinyProxyInstance.revision}]"
     }
 
     fun logPrefix(): String {

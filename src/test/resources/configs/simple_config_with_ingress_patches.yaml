@@ -32,6 +32,10 @@ spec:
       - id: 06_tabsets
         container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
         container-image: openanalytics/shinyproxy-integration-test-app
-  server:
-    servlet:
-      context-path: /sub-path
+  kubernetesIngressPatches: |
+    - op: add
+      path: /metadata/annotations
+      value:
+        nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        nginx.ingress.kubernetes.io/proxy-body-size: 300m

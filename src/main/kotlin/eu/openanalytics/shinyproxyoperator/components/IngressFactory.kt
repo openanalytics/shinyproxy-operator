@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -21,9 +21,11 @@
 package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPath
 import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPathBuilder
 import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder
+import io.fabric8.kubernetes.api.model.networking.v1.IngressRuleBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import mu.KotlinLogging
 
@@ -31,14 +33,28 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
 
     private val logger = KotlinLogging.logger {}
 
-    private val ingressPatcher = IngressPatcher()
+    private val ingressPatcher = Patcher()
 
-    fun create(shinyProxy: ShinyProxy) {
+    fun create(shinyProxy: ShinyProxy, latestShinyProxyInstance: ShinyProxyInstance) {
+        val labels = LabelFactory.labelsForShinyProxy(shinyProxy).toMutableMap()
+        labels[LabelFactory.LATEST_INSTANCE_LABEL] = latestShinyProxyInstance.hashOfSpec
+
         //@formatter:off
+        val fqdns = listOf(shinyProxy.fqdn) + shinyProxy.additionalFqdns
+        val rules = fqdns.map { host ->
+            IngressRuleBuilder()
+                .withHost(host)
+                .withNewHttp()
+                    .addToPaths(createPathV1(shinyProxy))
+                .endHttp()
+            .build()
+        }
+
         val ingressDefinition = IngressBuilder()
                 .withNewMetadata()
                     .withName(ResourceNameFactory.createNameForIngress(shinyProxy))
-                    .withLabels<String, String>(LabelFactory.labelsForShinyProxy(shinyProxy))
+                    .withLabels<String, String>(labels)
+                    .withAnnotations<String, String>(mapOf("nginx.org/websocket-services" to ResourceNameFactory.createNameForService(shinyProxy)))
                     .addNewOwnerReference()
                         .withController(true)
                         .withKind("ShinyProxy")
@@ -48,19 +64,14 @@ class IngressFactory(private val kubeClient: KubernetesClient) {
                     .endOwnerReference()
                 .endMetadata()
                 .withNewSpec()
-                    .withIngressClassName("nginx") // TODO
-                    .addNewRule()
-                        .withHost(shinyProxy.fqdn)
-                        .withNewHttp()
-                            .addToPaths(createPathV1(shinyProxy))
-                        .endHttp()
-                    .endRule()
+                    .withIngressClassName("nginx")
+                    .withRules(rules)
                 .endSpec()
                 .build()
             //@formatter:on
 
         val patchedIngress = ingressPatcher.patch(ingressDefinition, shinyProxy.parsedIngressPatches)
-        val createdIngress = kubeClient.network().v1().ingresses().inNamespace(shinyProxy.metadata.namespace).resource(patchedIngress).createOrReplace()
+        val createdIngress = kubeClient.network().v1().ingresses().inNamespace(shinyProxy.metadata.namespace).resource(patchedIngress).forceConflicts().serverSideApply()
         logger.debug { "${shinyProxy.logPrefix()} [Component/Ingress] Created ${createdIngress.metadata.name}" }
     }
 

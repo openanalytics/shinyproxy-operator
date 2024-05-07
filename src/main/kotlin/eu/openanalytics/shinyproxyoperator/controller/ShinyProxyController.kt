@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,7 +22,6 @@ package eu.openanalytics.shinyproxyoperator.controller
 
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.ConfigMapFactory
-import eu.openanalytics.shinyproxyoperator.components.IngressFactory
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.components.ReplicaSetFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -44,12 +43,12 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                            private val kubernetesClient: KubernetesClient,
                            private val shinyProxyClient: ShinyProxyClient,
                            private val serviceController: ServiceController,
+                           private val ingressController: IngressController,
                            private val reconcileListener: IReconcileListener?,
                            private val recyclableChecker: IRecyclableChecker) {
 
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
-    private val ingressFactory = IngressFactory(kubernetesClient)
 
     private val logger = KotlinLogging.logger {}
 
@@ -131,19 +130,23 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         if (existingInstance != null && existingInstance.isLatestInstance) {
             logger.warn { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is the latest instance" }
             return existingInstance
-        } else if (existingInstance != null && !existingInstance.isLatestInstance) {
+        }
+
+        val revision = if (existingInstance != null) {
             logger.info { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is not the latest instance. Therefore this instance will become the latest again" }
             // reconcile will take care of making this the latest instance again
-            return existingInstance
+            (existingInstance.revision ?: 0) + 1
+        } else {
+            0
         }
 
         // create new instance and add it to the list of instances
         // initial the instance is not the latest. Only when the ReplicaSet is created and fully running
         // the latestInstance marker will change to the new instance.
-        val newInstance = ShinyProxyInstance(shinyProxy.hashOfCurrentSpec, false)
+        val newInstance = ShinyProxyInstance(shinyProxy.hashOfCurrentSpec, false, revision)
         updateStatus(shinyProxy) {
             // Extra check, if this check is positive we have some bug
-            val checkExistingInstance = it.status.instances.firstOrNull { instance -> instance.hashOfSpec == newInstance.hashOfSpec }
+            val checkExistingInstance = it.status.instances.firstOrNull { instance -> instance.hashOfSpec == newInstance.hashOfSpec && instance.revision == newInstance.revision }
             if (checkExistingInstance != null) {
                 // status has already been updated (e.g. after an HTTP 409 Conflict response)
                 // remove the existing instance and add the new one, to ensure that all values are correct.
@@ -163,7 +166,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         fun tryUpdateStatus() {
             val freshShinyProxy = refreshShinyProxy(shinyProxy)
             updater(freshShinyProxy)
-            shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).updateStatus(freshShinyProxy)
+            shinyProxyClient.inNamespace(shinyProxy.metadata.namespace).resource(freshShinyProxy).updateStatus()
         }
 
         for (i in 1..5) {
@@ -190,8 +193,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     }
 
     private fun updateLatestMarker(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        val latestInstance = shinyProxy.status.instances.firstOrNull { it.hashOfSpec == shinyProxy.hashOfCurrentSpec }
-            ?: return
+        val latestInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec) ?: return
         if (latestInstance.isLatestInstance) {
             // already updated marker
             return
@@ -205,7 +207,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         updateStatus(shinyProxy) {
             it.status.instances.forEach { inst -> inst.isLatestInstance = false }
-            it.status.instances.first { inst -> inst.hashOfSpec == latestInstance.hashOfSpec }.isLatestInstance = true
+            it.status.getInstanceByHash(latestInstance.hashOfSpec)?.isLatestInstance = true
         }
     }
 
@@ -268,10 +270,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         serviceController.reconcile(resourceRetriever, updatedShinyProxy)
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 5/$amountOfSteps: Ok] [Component/Service]" }
 
-        val ingresses = resourceRetriever.getIngressByLabels(LabelFactory.labelsForShinyProxy(updatedShinyProxy), updatedShinyProxy.metadata.namespace)
-        if (ingresses.isEmpty()) {
-            ingressFactory.create(updatedShinyProxy)
-        }
+        ingressController.reconcile(resourceRetriever, updatedShinyProxy)
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 6/$amountOfSteps: Ok] [Component/Ingress]" }
 
         if (updatedShinyProxyInstance != null) {
@@ -286,7 +285,8 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                 // take a copy of the list to check to prevent concurrent modification
                 val instancesToCheck = shinyProxy.status.instances.toList()
                 for (shinyProxyInstance in instancesToCheck) {
-                    if (shinyProxyInstance.isLatestInstance || shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {
+                    val latestRevision = shinyProxy.status.getInstanceByHash(shinyProxyInstance.hashOfSpec)?.revision ?: 0
+                    if (shinyProxyInstance.isLatestInstance || (shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec && shinyProxyInstance.revision != null && shinyProxyInstance.revision >= latestRevision)) {
                         // shinyProxyInstance is either the latest or the soon to be latest instance
                         continue
                     }
@@ -321,9 +321,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             delay(30_000)
             logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 3/3]: Delete resources" }
 
-            for (service in resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
-                kubernetesClient.resource(service).delete()
-            }
             for (replicaSet in resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
                 kubernetesClient.resource(replicaSet).delete()
             }

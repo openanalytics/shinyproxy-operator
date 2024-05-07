@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -29,11 +29,7 @@ import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 class PodRetriever(private val client: NamespacedKubernetesClient) {
 
     fun getShinyProxyPods(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): List<Pod> {
-        val labels = mapOf(
-            LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.INSTANCE_LABEL to shinyProxyInstance.hashOfSpec
-        )
-        return client.pods().inNamespace(shinyProxy.metadata.namespace).withLabels(labels).list().items
+        return client.pods().inNamespace(shinyProxy.metadata.namespace).withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance)).list().items
     }
 
 }

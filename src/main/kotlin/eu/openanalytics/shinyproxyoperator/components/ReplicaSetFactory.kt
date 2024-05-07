@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -58,7 +58,7 @@ class ReplicaSetFactory(private val kubeClient: KubernetesClient) {
                 .build()
         //@formatter:on
 
-        val createdReplicaSet = kubeClient.apps().replicaSets().inNamespace(shinyProxy.metadata.namespace).createOrReplace(replicaSetDefinition)
+        val createdReplicaSet = kubeClient.apps().replicaSets().inNamespace(shinyProxy.metadata.namespace).resource(replicaSetDefinition).forceConflicts().serverSideApply()
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/ReplicaSet] Created ${createdReplicaSet.metadata.name}" }
     }
 

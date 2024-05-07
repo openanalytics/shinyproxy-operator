@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,11 +27,16 @@ object LabelFactory {
 
     fun labelsForShinyProxyInstance(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Map<String, String> {
         val hashOfSpec = shinyProxyInstance.hashOfSpec
-        return mapOf(
+        val labels = hashMapOf(
             APP_LABEL to APP_LABEL_VALUE,
             REALM_ID_LABEL to shinyProxy.realmId,
-            INSTANCE_LABEL to hashOfSpec
+            INSTANCE_LABEL to hashOfSpec,
         )
+        if (shinyProxyInstance.revision != null) {
+            // only match on revision label, if a revision is set, ensure backwards compatibility
+            labels[REVISION_LABEL] = shinyProxyInstance.revision.toString()
+        }
+        return labels
     }
 
     fun labelsForShinyProxy(shinyProxy: ShinyProxy): Map<String, String> {
@@ -45,6 +50,7 @@ object LabelFactory {
     const val APP_LABEL_VALUE = "shinyproxy"
     const val REALM_ID_LABEL = "openanalytics.eu/sp-realm-id"
     const val INSTANCE_LABEL = "openanalytics.eu/sp-instance"
+    const val REVISION_LABEL = "openanalytics.eu/sp-instance-revision"
     const val LATEST_INSTANCE_LABEL = "openanalytics.eu/sp-latest-instance"
     const val PROXIED_APP = "openanalytics.eu/sp-proxied-app"
 

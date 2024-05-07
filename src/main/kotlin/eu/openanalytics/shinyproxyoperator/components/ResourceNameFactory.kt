@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -22,22 +22,21 @@ package eu.openanalytics.shinyproxyoperator.components
 
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import mu.KotlinLogging
 
 object ResourceNameFactory {
 
-    const val KUBE_RESOURCE_NAME_MAX_LENGTH = 63
+    private const val KUBE_RESOURCE_NAME_MAX_LENGTH = 63
 
     fun createNameForConfigMap(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
         return "sp-${shinyProxy.metadata.name}-cm-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
     fun createNameForPod(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        return "sp-${shinyProxy.metadata.name}-pod-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
+        return "sp-${shinyProxy.metadata.name}-pod-${shinyProxyInstance.revision}-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
     fun createNameForReplicaSet(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): String {
-        return "sp-${shinyProxy.metadata.name}-rs-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
+        return "sp-${shinyProxy.metadata.name}-rs-${shinyProxyInstance.revision}-${shinyProxyInstance.hashOfSpec}".take(KUBE_RESOURCE_NAME_MAX_LENGTH)
     }
 
     fun createNameForService(shinyProxy: ShinyProxy): String {

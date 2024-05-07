@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -24,13 +24,16 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
+import eu.openanalytics.shinyproxyoperator.components.ResourceNameFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
+import eu.openanalytics.shinyproxyoperator.logger
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.readiness.Readiness
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -47,12 +50,16 @@ class ShinyProxyTestInstance(private val namespace: String,
     private val objectMapper = ObjectMapper().registerKotlinModule()
 
     fun create(): ShinyProxy {
-        val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).createOrReplace()
+        val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).serverSideApply()
         hash = sp.hashOfCurrentSpec
 
         // assert that it has been created
         assertEquals(1, shinyProxyClient.inNamespace(namespace).list().items.size)
         return sp
+    }
+
+    fun instance(sp: ShinyProxy, revision: Int = 0): ShinyProxyInstance {
+        return sp.status.instances.firstOrNull { it.hashOfSpec == hash  && it.revision == revision } ?: error("ShinyProxyInstance with hash $hash not found")
     }
 
     suspend fun waitForOneReconcile(): ShinyProxyInstance {
@@ -77,8 +84,18 @@ class ShinyProxyTestInstance(private val namespace: String,
         }
     }
 
-    fun assertInstanceIsCorrect(numInstancesRunning: Int = 1, isLatest: Boolean = true) {
-        val sp = retrieveInstance()
+    suspend fun waitForDeletion(sp: ShinyProxy, revision: Int = 0) {
+        val instance = ShinyProxyInstance(hash, false, revision)
+        while (client.apps().replicaSets().withName(ResourceNameFactory.createNameForReplicaSet(sp, instance)).get() != null
+            || client.configMaps().withName(ResourceNameFactory.createNameForReplicaSet(sp, instance)).get() != null) {
+            delay(1000)
+            logger.debug { "Pod still exists ${hash}!" }
+        }
+    }
+
+
+    fun assertInstanceIsCorrect(numInstancesRunning: Int = 1, isLatest: Boolean = true, revision: Int = 0) {
+        val sp = retrieveInstance(revision)
         assertNotNull(sp)
         val instance = sp.status.instances.firstOrNull { it.hashOfSpec == hash }
         assertNotNull(instance)
@@ -86,19 +103,19 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(numInstancesRunning, sp.status.instances.size)
 
         // check configmap
-        assertConfigMapIsCorrect(sp, numInstancesRunning, isLatest)
+        assertConfigMapIsCorrect(sp, numInstancesRunning, isLatest, revision)
 
         // check replicaset
-        assertReplicaSetIsCorrect(sp, numInstancesRunning)
+        assertReplicaSetIsCorrect(sp, numInstancesRunning, revision)
 
         // check service
-        assertServiceIsCorrect(sp)
+        assertServiceIsCorrect(sp, revision)
 
         // check ingress
-        assertIngressIsCorrect(sp, numInstancesRunning)
+        assertIngressIsCorrect(sp)
     }
 
-    fun assertIngressIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1) {
+    fun assertIngressIsCorrect(sp: ShinyProxy) {
         val allIngresses = client.inNamespace(namespace).network().v1().ingresses().list().items
         assertEquals(1, allIngresses.size)
         val ingress = allIngresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing".take(63) }
@@ -106,8 +123,15 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.REALM_ID_LABEL to sp.metadata.name
+            LabelFactory.REALM_ID_LABEL to sp.realmId,
+            LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
         ), ingress.metadata.labels)
+
+        assertEquals(mapOf(
+            "nginx.org/websocket-services" to "sp-${sp.metadata.name}-svc".take(63),
+        ),
+            ingress.metadata.annotations
+        )
 
         assertOwnerReferenceIsCorrect(ingress, sp)
 
@@ -123,7 +147,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(80, path.backend.service.port.number)
     }
 
-    fun assertServiceIsCorrect(sp: ShinyProxy) {
+    fun assertServiceIsCorrect(sp: ShinyProxy, revision: Int = 0) {
         val services = client.inNamespace(namespace).services().list().items
         assertEquals(1, services.size)
         val service = services.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-svc".take(63) }
@@ -131,7 +155,7 @@ class ShinyProxyTestInstance(private val namespace: String,
 
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.REALM_ID_LABEL to sp.metadata.name,
+            LabelFactory.REALM_ID_LABEL to sp.realmId,
             LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
         ), service.metadata.labels)
 
@@ -143,13 +167,14 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(IntOrString(8080), service.spec.ports[0].targetPort)
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.REALM_ID_LABEL to sp.metadata.name,
-            LabelFactory.INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec // TODO
+            LabelFactory.REALM_ID_LABEL to sp.realmId,
+            LabelFactory.INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec,
+            LabelFactory.REVISION_LABEL to revision.toString()
         ), service.spec.selector)
 
     }
 
-    fun assertConfigMapIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true) {
+    fun assertConfigMapIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, isLatest: Boolean = true, revision: Int = 0) {
         val configMaps = client.inNamespace(namespace).configMaps().list().items.filter { it.metadata.name != "kube-root-ca.crt" }
         assertEquals(numInstancesRunning, configMaps.size)
         val configMap = configMaps.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
@@ -162,13 +187,13 @@ class ShinyProxyTestInstance(private val namespace: String,
             assertNotEquals(sp.specAsYaml, configMap.data["application.yml"])
         }
 
-        assertLabelsAreCorrect(configMap, sp)
+        assertLabelsAreCorrect(configMap, sp, revision)
         assertOwnerReferenceIsCorrect(configMap, sp)
 
 //        assertTrue(configMap.immutable) // TODO make the configmap immutable?
     }
 
-    fun assertReplicaSetIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1) {
+    fun assertReplicaSetIsCorrect(sp: ShinyProxy, numInstancesRunning: Int = 1, revision: Int = 0) {
         val replicaSets = client.inNamespace(namespace).apps().replicaSets().list().items
         assertEquals(numInstancesRunning, replicaSets.size)
         val replicaSet = replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == hash }
@@ -176,8 +201,8 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(1, replicaSet.status.replicas)
         assertEquals(1, replicaSet.status.readyReplicas)
         assertEquals(1, replicaSet.status.availableReplicas)
-        assertEquals("sp-${sp.metadata.name}-rs-${hash}".take(63), replicaSet.metadata.name)
-        assertLabelsAreCorrect(replicaSet, sp)
+        assertEquals("sp-${sp.metadata.name}-rs-${revision}-${hash}".take(63), replicaSet.metadata.name)
+        assertLabelsAreCorrect(replicaSet, sp, revision)
         assertOwnerReferenceIsCorrect(replicaSet, sp)
 
         val templateSpec = replicaSet.spec.template.spec
@@ -186,11 +211,12 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(sp.image, templateSpec.containers[0].image)
         assertEquals(sp.imagePullPolicy, templateSpec.containers[0].imagePullPolicy)
 
-        assertEquals(3, templateSpec.containers[0].env.size)
+        assertEquals(4, templateSpec.containers[0].env.size)
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
-        assertEquals(sp.metadata.name + '-'+ sp.metadata.namespace, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
+        assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_VERSION" })
+        assertEquals(sp.metadata.name + '-' + sp.metadata.namespace, templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value)
 
         assertEquals(1, templateSpec.containers[0].volumeMounts.size)
         assertEquals("config-volume", templateSpec.containers[0].volumeMounts[0].name)
@@ -220,11 +246,12 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertTrue(Readiness.getInstance().isReady(replicaSet))
     }
 
-    fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy) {
+    fun assertLabelsAreCorrect(resource: HasMetadata, sp: ShinyProxy, revision: Int) {
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
-            LabelFactory.REALM_ID_LABEL to sp.metadata.name,
-            LabelFactory.INSTANCE_LABEL to hash
+            LabelFactory.REALM_ID_LABEL to sp.realmId,
+            LabelFactory.INSTANCE_LABEL to hash,
+            LabelFactory.REVISION_LABEL to revision.toString()
         ), resource.metadata.labels)
     }
 
@@ -237,9 +264,9 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(sp.metadata.uid, resource.metadata.ownerReferences[0].uid)
     }
 
-    fun retrieveInstance(): ShinyProxy {
+    fun retrieveInstance(revision: Int = 0): ShinyProxy {
         for (sp in shinyProxyClient.inNamespace(namespace).list().items) {
-            if (sp != null && sp.status.instances.find { it.hashOfSpec == hash } != null) {
+            if (sp != null && sp.status.instances.find { it.hashOfSpec == hash && it.revision == revision } != null) {
                 return sp
             }
         }

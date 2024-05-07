@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -27,11 +27,17 @@ import io.fabric8.kubernetes.api.model.*
 
 class PodTemplateSpecFactory {
 
-    private val podTemplatePatcher = PodTemplateSpecPatcher()
+    private val podTemplatePatcher = Patcher()
 
     fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): PodTemplateSpec {
 
         val operator = Operator.getOperatorInstance()
+
+        val version = if (shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {
+            System.currentTimeMillis()
+        } else {
+            0
+        }
 
         //@formatter:off
         val template = PodTemplateSpecBuilder()
@@ -75,6 +81,10 @@ class PodTemplateSpecFactory {
                             EnvVarBuilder()
                                 .withName("PROXY_REALM_ID")
                                 .withValue(shinyProxy.realmId)
+                            .build(),
+                            EnvVarBuilder()
+                                .withName("PROXY_VERSION")
+                                .withValue(version.toString())
                             .build()))
                         .withVolumeMounts(VolumeMountBuilder()
                             .withName("config-volume")
@@ -112,6 +122,7 @@ class PodTemplateSpecFactory {
                             .withPeriodSeconds(5)
                         .endStartupProbe()
                     .endContainer()
+                    .withAffinity(createAffinity(shinyProxy, shinyProxyInstance))
                     .withVolumes(VolumeBuilder()
                             .withName("config-volume")
                             .withConfigMap(ConfigMapVolumeSourceBuilder()
@@ -123,6 +134,39 @@ class PodTemplateSpecFactory {
         //@formatter:on
 
         return podTemplatePatcher.patch(template, shinyProxy.parsedKubernetesPodTemplateSpecPatches)
+    }
+
+    private fun createAffinity(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Affinity {
+        if (shinyProxy.antiAffinityRequired) {
+            //@formatter:off
+            return AffinityBuilder()
+                .withNewPodAntiAffinity()
+                    .addNewRequiredDuringSchedulingIgnoredDuringExecution()
+                        .withNewLabelSelector()
+                            .withMatchLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                        .endLabelSelector()
+                        .withTopologyKey(shinyProxy.antiAffinityTopologyKey)
+                    .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endPodAntiAffinity()
+                .build()
+            //@formatter:on
+        } else {
+            //@formatter:off
+            return AffinityBuilder()
+                .withNewPodAntiAffinity()
+                    .addNewPreferredDuringSchedulingIgnoredDuringExecution()
+                        .withWeight(1)
+                        .withNewPodAffinityTerm()
+                            .withNewLabelSelector()
+                                .withMatchLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance))
+                            .endLabelSelector()
+                        .withTopologyKey(shinyProxy.antiAffinityTopologyKey)
+                        .endPodAffinityTerm()
+                    .endPreferredDuringSchedulingIgnoredDuringExecution()
+                .endPodAntiAffinity()
+                .build()
+            //@formatter:on
+        }
     }
 
 

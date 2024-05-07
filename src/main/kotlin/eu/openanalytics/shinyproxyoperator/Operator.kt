@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,6 +23,7 @@ package eu.openanalytics.shinyproxyoperator
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.controller.IReconcileListener
 import eu.openanalytics.shinyproxyoperator.controller.IRecyclableChecker
+import eu.openanalytics.shinyproxyoperator.controller.IngressController
 import eu.openanalytics.shinyproxyoperator.controller.PodRetriever
 import eu.openanalytics.shinyproxyoperator.controller.RecyclableChecker
 import eu.openanalytics.shinyproxyoperator.controller.ResourceListener
@@ -40,7 +41,6 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetList
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1.IngressList
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.Resource
@@ -76,9 +76,9 @@ class Operator(client: NamespacedKubernetesClient? = null,
     val probeFailureThreshold: Int
     val probeTimeout: Int
     val startupProbeInitialDelay: Int
-    val processMaxLifetime: Long
 
-    val podRetriever: PodRetriever
+    private val processMaxLifetime: Long
+    private val podRetriever: PodRetriever
     private val shinyProxyClient: ShinyProxyClient
     private val recyclableChecker: IRecyclableChecker
 
@@ -88,6 +88,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
     private val configMapListener: ResourceListener<ConfigMap, ConfigMapList, Resource<ConfigMap>>
     private val ingressListener: ResourceListener<Ingress, IngressList, Resource<Ingress>>
     private val serviceController: ServiceController
+    private val ingressController: IngressController
 
     private val channel = Channel<ShinyProxyEvent>(10000)
     val sendChannel: SendChannel<ShinyProxyEvent> = channel // public for tests
@@ -101,7 +102,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         if (client != null) {
             this.client = client
         } else {
-            this.client = DefaultKubernetesClient()
+            this.client = createKubernetesClient()
         }
 
         this.mode = readConfigValue(mode, Mode.CLUSTERED, "SPO_MODE") {
@@ -157,19 +158,21 @@ class Operator(client: NamespacedKubernetesClient? = null,
             configMapListener = ResourceListener(sendChannel, this.client.inAnyNamespace().configMaps())
             ingressListener = ResourceListener(sendChannel, this.client.inAnyNamespace().network().v1().ingresses())
             serviceController = ServiceController(this.client.inAnyNamespace().services())
+            ingressController = IngressController(this.client)
         } else {
             replicaSetListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).apps().replicaSets())
             serviceListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).services())
             configMapListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).configMaps())
             ingressListener = ResourceListener(sendChannel, this.client.inNamespace(namespace).network().v1().ingresses())
             serviceController = ServiceController(this.client.inNamespace(namespace).services())
+            ingressController = IngressController(this.client)
         }
     }
 
     /**
      * Controllers
      */
-    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, serviceController, reconcileListener, this.recyclableChecker)
+    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, serviceController, ingressController, reconcileListener, this.recyclableChecker)
 
     private fun _checkCrdExists(name: String, shortName: String) {
         try {

@@ -4,18 +4,21 @@ metadata:
   name: example-shinyproxy
 spec:
   fqdn: itest.local
-  image: openanalytics/shinyproxy:2.6.1
+  image: openanalytics/shinyproxy-snapshot:3.1.0-SNAPSHOT-20240219.093646
   proxy:
     title: Open Analytics Shiny Proxy 2
     logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
     landingPage: /
     heartbeatRate: 10000
-    heartbeatTimeout: 60000
+    heartbeatTimeout: -1
     port: 8080
     authentication: simple
     containerBackend: kubernetes
+    stop-proxies-on-shutdown: false
+    default-stop-proxy-on-logout: false
     kubernetes:
       namespace: itest
+      internal-networking: true
     users:
       - name: demo
         password: demo
@@ -28,7 +31,7 @@ spec:
         displayName: Hello Application
         description: Application which demonstrates the basics of a Shiny app
         containerCmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
-        containerImage: openanalytics/shinyproxy-demo
+        containerImage: openanalytics/shinyproxy-integration-test-app
       - id: 06_tabsets
         container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
-        container-image: openanalytics/shinyproxy-demo
+        container-image: openanalytics/shinyproxy-integration-test-app

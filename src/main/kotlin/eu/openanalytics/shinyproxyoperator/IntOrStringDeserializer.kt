@@ -18,13 +18,26 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator.controller
+package eu.openanalytics.shinyproxyoperator
 
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer
+import io.fabric8.kubernetes.api.model.IntOrString
 
-interface IRecyclableChecker {
+class IntOrStringDeserializer : StdDeserializer<IntOrString>(IntOrString::class.java) {
 
-    suspend fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean
+    override fun deserialize(jsonParser: JsonParser, deserializationContext: DeserializationContext): IntOrString {
+        val node = jsonParser.codec.readTree<JsonNode>(jsonParser)
+        val value = node.asText()
+
+        val asInt = value?.toIntOrNull()
+        if (asInt != null) {
+            return IntOrString(asInt)
+        }
+
+        return IntOrString(value)
+    }
 
 }

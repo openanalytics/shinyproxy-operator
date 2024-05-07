@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,13 +20,13 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
+import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.helpers.ShinyProxyTestInstance
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.readiness.Readiness
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
@@ -36,6 +36,7 @@ import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MainIntegrationTest : IntegrationTestBase() {
@@ -95,7 +96,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             assertTrue(checked) // actually checked that ingress wasn't created when the ReplicaSet wasn't ready yet
 
-            val job = GlobalScope.launch {
+            scope.launch {
                 // let the operator finish its business
                 operator.run(resourceRetriever, shinyProxyLister)
             }
@@ -105,7 +106,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 5. assert correctness
             spTestInstance.assertInstanceIsCorrect()
-            job.cancel()
         }
 
     @Test
@@ -123,7 +123,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
             // 2. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -132,7 +132,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 4. assert correctness
             spTestInstance.assertInstanceIsCorrect()
-            job.cancel()
         }
 
     @Test
@@ -151,7 +150,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -163,19 +162,26 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance.assertInstanceIsCorrect()
 
             // 5. Delete Replicaset -> reconcile -> assert it is still ok
+            val replicaSetName = "sp-${sp.metadata.name}-rs-0-${spTestInstance.hash}".take(63)
             executeAsyncAfter100ms {
-                stableClient.apps().replicaSets()
-                    .withName("sp-${sp.metadata.name}-rs-${spTestInstance.hash}".take(63)).delete()
+                getAndDelete(stableClient.apps().replicaSets().withName(replicaSetName))
                 logger.info { "Deleted ReplicaSet" }
             }
             spTestInstance.waitForReconcileCycle()
             logger.info { "Reconciled after deleting RS" }
+            // wait for replicaset to be ready
+            withTimeout(50_000) {
+                while (stableClient.apps().replicaSets().withName(replicaSetName)?.get()?.status?.readyReplicas != 1){
+                    logger.info { "Replicaset not yet ready" }
+                    delay(1000)
+                }
+            }
+            logger.info { "Replicaset ready" }
             spTestInstance.assertInstanceIsCorrect()
 
             // 6. Delete ConfigMap -> reconcile -> assert it is still ok
             executeAsyncAfter100ms {
-                stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63))
-                    .delete()
+                getAndDelete(stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstance.hash}".take(63)))
                 logger.info { "Deleted ConfigMap" }
             }
             spTestInstance.waitForOneReconcile()
@@ -184,8 +190,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 7. Delete Service -> reconcile -> assert it is still ok
             executeAsyncAfter100ms {
-                stableClient.services().withName("sp-${sp.metadata.name}-svc".take(63))
-                    .delete()
+                getAndDelete(stableClient.services().withName("sp-${sp.metadata.name}-svc".take(63)))
                 logger.info { "Deleted Service" }
             }
             spTestInstance.waitForOneReconcile()
@@ -194,21 +199,17 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 8. Delete Ingress -> reconcile -> assert it is still ok
             executeAsyncAfter100ms {
-                stableClient.network().v1().ingresses()
-                    .withName("sp-${sp.metadata.name}-ing".take(63)).delete()
+                getAndDelete(stableClient.network().v1().ingresses().withName("sp-${sp.metadata.name}-ing".take(63)))
                 logger.info { "Deleted Ingress" }
             }
             spTestInstance.waitForReconcileCycle()
             spTestInstance.assertInstanceIsCorrect()
             logger.info { "Reconciled after deleting Ingress" }
-
-            job.cancel()
-            logger.info { "Operator stopped" }
         }
 
     @Test
     fun `sp in other namespaced should be ignored when using namespaced mode`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create a SP instance in other namespace
             val spTestInstance = ShinyProxyTestInstance(
                 "itest-2",
@@ -221,7 +222,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -230,8 +231,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // assert that there are no ReplicaSets created
             assertEquals(0, stableClient.apps().replicaSets().list().items.size)
-
-            job.cancel()
         }
 
     @Test
@@ -249,7 +248,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -287,24 +286,22 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             assertEquals(null, templateSpec.containers[0].startupProbe) // changed by patch
 
-            assertEquals(4, templateSpec.containers[0].env.size) // changed by patch
+            assertEquals(5, templateSpec.containers[0].env.size) // changed by patch
             assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })
             assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_NAME" })
             assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" })
             assertEquals("TEST_VALUE", templateSpec.containers[0].env.firstOrNull { it.name == "TEST_VAR" }?.value)
             assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" })
-            assertEquals(
-                sp.metadata.name + '-' + sp.metadata.namespace,
+            assertEquals(sp.metadata.name + '-' + sp.metadata.namespace,
                 templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_REALM_ID" }?.value
             )
+            assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "PROXY_VERSION" })
 
             // check service
             spTestInstance.assertServiceIsCorrect(spTestInstance.retrieveInstance())
 
             // check ingress
             spTestInstance.assertIngressIsCorrect(spTestInstance.retrieveInstance())
-
-            job.cancel()
         }
 
     @Test
@@ -323,7 +320,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -352,12 +349,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             recyclableChecker.isRecyclable = true
 
             // 8. wait for delete to happen
-            while (stableClient.pods().withName("sp-${sp.metadata.name}-pod-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63)).get() != null) {
-                delay(1000)
-                logger.debug { "Pod still exists!" }
-            }
+            spTestInstanceOriginal.waitForDeletion(sp)
 
             // 9. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
@@ -366,8 +358,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertThrows<IllegalStateException>("Instance not found") {
                 spTestInstanceOriginal.retrieveInstance()
             }
-
-            job.cancel()
         }
 
     @Test
@@ -386,7 +376,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -425,12 +415,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             recyclableChecker.isRecyclable = true
 
             // 10. wait for delete to happen
-            while (stableClient.pods().withName("sp-${sp.metadata.name}-pod-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63)).get() != null) {
-                delay(1000)
-                logger.debug { "Pod still exists!" }
-            }
+            spTestInstanceOriginal.waitForDeletion(sp)
 
             // 11. assert older instance does not exist anymore
             assertThrows<IllegalStateException>("Instance not found") {
@@ -442,8 +427,6 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 13. assert app still exists
             assertEquals(1, getPodsForInstance(spTestInstanceOriginal.hash)?.items?.size)
-
-            job.cancel()
         }
 
     @Test
@@ -461,7 +444,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -486,13 +469,11 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 7. assert correctness
             spTestInstance2.assertInstanceIsCorrect()
-
-            job.cancel()
         }
 
     @Test
     fun `configuration with subpath not ending in slash`() =
-        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener , _->
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
                 namespace,
@@ -505,7 +486,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -519,8 +500,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
             assertEquals(1, ingresses.size)
             assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"));
-
-            job.cancel()
         }
 
 
@@ -539,7 +518,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -554,8 +533,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
             assertEquals(1, ingresses.size)
             assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"));
-
-            job.cancel()
         }
 
     /**
@@ -577,7 +554,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 2. start the operator and let it do it's work
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
-            val job = GlobalScope.launch {
+            val job = scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -634,12 +611,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstanceUpdated.waitForOneReconcile()
 
             // 7. wait for delete to happen
-            while (stableClient.pods().withName("sp-${sp.metadata.name}-pod-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.configMaps().withName("sp-${sp.metadata.name}-cm-${spTestInstanceOriginal.hash}".take(63)).get() != null
-                || stableClient.services().withName("sp-${sp.metadata.name}-svc-${spTestInstanceOriginal.hash}".take(63)).get() != null) {
-                delay(1000)
-                logger.debug { "Pod still exists!" }
-            }
+            spTestInstanceOriginal.waitForDeletion(sp)
 
             // 8. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
@@ -648,8 +620,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             assertThrows<IllegalStateException>("Instance not found") {
                 spTestInstanceOriginal.retrieveInstance()
             }
-
-            job.cancel()
         }
 
     @Test
@@ -670,7 +640,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
         // 2. start the operator and let it do it's work
-        val job = GlobalScope.launch {
+        val job = scope.launch {
             operator.run(resourceRetriever, shinyProxyLister)
         }
 
@@ -685,7 +655,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         val instance = spTestInstance.retrieveInstance().status.instances.first()
 
         // 5. schedule reconcile directly after deleting
-        GlobalScope.launch {
+        scope.launch {
             repeat(10) {
                 delay(10)
                 logger.debug { "Trying to trigger bug, by triggering reconcile with old status" }
@@ -710,8 +680,8 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `restore old config version`() =
-    // idea of test: launch instance A, update config to get instance B, and the update config again
-        // using the same config as A, resulting in instance A' (which is the same instance as A, as A was never removed!)
+        // idea of test: launch instance A, update config to get instance B, and the update config again
+        // the operator will start a new instance, with an increased revision
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, recyclableChecker ->
             // 1. create a SP instance
             val instanceA = ShinyProxyTestInstance(
@@ -725,7 +695,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
             // 2. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -774,25 +744,25 @@ class MainIntegrationTest : IntegrationTestBase() {
             // 10. wait until instance is created
             instanceAPrime.waitForOneReconcile()
 
-            // 11. wait for delete to happen
+            // 11. wait for delete of instance A to happen
             recyclableChecker.isRecyclable = true
-            while (stableClient.pods().withName("sp-${spB.metadata.name}-pod-${instanceB.hash}".take(63)).get() != null
-                || stableClient.configMaps().withName("sp-${spB.metadata.name}-cm-${instanceB.hash}".take(63)).get() != null
-                || stableClient.services().withName("sp-${spB.metadata.name}-svc-${instanceB.hash}".take(63)).get() != null) {
-                delay(1000)
-                logger.debug { "Pod still exists!" }
+            instanceA.waitForDeletion(spA)
+
+            // 12. assert instance A does not exists anymore
+            assertThrows<IllegalStateException>("Instance not found") {
+                instanceA.retrieveInstance(0)
             }
 
-            // 12. assert instance B does not exists anymore
+            // 13. wait for delete of instance B to happen
+            instanceB.waitForDeletion(spB)
+
+            // 14. assert instance B does not exists anymore
             assertThrows<IllegalStateException>("Instance not found") {
                 instanceB.retrieveInstance()
             }
 
             // 13. assert instance A' is correct
-            instanceAPrime.assertInstanceIsCorrect(1, true)
-
-            job.cancel()
-
+            instanceAPrime.assertInstanceIsCorrect(1, true, 1)
         }
 
     // see #25154
@@ -878,7 +848,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     fun `operator should properly handle 409 conflicts by replacing the resource`() =
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
             // 1. create conflicting resources
-            stableClient.load(this.javaClass.getResourceAsStream("/config/conflict.yaml")).createOrReplace()
+            stableClient.load(this.javaClass.getResourceAsStream("/configs/conflict.yaml")).serverSideApply()
 
             // 2. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(
@@ -893,7 +863,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             val (resourceRetriever, shinyProxyLister) = operator.prepare()
 
             // 3. start the operator and let it do it's work
-            val job = GlobalScope.launch {
+            scope.launch {
                 operator.run(resourceRetriever, shinyProxyLister)
             }
 
@@ -902,6 +872,322 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 5. assert correctness
             spTestInstance.assertInstanceIsCorrect()
-            job.cancel()
         }
+
+    @Test
+    fun `operator should have correct antiAffinity defaults`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+
+            // 3. start the operator and let it do it's work
+            scope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 4. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 5. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 6. check antiAffinity rules
+            val replicaSets = stableClient.inNamespace(namespace).apps().replicaSets().list().items
+            assertEquals(1, replicaSets.size)
+            val replicaSet = replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
+            assertNotNull(replicaSet)
+
+            assertNotNull(replicaSet.spec.template.spec.affinity)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.podAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.nodeAffinity)
+            assertEquals(0, replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution.size)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution)
+            assertEquals(1, replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution.size)
+            val rule = replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]
+            assertEquals(1, rule.weight)
+            assertEquals("kubernetes.io/hostname", rule.podAffinityTerm.topologyKey)
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
+                LabelFactory.REVISION_LABEL to "0"
+            ), rule.podAffinityTerm.labelSelector.matchLabels)
+        }
+
+    @Test
+    fun `operator should have correct antiAffinity when required is true`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "affinity_required.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+
+            // 3. start the operator and let it do it's work
+            scope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 4. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 5. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 6. check antiAffinity rules
+            val replicaSets = stableClient.inNamespace(namespace).apps().replicaSets().list().items
+            assertEquals(1, replicaSets.size)
+            val replicaSet = replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
+            assertNotNull(replicaSet)
+
+            assertNotNull(replicaSet.spec.template.spec.affinity)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.podAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.nodeAffinity)
+            assertEquals(0, replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution.size)
+            assertEquals(1, replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution.size)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution)
+            val rule = replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution[0]
+            assertEquals("kubernetes.io/hostname", rule.topologyKey)
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
+                LabelFactory.REVISION_LABEL to "0"
+            ), rule.labelSelector.matchLabels)
+        }
+
+
+    @Test
+    fun `operator should have correct antiAffinity when topologyKey is set`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "affinity_topologykey.yaml",
+                reconcileListener
+            )
+            val sp = spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+
+            // 3. start the operator and let it do it's work
+            scope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 4. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 5. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+
+            // 6. check antiAffinity rules
+            val replicaSets = stableClient.inNamespace(namespace).apps().replicaSets().list().items
+            assertEquals(1, replicaSets.size)
+            val replicaSet = replicaSets.firstOrNull { it.metadata.labels[LabelFactory.INSTANCE_LABEL] == spTestInstance.hash }
+            assertNotNull(replicaSet)
+
+            assertNotNull(replicaSet.spec.template.spec.affinity)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.podAffinity)
+            assertNull(replicaSet.spec.template.spec.affinity.nodeAffinity)
+            assertEquals(0, replicaSet.spec.template.spec.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution.size)
+            assertNotNull(replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution)
+            assertEquals(1, replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution.size)
+            val rule = replicaSet.spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0]
+            assertEquals(1, rule.weight)
+            assertEquals("example.com/custom-topology-key", rule.podAffinityTerm.topologyKey)
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.INSTANCE_LABEL to spTestInstance.hash,
+                LabelFactory.REVISION_LABEL to "0"
+            ), rule.podAffinityTerm.labelSelector.matchLabels)
+        }
+
+    @Test
+    fun `test additional fqns`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "additional_fqdns.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+            // 2. start the operator and let it do it's work
+            scope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            val sp = spTestInstance.retrieveInstance()
+            assertNotNull(sp)
+            val instance = sp.status.instances[0]
+            assertNotNull(instance)
+            assertTrue(instance.isLatestInstance)
+
+            // check configmap
+            spTestInstance.assertConfigMapIsCorrect(sp)
+
+            // check replicaset
+            spTestInstance.assertReplicaSetIsCorrect(sp)
+
+            // check service
+            spTestInstance.assertServiceIsCorrect(spTestInstance.retrieveInstance())
+
+            // check ingress
+            val allIngresses = namespacedClient.network().v1().ingresses().list().items
+            assertEquals(1, allIngresses.size)
+            val ingress = allIngresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing".take(63) }
+            assertNotNull(ingress)
+
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
+            ), ingress.metadata.labels)
+
+            assertEquals(2, ingress.spec.rules.size)
+            val rule1 = ingress.spec.rules[0]
+            assertNotNull(rule1)
+            assertEquals(sp.fqdn, rule1.host)
+            assertEquals(1, rule1.http.paths.size)
+            val path1 = rule1.http.paths[0]
+            assertNotNull(path1)
+            assertEquals(sp.subPath, path1.path)
+            assertEquals("sp-${sp.metadata.name}-svc".take(63), path1.backend.service.name)
+            assertEquals(80, path1.backend.service.port.number)
+
+            val rule2 = ingress.spec.rules[1]
+            assertNotNull(rule2)
+            assertEquals(sp.additionalFqdns[0], rule2.host)
+            assertEquals(1, rule2.http.paths.size)
+            val path2 = rule2.http.paths[0]
+            assertNotNull(path2)
+            assertEquals(sp.subPath, path2.path)
+            assertEquals("sp-${sp.metadata.name}-svc".take(63), path2.backend.service.name)
+            assertEquals(80, path2.backend.service.port.number)
+        }
+
+    @Test
+    fun `ingress patch`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_with_ingress_patches.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+            // 2. start the operator and let it do it's work
+            scope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            val sp = spTestInstance.retrieveInstance()
+            assertNotNull(sp)
+            val instance = sp.status.instances[0]
+            assertNotNull(instance)
+            assertTrue(instance.isLatestInstance)
+
+            // check configmap
+            spTestInstance.assertConfigMapIsCorrect(sp)
+
+            // check replicaset
+            spTestInstance.assertReplicaSetIsCorrect(sp)
+
+            // check service
+            spTestInstance.assertServiceIsCorrect(spTestInstance.retrieveInstance())
+
+            // check ingress
+            val allIngresses = namespacedClient.network().v1().ingresses().list().items
+            assertEquals(1, allIngresses.size)
+            val ingress = allIngresses.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-ing".take(63) }
+            assertNotNull(ingress)
+
+            assertEquals(mapOf(
+                LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
+                LabelFactory.REALM_ID_LABEL to sp.realmId,
+                LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
+            ), ingress.metadata.labels)
+
+            // nginx.org annotation was replaced
+            assertEquals(mapOf(
+                "nginx.ingress.kubernetes.io/proxy-buffer-size" to "128k",
+                "nginx.ingress.kubernetes.io/ssl-redirect" to "true",
+                "nginx.ingress.kubernetes.io/proxy-body-size" to "300m"
+            ), ingress.metadata.annotations)
+        }
+
+    @Test
+    fun `service patch`() =
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
+            // 1. create a SP instance
+            val spTestInstance = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_with_service_patches.yaml",
+                reconcileListener
+            )
+            spTestInstance.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+            // 2. start the operator and let it do it's work
+            scope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 3. wait until instance is created
+            spTestInstance.waitForOneReconcile()
+
+            // 4. assert correctness
+            spTestInstance.assertInstanceIsCorrect()
+            val sp = spTestInstance.retrieveInstance()
+
+            val services = namespacedClient.inNamespace(namespace).services().list().items
+            assertEquals(1, services.size)
+            val service = services.firstOrNull { it.metadata.name == "sp-${sp.metadata.name}-svc".take(63) }
+            assertNotNull(service)
+
+            assertEquals(mapOf(
+                "my-service-ingress-patch" to "abc"
+            ), service.metadata.annotations)
+        }
+
 }

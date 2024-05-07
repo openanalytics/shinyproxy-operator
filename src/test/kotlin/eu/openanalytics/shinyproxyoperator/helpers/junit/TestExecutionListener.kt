@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -29,7 +29,9 @@ class TestExecutionListener : SummaryGeneratingListener() {
 
     init {
         Runtime.getRuntime().addShutdownHook(Thread {
-            summary.printTo(PrintWriter(System.out))
+            if (summary != null) {
+                summary.printTo(PrintWriter(System.out))
+            }
         })
     }
 
@@ -57,6 +59,11 @@ class TestExecutionListener : SummaryGeneratingListener() {
 
         println()
         println("\t\t--> Finished test \"${testIdentifier.displayName}\": $testExecutionResult")
+        if (testExecutionResult.throwable.isPresent) {
+            println()
+            print("\t\t--> ")
+            println(testExecutionResult.throwable.get().stackTraceToString())
+        }
         println()
     }
 

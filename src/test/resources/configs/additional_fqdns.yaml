@@ -4,6 +4,8 @@ metadata:
   name: example-shinyproxy
 spec:
   fqdn: itest.local
+  additionalFqdns:
+    - itest2.locals
   image: openanalytics/shinyproxy-snapshot:3.1.0-SNAPSHOT-20240219.093646
   proxy:
     title: Open Analytics Shiny Proxy
@@ -32,6 +34,3 @@ spec:
       - id: 06_tabsets
         container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
         container-image: openanalytics/shinyproxy-integration-test-app
-  server:
-    servlet:
-      context-path: /sub-path

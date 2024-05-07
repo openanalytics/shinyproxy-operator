@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,12 +20,11 @@
  */
 package eu.openanalytics.shinyproxyoperator.helpers
 
+import eu.openanalytics.shinyproxyoperator.createKubernetesClient
 import io.fabric8.kubernetes.api.model.StatusBuilder
-import io.fabric8.kubernetes.client.ConfigBuilder
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.okhttp.OkHttpClientFactory
-import io.fabric8.kubernetes.client.utils.HttpClientUtils
 import mu.KotlinLogging
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -61,17 +60,14 @@ class ChaosInterceptor : Interceptor {
     }
 
     companion object {
-        fun createChaosKubernetesClient(): DefaultKubernetesClient {
+        fun createChaosKubernetesClient(): NamespacedKubernetesClient {
             val factory = object: OkHttpClientFactory() {
                 override fun additionalConfig(builder: OkHttpClient.Builder) {
                     builder.addInterceptor(ChaosInterceptor())
                 }
             }
 
-            val config = ConfigBuilder().build()
-            val httpClient = factory.createHttpClient(config).newBuilder().build();
-
-            return DefaultKubernetesClient(httpClient, config)
+            return createKubernetesClient(factory)
         }
     }
 

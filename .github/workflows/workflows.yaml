@@ -8,35 +8,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ 11 ]
+        java: [ 17 ]
         kubernetes:
-          - 'v1.22.17'
-          - 'v1.23.15'
-          - 'v1.24.9'
-          - 'v1.25.5'
+          - 'v1.24.17'
+          - 'v1.25.15'
+          - 'v1.26.14'
+          - 'v1.27.11'
+          - 'v1.28.7'
+          - 'v1.29.2'
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Set up JDK
         uses: actions/setup-java@v1
         with:
           java-version: ${{ matrix.java }}
       - name: Cache Maven packages
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.7.2
+        uses: manusa/actions-setup-minikube@v2.10.0
         with:
-          minikube version: 'v1.28.0'
+          minikube version: 'v1.32.0'
           kubernetes version:  ${{ matrix.kubernetes }}
           github token: ${{ secrets.GITHUB_TOKEN }}
+          driver: docker
       - name: Pull images
         run: |
-          minikube image pull ledfan/shinyproxy:3.0.0-SNAPSHOT-20230116.114943
-          minikube image pull openanalytics/shinyproxy-demo
+          minikube image pull openanalytics/shinyproxy-integration-test-app
           minikube image pull curlimages/curl:latest
       - name: Build with Maven
         run: mvn -B -U clean install -DskipTests

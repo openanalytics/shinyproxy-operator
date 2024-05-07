@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,4 +20,4 @@
  */
 package eu.openanalytics.shinyproxyoperator.crd
 
-data class ShinyProxyInstance(val hashOfSpec: String, var isLatestInstance: Boolean)
+data class ShinyProxyInstance(val hashOfSpec: String, var isLatestInstance: Boolean, val revision: Int? = null)

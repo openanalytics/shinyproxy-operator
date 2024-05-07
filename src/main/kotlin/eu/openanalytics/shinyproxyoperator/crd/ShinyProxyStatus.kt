@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -29,7 +29,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource
 data class ShinyProxyStatus(val instances: ArrayList<ShinyProxyInstance> = arrayListOf()) : KubernetesResource {
 
     fun getInstanceByHash(hash: String): ShinyProxyInstance? {
-        return instances.find { it.hashOfSpec == hash }
+        return instances.filter { it.hashOfSpec == hash }.maxByOrNull { it.revision ?: 0 }
     }
 
     fun latestInstance(): ShinyProxyInstance? {

@@ -1,7 +1,7 @@
 /**
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2023 Open Analytics
+ * Copyright (C) 2021-2024 Open Analytics
  *
  * ===========================================================================
  *
@@ -55,7 +55,7 @@ class ConfigMapFactory(private val kubeClient: KubernetesClient) {
                 .addToData("application.yml", shinyProxy.specAsYaml)
                 .build()
         //@formatter:on
-        val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).createOrReplace(configMapDefinition)
+        val createdConfigMap = kubeClient.configMaps().inNamespace(shinyProxy.metadata.namespace).resource(configMapDefinition).forceConflicts().serverSideApply()
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Component/ConfigMap] Created ${createdConfigMap.metadata.name}" }
     }
 

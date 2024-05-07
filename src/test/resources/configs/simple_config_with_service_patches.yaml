@@ -32,6 +32,8 @@ spec:
       - id: 06_tabsets
         container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
         container-image: openanalytics/shinyproxy-integration-test-app
-  server:
-    servlet:
-      context-path: /sub-path
+  kubernetesServicePatches: |
+    - op: add
+      path: /metadata/annotations
+      value:
+        my-service-ingress-patch: "abc"
