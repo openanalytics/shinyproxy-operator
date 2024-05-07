@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: redis
 
 resources:
-  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/redis-sentinel?ref=v2.0.0
+  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/redis-sentinel?ref=v2.1.0
   - resources/redis.namespace.yaml
 
 patches:

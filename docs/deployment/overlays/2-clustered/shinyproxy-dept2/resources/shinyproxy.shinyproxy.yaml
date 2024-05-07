@@ -93,6 +93,6 @@ spec:
         - hosts:
           - shinyproxy-demo2.local
          # secretName: example # uncomment and change this line if needed
-  image: openanalytics/shinyproxy:3.0.1
+  image: openanalytics/shinyproxy:3.1.0
   imagePullPolicy: Always
   fqdn: shinyproxy-demo2.local

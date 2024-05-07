@@ -2,19 +2,19 @@
 
 Easily run ShinyProxy on a Kubernetes cluster
 
-**(c) Copyright Open Analytics NV, 2020-2023 - Apache License 2.0**
+**(c) Copyright Open Analytics NV, 2020-2024 - Apache License 2.0**
 
 ## Why?
 
 Deploying and managing ShinyProxy can get complex when many apps are used,
 especially when the configuration of ShinyProxy is often updated.
 
-When restarting a running ShinyProxy instance (in order to update its configuration),
-users will face a disconnect from their running applications. The only solution
-to guarantee that users do not lose their connection to running apps, is to keep
-the current instance alive when updating ShinyProxy's configuration. However,
-manually keeping track of these instances would be too cumbersome and should
-therefore be automated.
+When restarting a running ShinyProxy instance (in order to update its
+configuration), users will face a disconnect from their running applications.
+The only solution to guarantee that users do not lose their connection to
+running apps, is to keep the current instance alive when updating ShinyProxy's
+configuration. However, manually keeping track of these instances would be too
+cumbersome and should therefore be automated.
 
 The ShinyProxy operator for Kubernetes is able to manage multiple ShinyProxy
 instances and their configuration.
@@ -88,13 +88,13 @@ start with the `SPO` prefix, meaning **S**hiny**P**roxy**O**perator.
   probe. By default, this is 60 seconds.
 - `SPO_LOG_LEVEL`: configures the log level of the operator, may be one of the
   following:
-  - `OFF`: disables logging
-  - `ERROR`
-  - `WARN`
-  - `INFO`
-  - `DEBUG`: default (may change)
-  - `TRACE`
-  - `ALL`: enables all logging
+    - `OFF`: disables logging
+    - `ERROR`
+    - `WARN`
+    - `INFO`
+    - `DEBUG`: default (may change)
+    - `TRACE`
+    - `ALL`: enables all logging
 
 Note: in our deployments where startup probes aren't supported we have success
 with the following configuration:
@@ -113,20 +113,23 @@ ShinyProxy and the operator for the best experience.
 
 | ShinyProxy Version | Minimum operator version         | Maximum operator version (inclusive) |
 |--------------------|----------------------------------|--------------------------------------|
-| 3.0.0              | 2.0.0                            | TBD                                  |
+| 3.1.0              | 2.1.0                            | TBD                                  |
+| 3.0.0              | 2.0.0                            | TBD (works with 2.1.0)               |
 | 2.6.0              | 1.0.0                            | 1.1.0                                |
 | 2.5.0              | `0.0.1-SNAPSHOT-20210302.095930` | `0.0.1-SNAPSHOT-20210607.070151`     |
 | 2.4.3              | `0.0.1-SNAPSHOT-20201215.112635` | `0.0.1-SNAPSHOT-20201215.112635`     |
 
 ## Kubernetes versions
 
-|       | k8s 1.25.x | k8s 1.24.x |  k8s 1.23.x | k8s 1.22.x | k8s >= v1.21.3 | k8s <= v1.21.2 | k8s >= 1.20.10 | k8s <= v1.20.9 | v1.19 | <= v1.18 |
-|-------|------------|------------|-------------|------------|----------------|----------------|----------------|----------------|-------|----------|
-| 2.0.0 | ✓             |  ✓            | ✓          | ✓          | ✓              | ✓¹           | ✓              | ✓¹              | 	✓    | 	-       |
+|       | k8s 1.29.x | k8s 1.28.x | k8s 1.27.x | k8s 1.26.x | k8s 1.25.x | k8s 1.24.x | k8s 1.23.x | k8s 1.22.x | k8s >= v1.21.3 | k8s <= v1.21.2 | k8s >= 1.20.10 | k8s <= v1.20.9 | v1.19 | <= v1.18 |
+|-------|------------|------------|------------|------------|------------|------------|------------|------------|----------------|----------------|----------------|----------------|-------|----------|
+| 2.1.0 | ✓          | ✓          | ✓          | ✓          | ✓          | ✓          | ✓          | ✓          | ✓              | ✓¹             | ✓              | ✓¹             | 	✓    | 	-       |
+| 2.0.0 | ✓²         | ✓²         | ✓²         | ✓²         | ✓²         | ✓²         | ✓          | ✓          | ✓              | ✓¹             | ✓              | ✓¹             | 	✓    | 	-       |
 
 **Note:**
 
 - ¹ requires a workaround, see below.
+- ² version 2.0.0 supports these Kubernetes versions, but might stop syncing after some time, this issue is solved in version 2.1.0
 
 ### Workaround for bug in Kubernetes
 
@@ -153,18 +156,18 @@ Be aware of these changes when updating to version 2.0.0:
   started, all new requests will be handled by the new server, including
   requests for existing apps. Only existing websocket connections will stay open
   on the old servers. This has multiple benefits:
-  - when a new server is started, users will immediately use and see the
-    configuration of that new server. In other words, if a new configuration
-    includes a new app, this app is immediately available to all users (even if
-    they are using apps started on older servers)
-  - there is no longer a process of transferring users to new servers. Both the
-    forced method and the manual method (where users have to click a button) are
-    removed. Users will immediately use the new configuration.
-  - apps can be run for a (very) long time, even if frequently updating the
-    configuration and without having many old servers. Old servers are removed
-    as soon as no websocket connections are running on that server.
-  - Skipper is no longer a dependency of the operator. There is no benefit in
-    using with version two of the operator.
+    - when a new server is started, users will immediately use and see the
+      configuration of that new server. In other words, if a new configuration
+      includes a new app, this app is immediately available to all users (even
+      if they are using apps started on older servers)
+    - there is no longer a process of transferring users to new servers. Both
+      the forced method and the manual method (where users have to click a
+      button) are removed. Users will immediately use the new configuration.
+    - apps can be run for a (very) long time, even if frequently updating the
+      configuration and without having many old servers. Old servers are removed
+      as soon as no websocket connections are running on that server.
+    - Skipper is no longer a dependency of the operator. There is no benefit in
+      using with version two of the operator.
 - the operator now requires ShinyProxy to store the active proxies in Redis.
   Therefore, since this release Redis takes a more critical role. When running
   Redis inside Kubernetes, it is therefore best practice to use Redis Sentinel.
@@ -182,8 +185,16 @@ need to be made to the ShinyProxy configuration file:
 - optionally add the
   property [`kubernetesIngressPatches`](docs/deployment#modify-the-ingress-resource)
   in order to customize the ingress created by the operator.
-- update the ShinyProxy image to `openanalytics/shinyproxy:3.0.1`
+- update the ShinyProxy image to `openanalytics/shinyproxy:3.1.0`
+
+### Update to 2.1.0
+
+The [ShinyProxy CRD](docs/deployment/bases/namespaced/crds/shinyproxy.crd.yaml)
+has been updated in version 2.1.0, it is important to update the CRD in your
+cluster. Running the [deployment commands](docs/deployment/) is enough. The CRD
+can be updated while ShinyProxy and the ShinyProxy operator are running in the
+cluster.
 
 ## Java Version
 
-This project requires JDK 11.
+This project requires JDK 17.

@@ -13,9 +13,9 @@ and dependencies of the operator.
   servers.
 - **ShinyProxy**: the ShinyProxy servers, these host the Shiny apps. You do not
   need to create these servers manually, since these are created by the
-  operator. Instead, you define which servers to create, and the operator creates
-  all necessary Kubernetes resources, without affecting any existing server or
-  causing downtime.
+  operator. Instead, you define which servers to create, and the operator
+  creates all necessary Kubernetes resources, without affecting any existing
+  server or causing downtime.
 - **Redis**: Redis is used by ShinyProxy (not by the operator) to implement
   [session and app persistence](https://shinyproxy.io/documentation/configuration/#session-and-app-persistence).
   This ensures that when a ShinyProxy server is replaced, the user is still
@@ -26,8 +26,8 @@ and dependencies of the operator.
   server provided by cloud providers.
 
   **Note:** when deploying to production, it is important to change the password
-  used to secure Redis. Each example (see below) already changes the
-  password to `mySecurePassword12`. For an example see
+  used to secure Redis. Each example (see below) already changes the password
+  to `mySecurePassword12`. For an example see
   the [`overlays/1-namespaced/patches/redis.secret.yaml`](overlays/1-namespaced/patches/redis.secret.yaml)
   file.
 
@@ -82,7 +82,8 @@ ShinyProxy operator on minikube.
    minikube ip
    ```
 
-   Next, add the following entries to `/etc/hosts`, replacing `MINIKUBE_IP` by the output of the previous command;
+   Next, add the following entries to `/etc/hosts`, replacing `MINIKUBE_IP` by
+   the output of the previous command;
 
    ```text
    MINIKUBE_IP       shinyproxy-demo.local
@@ -114,22 +115,23 @@ ShinyProxy operator on minikube.
           title: ShinyProxy 2 # <- MAKE THE CHANGE HERE
         # ...
         replicas: 2 # <- ADD THIS LINE
-        image: openanalytics/shinyproxy:3.0.1
+        image: openanalytics/shinyproxy:3.1.0
         imagePullPolicy: Always
         fqdn: shinyproxy-demo.local
       ```
 10. Apply this change using `kubectl`:
 
-   ```bash
-   kubectl apply -f resources/shinyproxy.shinyproxy.yaml
-   ```
+```bash
+kubectl apply -f resources/shinyproxy.shinyproxy.yaml
+```
 
-   The operator now deploys a new ShinyProxy instance. The old instance will be
-   kept intact as long as a Websocket connection is active on the old instance.
-   The old instance will automatically be removed once it no longer has any open
-   Websocket connections. New requests will immediately be handled by the new
-   server as soon as it is ready. Try going to the main page of ShinyProxy and
-   check whether the change your made has been applied.
+The operator now deploys a new ShinyProxy instance. The old instance will be
+kept intact as long as a Websocket connection is active on the old instance. The
+old instance will automatically be removed once it no longer has any open
+Websocket connections. New requests will immediately be handled by the new
+server as soon as it is ready. Try going to the main page of ShinyProxy and
+check whether the change your made has been applied.
+
 11. Try the other examples. The following commands first remove the current
     example, next you can open another example (e.g. `2-clustered`) and deploy
     it using `kubectl`:
@@ -150,37 +152,37 @@ The Operator is designed to be flexible and fit many type of deployments. This
 repository includes examples for many kinds of deployments:
 
 - *1-namespaced*:
-  - Operator-mode: `namespaced`
-  - Operator-namespace: `shinyproxy`
-  - Redis-namespace: `shinyproxy`
-  - ShinyProxy-namespace: `shinyproxy`
-  - URLs: `https://shinyproxy-demo.local`
+    - Operator-mode: `namespaced`
+    - Operator-namespace: `shinyproxy`
+    - Redis-namespace: `shinyproxy`
+    - ShinyProxy-namespace: `shinyproxy`
+    - URLs: `https://shinyproxy-demo.local`
 
   This is a very simple deployment of the operator, where everything runs in the
   same namespace.
 
 - *2-clustered*:
-  - Operator-mode: `clustered`
-  - Operator-namespace: `shinyproxy-operator`
-  - Redis-namespace: `redis`
-  - ShinyProxy-namespace: `shinyproxy` and `shinyproxy-dept2`
-  - URLs:
-    - `https://shinyproxy-demo.local`
-    - `https://shinyproxy-demo2.local`
+    - Operator-mode: `clustered`
+    - Operator-namespace: `shinyproxy-operator`
+    - Redis-namespace: `redis`
+    - ShinyProxy-namespace: `shinyproxy` and `shinyproxy-dept2`
+    - URLs:
+        - `https://shinyproxy-demo.local`
+        - `https://shinyproxy-demo2.local`
 
   In this example, the operator runs in `clustered` mode. Therefore, the
   operator will look into all namespaces for `ShinyProxy` resources and deploy
-  these resources in their respective namespace. This example also demonstrates how
-  the Operator can be used in a multi-tenancy or multi-realm way. Each
+  these resources in their respective namespace. This example also demonstrates
+  how the Operator can be used in a multi-tenancy or multi-realm way. Each
   ShinyProxy server runs in its own namespace, isolated from the other servers.
   However, they are managed by a single operator.
 
 - *3-namespaced-app-ns*:
-  - Operator-mode: `namespaced`
-  - Operator-namespace: `shinyproxy`
-  - Redis-namespace: `shinyproxy`
-  - ShinyProxy-namespace: `shinyproxy`
-  - URLs: `https://shinyproxy-demo.local`
+    - Operator-mode: `namespaced`
+    - Operator-namespace: `shinyproxy`
+    - Redis-namespace: `shinyproxy`
+    - ShinyProxy-namespace: `shinyproxy`
+    - URLs: `https://shinyproxy-demo.local`
 
   Similar to example 1, however, the `01_hello` app will now run in the
   `my-namespace` namespace instead of the `shinyproxy` namespace. In addition to
@@ -189,14 +191,14 @@ repository includes examples for many kinds of deployments:
   the `ServiceAccount` of the ShinyProxy server.
 
 - *4-namespaced-multi*:
-  - Operator-mode: `namespaced`
-  - Operator-namespace: `shinyproxy`
-  - Redis-namespace: `shinyproxy`
-  - ShinyProxy-namespace: `shinyproxy`
-  - URLs:
-    - `https://shinyproxy-demo.local/shinyproxy1/`
-    - `https://shinyproxy-demo.local/shinyproxy2/`
-    - `https://shinyproxy-demo.local/shinyproxy3/`
+    - Operator-mode: `namespaced`
+    - Operator-namespace: `shinyproxy`
+    - Redis-namespace: `shinyproxy`
+    - ShinyProxy-namespace: `shinyproxy`
+    - URLs:
+        - `https://shinyproxy-demo.local/shinyproxy1/`
+        - `https://shinyproxy-demo.local/shinyproxy2/`
+        - `https://shinyproxy-demo.local/shinyproxy3/`
 
   Based on the second example, this example shows how multi-tenancy can be
   achieved using sub-paths instead of multiple domain names. Each ShinyProxy
@@ -218,16 +220,24 @@ important:
   the [example](#modify-the-shinyproxy-pod))
 - `kubernetesIngressPatches`: allows to patch the `Ingress` resources created by
   the operator (see the [example](#modify-the-ingress-resource))
+- `kubernetesServicePatches`: allows to patch the `Service` resources created by
+  the operator (see the [example](#modify-the-service-resource))
 - `image`: the docker image to use for the ShinyProxy server (
-  e.g. `openanalytics/shinyproxy:3.0.1`)
+  e.g. `openanalytics/shinyproxy:3.1.0`)
 - `imagePullPolicy`: the pull policy for ShinyProxy Image; the default value is
   `IfNotPresent`; valid options are `Never`, `IfNotPresent` and `Always`.
 - `fqdn`: the FQDN at which the service should be available, e.g. `
   shinyproxy-demo.local
+- `additionalFqdns`: (optional) a list of additional FQDNs that can be used to
+  access this ShinyProxy server
 - `appNamespaces`: a list of namespaces in which apps will be deployed. This is
   only needed when you change the namespace of an app using the
   `kubernetes-pod-patches` feature. The namespace of the operator and ShinyProxy
   instance are automatically included
+- `antiAffinityTopologyKey`: the topology key to use in
+  the [anti-affinity](#anti-affinity) configuration of the ShinyProxy pods
+- `antiAffinityRequired`: if enabled, the [anti-affinity](#anti-affinity)
+  configuration rules are `required` instead of `preferred`
 
 ## Modify the Ingress Resource
 
@@ -248,7 +258,7 @@ metadata:
   namespace: shinyproxy
 spec:
   proxy:
-    # ...
+  # ...
   kubernetesIngressPatches: |
     - op: add
       path: /metadata/annotations
@@ -265,7 +275,7 @@ spec:
         - hosts:
           - shinyproxy-demo.local
          # secretName: example # uncomment and change this line if needed
-  image: openanalytics/shinyproxy:3.0.1
+  image: openanalytics/shinyproxy:3.1.0
   imagePullPolicy: Always
   fqdn: shinyproxy-demo.local
 ```
@@ -304,7 +314,7 @@ metadata:
   namespace: shinyproxy
 spec:
   proxy:
-    # ...
+  # ...
   kubernetesPodTemplateSpecPatches: |
     - op: add
       path: /spec/containers/0/env/-
@@ -326,7 +336,7 @@ spec:
     - op: add
       path: /spec/serviceAccountName
       value: shinyproxy-sa
-  image: openanalytics/shinyproxy:3.0.1
+  image: openanalytics/shinyproxy:3.1.0
   imagePullPolicy: Always
   fqdn: shinyproxy-demo.local
 ```
@@ -397,3 +407,48 @@ and `/spec/containers/0/volumeMounts` arrays of the pod. The ShinyProxy Operator
 automatically creates a mount for a configmap which contains the ShinyProxy
 configuration. By overriding these mounts, this configmap is not be mounted and
 the default (demo) configuration of ShinyProxy is loaded.
+
+## Modify the Service Resource
+
+The ShinyProxy Operator automatically creates a Service resource for each
+ShinyProxy resource you create. The created Service resource contains everything
+that is needed for a working ShinyProxy deployment. However, in some cases it is
+required to modify the resource. This can be achieved using
+the `kubernetesServicePatches` field. This field should contain a string which
+contains a list of [JSON Patches](https://jsonpatch.com/) to apply to the
+Service resource. For example:
+
+```yaml
+apiVersion: openanalytics.eu/v1
+kind: ShinyProxy
+metadata:
+  name: shinyproxy
+  namespace: shinyproxy
+spec:
+  proxy:
+  # ...
+  kubernetesServicePatches: |
+    - op: add
+      path: /metadata/annotations
+      value:
+        my-annotation: my-value
+  image: openanalytics/shinyproxy:3.1.0
+  imagePullPolicy: Always
+  fqdn: shinyproxy-demo.local
+```
+
+This example patch adds the annotation `my-annotation: my-value` to the Service
+resource created by the operator.
+
+## Anti-affinity
+
+Starting with version 2.1.0, the operator automatically
+adds [anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/)
+rules, such that Kubernetes will try to not schedule multiple ShinyProxy
+replicas on the same Kubernetes node. Note that this only has effect when
+running multiple replicas of ShinyProxy. If Kubernetes is unable to satisfy the
+requirement, it will still schedule multiple replicas on the same node. This
+behavior can be changed by setting `antiAffinityRequired` to `true` in your
+ShinyProxy configuration. It is also possible to change the topology, by setting
+the `antiAffinityTopologyKey`, e.g. to not run multiple replicas in the same
+availability zone you can set this property to `topology.kubernetes.io/zone `.
