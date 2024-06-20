@@ -185,7 +185,7 @@ need to be made to the ShinyProxy configuration file:
 - optionally add the
   property [`kubernetesIngressPatches`](docs/deployment#modify-the-ingress-resource)
   in order to customize the ingress created by the operator.
-- update the ShinyProxy image to `openanalytics/shinyproxy:3.1.0`
+- update the ShinyProxy image to `openanalytics/shinyproxy:3.1.1`
 
 ### Update to 2.1.0
 
