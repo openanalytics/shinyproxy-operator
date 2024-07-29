@@ -29,7 +29,9 @@ and dependencies of the operator.
   used to secure Redis. Each example (see below) already changes the password
   to `mySecurePassword12`. For an example see
   the [`overlays/1-namespaced/patches/redis.secret.yaml`](overlays/1-namespaced/patches/redis.secret.yaml)
-  file.
+  file. Make sure to change the password **before** deploying,
+  see [changing Redis password](#changing-redis-password) for instructions on how
+  to change the password after deploying.
 
 ## Tutorial using minikube
 
@@ -45,7 +47,7 @@ ShinyProxy operator on minikube.
 2. Start minikube:
 
    ```bash
-   minikube start --kubernetes-version='v1.25.6'  --addons=metrics-server,ingress --container-runtime=containerd
+   minikube start --kubernetes-version='v1.30.3'  --addons=metrics-server,ingress --container-runtime=containerd
    ````
 
 3. Clone this repository and change the working directory:
@@ -119,32 +121,33 @@ ShinyProxy operator on minikube.
         imagePullPolicy: Always
         fqdn: shinyproxy-demo.local
       ```
+
 10. Apply this change using `kubectl`:
 
-```bash
-kubectl apply -f resources/shinyproxy.shinyproxy.yaml
-```
+    ```bash
+    kubectl apply -f resources/shinyproxy.shinyproxy.yaml
+    ```
 
-The operator now deploys a new ShinyProxy instance. The old instance will be
-kept intact as long as a Websocket connection is active on the old instance. The
-old instance will automatically be removed once it no longer has any open
-Websocket connections. New requests will immediately be handled by the new
-server as soon as it is ready. Try going to the main page of ShinyProxy and
-check whether the change your made has been applied.
+    The operator now deploys a new ShinyProxy instance. The old instance will be
+    kept intact as long as a Websocket connection is active on the old instance. The
+    old instance will automatically be removed once it no longer has any open
+    Websocket connections. New requests will immediately be handled by the new
+    server as soon as it is ready. Try going to the main page of ShinyProxy and
+    check whether the change your made has been applied.
 
 11. Try the other examples. The following commands first remove the current
     example, next you can open another example (e.g. `2-clustered`) and deploy
     it using `kubectl`:
 
-```bash
-kubectl delete namespace/shinyproxy
-kubectl delete namespace/shinyproxy-operator                 # may fail
-kubectl delete namespace/shinyproxy-dept2                    # may fail
-kubectl delete namespace/my-namespace                        # may fail
-kubectl delete namespace/redis                               # may fail
-cd ../2-clustered
-kustomize build .  | kubectl apply -f -
-```
+    ```bash
+    kubectl delete namespace/shinyproxy
+    kubectl delete namespace/shinyproxy-operator                 # may fail
+    kubectl delete namespace/shinyproxy-dept2                    # may fail
+    kubectl delete namespace/my-namespace                        # may fail
+    kubectl delete namespace/redis                               # may fail
+    cd ../2-clustered
+    kustomize build .  | kubectl apply -f -
+    ```
 
 ## Overview of examples
 
@@ -452,3 +455,41 @@ behavior can be changed by setting `antiAffinityRequired` to `true` in your
 ShinyProxy configuration. It is also possible to change the topology, by setting
 the `antiAffinityTopologyKey`, e.g. to not run multiple replicas in the same
 availability zone you can set this property to `topology.kubernetes.io/zone `.
+
+## Changing Redis password
+
+Each example changes the password to `mySecurePassword12`. It's important to
+change this password in your environment. Ideally, the password must be changed
+before deploying Redis for the first time, since changing the password after
+initial deployment requires deleting all data.
+
+In order to change the password after deployment:
+
+**Note**: during this process ShinyProxy will be stopped and all apps and users
+are stopped!
+
+1. change the password in the yaml file (e.g.
+   in [`overlays/1-namespaced/patches/redis.secret.yaml`](overlays/1-namespaced/patches/redis.secret.yaml))
+2. stop ShinyProxy by removing the ShinyProxy resource (pods of running apps are
+   not automatically removed):
+
+    ```bash
+    kubectl delete shinyproxy -n shinyproxy shinyproxy
+    ```
+
+3. delete all Redis related resources:
+
+    ```bash
+    kubectl delete statefulset -n shinyproxy redis-node
+    kubectl delete pvc -n shinyproxy redis-data-redis-node-0
+    kubectl delete pvc -n shinyproxy redis-data-redis-node-1
+    kubectl delete pvc -n shinyproxy redis-data-redis-node-2
+    ```
+
+4. wait for all related pods to be stopped and all resources to be removed
+5. check that the `PersistentVolumes` of Redis are removed using `kubectl get pv`
+6. re-deploy Redis and ShinyProxy:
+
+    ```bash
+    kustomize build .  | kubectl apply -f - --server-side
+    ```
