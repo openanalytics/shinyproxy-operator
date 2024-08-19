@@ -26,6 +26,7 @@ import eu.openanalytics.shinyproxyoperator.controller.IRecyclableChecker
 import eu.openanalytics.shinyproxyoperator.controller.IngressController
 import eu.openanalytics.shinyproxyoperator.controller.PodRetriever
 import eu.openanalytics.shinyproxyoperator.controller.RecyclableChecker
+import eu.openanalytics.shinyproxyoperator.controller.ReplicaSetStatusChecker
 import eu.openanalytics.shinyproxyoperator.controller.ResourceListener
 import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
@@ -81,6 +82,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
     private val podRetriever: PodRetriever
     private val shinyProxyClient: ShinyProxyClient
     private val recyclableChecker: IRecyclableChecker
+    private val replicaSetStatusChecker: ReplicaSetStatusChecker
 
     private val shinyProxyListener: ShinyProxyListener
     private val replicaSetListener: ResourceListener<ReplicaSet, ReplicaSetList, RollableScalableResource<ReplicaSet>>
@@ -151,6 +153,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
         shinyProxyListener = ShinyProxyListener(sendChannel, this.shinyProxyClient)
         podRetriever = PodRetriever(this.client)
         this.recyclableChecker = recyclableChecker ?: RecyclableChecker(podRetriever)
+        replicaSetStatusChecker = ReplicaSetStatusChecker(podRetriever)
 
         if (this.mode == Mode.CLUSTERED) {
             replicaSetListener = ResourceListener(sendChannel, this.client.inAnyNamespace().apps().replicaSets())
@@ -172,7 +175,7 @@ class Operator(client: NamespacedKubernetesClient? = null,
     /**
      * Controllers
      */
-    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, serviceController, ingressController, reconcileListener, this.recyclableChecker)
+    val shinyProxyController = ShinyProxyController(channel, this.client, shinyProxyClient, serviceController, ingressController, reconcileListener, this.recyclableChecker, this.replicaSetStatusChecker)
 
     private fun _checkCrdExists(name: String, shortName: String) {
         try {

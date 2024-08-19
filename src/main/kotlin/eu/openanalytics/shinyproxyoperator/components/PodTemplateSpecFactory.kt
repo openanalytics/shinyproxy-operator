@@ -121,6 +121,7 @@ class PodTemplateSpecFactory {
                             .withFailureThreshold(6)
                             .withPeriodSeconds(5)
                         .endStartupProbe()
+                        .withTerminationMessagePolicy("FallbackToLogsOnError")
                     .endContainer()
                     .withAffinity(createAffinity(shinyProxy, shinyProxyInstance))
                     .withVolumes(VolumeBuilder()

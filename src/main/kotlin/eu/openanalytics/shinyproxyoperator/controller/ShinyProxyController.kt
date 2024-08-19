@@ -22,6 +22,7 @@ package eu.openanalytics.shinyproxyoperator.controller
 
 import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.ConfigMapFactory
+import eu.openanalytics.shinyproxyoperator.components.EventFactory
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.components.ReplicaSetFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
@@ -36,7 +37,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
+import kotlin.concurrent.timer
 
 
 class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
@@ -45,10 +48,12 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                            private val serviceController: ServiceController,
                            private val ingressController: IngressController,
                            private val reconcileListener: IReconcileListener?,
-                           private val recyclableChecker: IRecyclableChecker) {
+                           private val recyclableChecker: IRecyclableChecker,
+                           private val replicaSetStatusChecker: ReplicaSetStatusChecker) {
 
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
     private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
+    private val eventFactory = EventFactory(kubernetesClient)
 
     private val logger = KotlinLogging.logger {}
 
@@ -59,7 +64,16 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         private set
 
     suspend fun run(resourceRetriever: ResourceRetriever, shinyProxyLister: Lister<ShinyProxy>) {
-        scope.launch { scheduleAdditionalEvents() }
+        timer(period = 3_000L) {
+            runBlocking {
+                channel.send(ShinyProxyEvent(ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES, null, null))
+            }
+        }
+        timer(period = 30_000L) {
+            runBlocking {
+                channel.send(ShinyProxyEvent(ShinyProxyEventType.CHECK_REPLICASET_STATUS, null, null))
+            }
+        }
         while (true) {
             try {
                 idle = true
@@ -82,6 +96,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                     val newInstance = createNewInstance(event.shinyProxy)
                     reconcileSingleShinyProxyInstance(resourceRetriever, event.shinyProxy, newInstance)
                 }
+
                 ShinyProxyEventType.UPDATE_SPEC -> {
                     if (event.shinyProxy == null) {
                         logger.warn { "Event of type UPDATE_SPEC should have shinyproxy attached to it." }
@@ -90,9 +105,11 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                     val newInstance = createNewInstance(event.shinyProxy)
                     reconcileSingleShinyProxyInstance(resourceRetriever, event.shinyProxy, newInstance)
                 }
+
                 ShinyProxyEventType.DELETE -> {
                     // DELETE is not needed
                 }
+
                 ShinyProxyEventType.RECONCILE -> {
                     if (event.shinyProxy == null) {
                         logger.warn { "Event of type RECONCILE should have shinyProxy attached to it." }
@@ -104,9 +121,9 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                     }
                     reconcileSingleShinyProxyInstance(resourceRetriever, event.shinyProxy, event.shinyProxyInstance)
                 }
-                ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES -> {
-                    checkForObsoleteInstances(resourceRetriever, shinyProxyLister)
-                }
+
+                ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES -> checkForObsoleteInstances(resourceRetriever, shinyProxyLister)
+                ShinyProxyEventType.CHECK_REPLICASET_STATUS -> checkReplicaStatus(shinyProxyLister)
             }
         }
 
@@ -154,6 +171,8 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             }
             it.status.instances.add(newInstance)
         }
+
+        eventFactory.createNewInstanceEvent(shinyProxy, newInstance)
 
         return newInstance
     }
@@ -209,6 +228,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             it.status.instances.forEach { inst -> inst.isLatestInstance = false }
             it.status.getInstanceByHash(latestInstance.hashOfSpec)?.isLatestInstance = true
         }
+        eventFactory.createInstanceReadyEvent(shinyProxy, latestInstance)
     }
 
     suspend fun reconcileSingleShinyProxyInstance(resourceRetriever: ResourceRetriever, _shinyProxy: ShinyProxy, _shinyProxyInstance: ShinyProxyInstance) {
@@ -301,14 +321,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
     }
 
-    // TODO timer and extract from this class?
-    private suspend fun scheduleAdditionalEvents() {
-        while (true) {
-            channel.send(ShinyProxyEvent(ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES, null, null))
-            delay(3000)
-        }
-    }
-
     suspend fun deleteSingleShinyProxyInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 1/3]: Update status" }
         // Important: update status BEFORE deleting, otherwise we will start reconciling this instance, before it's completely deleted
@@ -326,6 +338,17 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             }
             for (configMap in resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
                 kubernetesClient.resource(configMap).delete()
+            }
+        }
+    }
+
+    private fun checkReplicaStatus(shinyProxyLister: Lister<ShinyProxy>) {
+        for (shinyProxy in shinyProxyLister.list()) {
+            for (shinyProxyInstance in shinyProxy.status.instances) {
+                val status = replicaSetStatusChecker.check(shinyProxy, shinyProxyInstance)
+                if (status.failed) {
+                    eventFactory.createInstanceFailed(shinyProxy, shinyProxyInstance, status.failureMessage, status.creationTimestamp)
+                }
             }
         }
     }
