@@ -42,13 +42,36 @@ class EventFactory(private val kubeClient: KubernetesClient) {
         createEvent(shinyProxy, shinyProxyInstance, "Normal", "InstanceReady", "ShinyProxy ready")
     }
 
+    fun createInstanceFailed(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, message: String?, creationTimestamp: Instant?) {
+        val events = kubeClient.v1().events().withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance)).list()
+        val truncatedMessage = truncateMessage(message)
+        if (events.items.any {
+                it.action == "StartingNewInstanceFailed"
+                    && it.type == "Warning"
+                    && it.message == truncatedMessage
+                    && Instant.parse(it.eventTime.time) > creationTimestamp
+            }) {
+            return
+        }
+        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} Pods are failing: ${message?.replace("\n", "")}" }
+        createEvent(shinyProxy, shinyProxyInstance, "Warning", "StartingNewInstanceFailed", "ShinyProxy failed to start", truncatedMessage)
+    }
+
+    fun createDeletingInstanceEvent(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        createEvent(shinyProxy, shinyProxyInstance, "Normal", "DeletingInstance", "Deleting ShinyProxy instance")
+    }
+
+    fun createInstanceDeletedEvent(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
+        createEvent(shinyProxy, shinyProxyInstance, "Normal", "InstanceDeleted", "ShinyProxy instance deleted")
+    }
+
     private fun createEvent(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, type: String, action: String, reason: String, message: String? = null) {
         val k8sMicroTime = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'.'SSSSSSXXX")
 
         //@formatter:off
         val eventBuilder = EventBuilder()
             .withNewMetadata()
-                .withGenerateName("test-event")
+                .withGenerateName("shinyproxy-operator-${action.lowercase()}-")
                 .withNamespace(shinyProxy.metadata.namespace)
                 .addNewOwnerReference()
                     .withController(true)
@@ -67,7 +90,7 @@ class EventFactory(private val kubeClient: KubernetesClient) {
                 .withUid(shinyProxy.metadata.uid)
             .endInvolvedObject()
             .withNewEventTime(k8sMicroTime.format(ZonedDateTime.now()))
-            .withReportingInstance("shinyproxy-operator") // TODO
+            .withReportingInstance("shinyproxy-operator")
             .withReportingComponent("shinyproxy-operator")
             .withAction(action) // which action failed, machine-readable
             .withType(type) // Warning or Normal
@@ -90,20 +113,4 @@ class EventFactory(private val kubeClient: KubernetesClient) {
         }
         return message
     }
-
-    fun createInstanceFailed(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, message: String?, creationTimestamp: Instant?) {
-        val events = kubeClient.v1().events().withLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance)).list()
-        val truncatedMessage = truncateMessage(message)
-        if (events.items.any {
-                it.action == "StartingNewInstanceFailed"
-                    && it.type == "Warning"
-                    && it.message == truncatedMessage
-                    && Instant.parse(it.eventTime.time) > creationTimestamp
-            }) {
-            return
-        }
-        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} Pods are failing: ${message?.replace("\n", "")}" }
-        createEvent(shinyProxy, shinyProxyInstance, "Warning", "StartingNewInstanceFailed", "ShinyProxy failed to start", truncatedMessage)
-    }
-
 }

@@ -323,6 +323,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
     suspend fun deleteSingleShinyProxyInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 1/3]: Update status" }
+        eventFactory.createDeletingInstanceEvent(shinyProxy, shinyProxyInstance)
         // Important: update status BEFORE deleting, otherwise we will start reconciling this instance, before it's completely deleted
         updateStatus(shinyProxy) {
             it.status.instances.remove(shinyProxyInstance)
@@ -339,6 +340,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
             for (configMap in resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
                 kubernetesClient.resource(configMap).delete()
             }
+            eventFactory.createInstanceDeletedEvent(shinyProxy, shinyProxyInstance)
         }
     }
 
