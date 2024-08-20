@@ -680,7 +680,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `restore old config version`() =
-        // idea of test: launch instance A, update config to get instance B, and the update config again
+        // idea of test: launch instance A, update config to get instance B, and then update config again to A
         // the operator will start a new instance, with an increased revision
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, recyclableChecker ->
             // 1. create a SP instance
@@ -723,14 +723,14 @@ class MainIntegrationTest : IntegrationTestBase() {
             // 7. wait until instance is created
             instanceB.waitForOneReconcile()
 
-            // 7. wait for delete to not happen
+            // 8. wait for delete to not happen
             delay(5000)
 
-            // 8. assert that two instances are correctly working
+            // 9. assert that two instances are correctly working
             instanceA.assertInstanceIsCorrect(2, false)
             instanceB.assertInstanceIsCorrect(2, true)
 
-            // 9. update config to again have the config of A
+            // 10. update config to again have the config of A
             logger.debug { "Updating config to get A'" }
             val instanceAPrime = ShinyProxyTestInstance(
                 namespace,
@@ -741,27 +741,108 @@ class MainIntegrationTest : IntegrationTestBase() {
             )
             instanceAPrime.create()
 
-            // 10. wait until instance is created
+            // 11. wait until instance is created
             instanceAPrime.waitForOneReconcile()
 
-            // 11. wait for delete of instance A to happen
+            // 12. wait for delete of instance A to happen
             recyclableChecker.isRecyclable = true
             instanceA.waitForDeletion(spA)
 
-            // 12. assert instance A does not exists anymore
+            // 13. assert instance A does not exists anymore
             assertThrows<IllegalStateException>("Instance not found") {
                 instanceA.retrieveInstance(0)
             }
 
-            // 13. wait for delete of instance B to happen
+            // 14. wait for delete of instance B to happen
             instanceB.waitForDeletion(spB)
 
-            // 14. assert instance B does not exists anymore
+            // 15. assert instance B does not exists anymore
             assertThrows<IllegalStateException>("Instance not found") {
                 instanceB.retrieveInstance()
             }
 
-            // 13. assert instance A' is correct
+            // 16. assert instance A' is correct
+            instanceAPrime.assertInstanceIsCorrect(1, true, 1)
+        }
+
+    @Test
+    fun `restore old config version when new instance fails`() =
+        // see #33546
+        // idea of test: launch instance A, update config to get instance B, however, instance B fails to start up, and then update config again to A
+        // the operator will start a new instance, with an increased revision
+        setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, reconcileListener, recyclableChecker ->
+            // 1. create a SP instance
+            val instanceA = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            val spA = instanceA.create()
+
+            val (resourceRetriever, shinyProxyLister) = operator.prepare()
+            // 2. start the operator and let it do it's work
+            scope.launch {
+                operator.run(resourceRetriever, shinyProxyLister)
+            }
+
+            // 3. wait until instance is created
+            instanceA.waitForOneReconcile()
+
+            // 4. assert correctness
+            instanceA.assertInstanceIsCorrect()
+
+            // 5. launch an app
+            startApp(spA, instanceA)
+
+            // 6. update ShinyProxy instance
+            logger.debug { "Base instance created -> updating it" }
+            val instanceB = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config_updated_broken.yaml",
+                reconcileListener
+            )
+            val spB = instanceB.create()
+            logger.debug { "Base instance created -> updated" }
+
+            // 7. wait for instance to startup (startup will fail)
+            delay(100_000) // TODO replace by event listener
+
+            // 8. update config to again have the config of A
+            logger.debug { "Updating config to get A'" }
+            val instanceAPrime = ShinyProxyTestInstance(
+                namespace,
+                namespacedClient,
+                shinyProxyClient,
+                "simple_config.yaml",
+                reconcileListener
+            )
+            instanceAPrime.create()
+
+            // 9. wait until instance is created
+            instanceAPrime.waitForOneReconcile()
+
+            // 10. wait for delete of instance A to happen
+            recyclableChecker.isRecyclable = true
+            instanceA.waitForDeletion(spA)
+
+            // 11. assert instance A does not exists anymore
+            assertThrows<IllegalStateException>("Instance not found") {
+                instanceA.retrieveInstance(0)
+            }
+
+            // 12. wait for delete of instance B to happen
+            instanceB.waitForDeletion(spB)
+
+            // 13. assert instance B does not exists anymore
+            assertThrows<IllegalStateException>("Instance not found") {
+                instanceB.retrieveInstance()
+            }
+
+            // 14. assert instance A' is correct
             instanceAPrime.assertInstanceIsCorrect(1, true, 1)
         }
 
@@ -1025,7 +1106,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         }
 
     @Test
-    fun `test additional fqns`() =
+    fun `test additional fqdns`() =
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, _, operator, reconcileListener, _ ->
             // 1. create a SP instance
             val spTestInstance = ShinyProxyTestInstance(

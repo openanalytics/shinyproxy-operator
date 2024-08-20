@@ -26,15 +26,12 @@ import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.createKubernetesClient
-import eu.openanalytics.shinyproxyoperator.logger
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.api.model.PodList
-import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.Resource
-import io.fabric8.kubernetes.client.dsl.RollableScalableResource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -44,6 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import mu.KotlinLogging
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 
@@ -55,6 +53,7 @@ abstract class IntegrationTestBase {
 
     protected val chaosEnabled = System.getenv("SPO_TEST_CHAOS") != null
 
+    private val logger = KotlinLogging.logger { }
     private val stableClient: NamespacedKubernetesClient = createKubernetesClient()
     private val chaosClient: NamespacedKubernetesClient = if (chaosEnabled) {
         ChaosInterceptor.createChaosKubernetesClient()

@@ -49,6 +49,7 @@ class ServiceController(
         val services = resourceRetriever.getServiceByLabels(LabelFactory.labelsForShinyProxy(shinyProxy), shinyProxy.metadata.namespace)
         val mustBeUpdated = services.isEmpty()
             || services[0].metadata?.labels?.get(LabelFactory.LATEST_INSTANCE_LABEL) != latestInstance.hashOfSpec
+            || services[0].metadata?.labels?.get(LabelFactory.REVISION_LABEL) != latestInstance.revision.toString()
 
         if (mustBeUpdated) {
             val replicaSet = getReplicaSet(resourceRetriever, shinyProxy, latestInstance)

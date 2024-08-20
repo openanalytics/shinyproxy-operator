@@ -27,7 +27,6 @@ import eu.openanalytics.shinyproxyoperator.components.LabelFactory
 import eu.openanalytics.shinyproxyoperator.components.ResourceNameFactory
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.logger
 import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
@@ -35,6 +34,7 @@ import io.fabric8.kubernetes.client.readiness.Readiness
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
+import mu.KotlinLogging
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
@@ -47,7 +47,7 @@ class ShinyProxyTestInstance(private val namespace: String,
                              private val reconcileListener: ReconcileListener) {
 
     lateinit var hash: String
-    private val objectMapper = ObjectMapper().registerKotlinModule()
+    private val logger = KotlinLogging.logger { }
 
     fun create(): ShinyProxy {
         val sp: ShinyProxy = shinyProxyClient.inNamespace(namespace).load(this.javaClass.getResourceAsStream("/configs/$fileName")).serverSideApply()
@@ -59,7 +59,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     }
 
     fun instance(sp: ShinyProxy, revision: Int = 0): ShinyProxyInstance {
-        return sp.status.instances.firstOrNull { it.hashOfSpec == hash  && it.revision == revision } ?: error("ShinyProxyInstance with hash $hash not found")
+        return sp.status.instances.firstOrNull { it.hashOfSpec == hash && it.revision == revision } ?: error("ShinyProxyInstance with hash $hash not found")
     }
 
     suspend fun waitForOneReconcile(): ShinyProxyInstance {
@@ -87,7 +87,8 @@ class ShinyProxyTestInstance(private val namespace: String,
     suspend fun waitForDeletion(sp: ShinyProxy, revision: Int = 0) {
         val instance = ShinyProxyInstance(hash, false, revision)
         while (client.apps().replicaSets().withName(ResourceNameFactory.createNameForReplicaSet(sp, instance)).get() != null
-            || client.configMaps().withName(ResourceNameFactory.createNameForReplicaSet(sp, instance)).get() != null) {
+            || client.configMaps().withName(ResourceNameFactory.createNameForReplicaSet(sp, instance)).get() != null
+        ) {
             delay(1000)
             logger.debug { "Pod still exists ${hash}!" }
         }
@@ -156,7 +157,8 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(mapOf(
             LabelFactory.APP_LABEL to LabelFactory.APP_LABEL_VALUE,
             LabelFactory.REALM_ID_LABEL to sp.realmId,
-            LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec
+            LabelFactory.LATEST_INSTANCE_LABEL to sp.status.latestInstance()!!.hashOfSpec,
+            LabelFactory.REVISION_LABEL to revision.toString()
         ), service.metadata.labels)
 
         assertOwnerReferenceIsCorrect(service, sp)

@@ -39,6 +39,7 @@ class ServiceFactory(private val serviceClient: MixedOperation<Service, ServiceL
     fun create(shinyProxy: ShinyProxy, latestShinyProxyInstance: ShinyProxyInstance) {
         val labels = LabelFactory.labelsForShinyProxy(shinyProxy).toMutableMap()
         labels[LabelFactory.LATEST_INSTANCE_LABEL] = latestShinyProxyInstance.hashOfSpec
+        labels[LabelFactory.REVISION_LABEL] = latestShinyProxyInstance.revision.toString()
 
         //@formatter:off
         val serviceDefinition: Service = ServiceBuilder()

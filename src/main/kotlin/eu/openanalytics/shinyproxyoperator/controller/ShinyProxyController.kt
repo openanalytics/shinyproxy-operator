@@ -64,12 +64,12 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         private set
 
     suspend fun run(resourceRetriever: ResourceRetriever, shinyProxyLister: Lister<ShinyProxy>) {
-        timer(period = 3_000L) {
+        timer(period = 3_000L, initialDelay = 3_000L) {
             runBlocking {
                 channel.send(ShinyProxyEvent(ShinyProxyEventType.CHECK_OBSOLETE_INSTANCES, null, null))
             }
         }
-        timer(period = 30_000L) {
+        timer(period = 30_000L, initialDelay = 3_000L) {
             runBlocking {
                 channel.send(ShinyProxyEvent(ShinyProxyEventType.CHECK_REPLICASET_STATUS, null, null))
             }
@@ -93,7 +93,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         logger.warn { "Event of type ADD should have shinyproxy attached to it." }
                         return
                     }
-                    val newInstance = createNewInstance(event.shinyProxy)
+                    val newInstance = createNewInstance(event.shinyProxy, false)
                     reconcileSingleShinyProxyInstance(resourceRetriever, event.shinyProxy, newInstance)
                 }
 
@@ -102,7 +102,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
                         logger.warn { "Event of type UPDATE_SPEC should have shinyproxy attached to it." }
                         return
                     }
-                    val newInstance = createNewInstance(event.shinyProxy)
+                    val newInstance = createNewInstance(event.shinyProxy, true)
                     reconcileSingleShinyProxyInstance(resourceRetriever, event.shinyProxy, newInstance)
                 }
 
@@ -140,12 +140,11 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         logger.warn { "Caught an exception while processing event $event. [Attempt 5/5] Not re-processing this event." }
     }
 
-    private fun createNewInstance(_shinyProxy: ShinyProxy): ShinyProxyInstance {
+    private fun createNewInstance(_shinyProxy: ShinyProxy, isUpdate: Boolean): ShinyProxyInstance {
         val shinyProxy = refreshShinyProxy(_shinyProxy) // refresh shinyproxy to ensure status is always up to date
         val existingInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec)
 
-        if (existingInstance != null && existingInstance.isLatestInstance) {
-            logger.warn { "${shinyProxy.logPrefix(existingInstance)} Trying to create new instance which already exists and is the latest instance" }
+        if (existingInstance != null && existingInstance.isLatestInstance && !isUpdate) {
             return existingInstance
         }
 

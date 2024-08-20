@@ -23,7 +23,7 @@ package eu.openanalytics.shinyproxyoperator
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
 import mu.KotlinLogging
 
-val logger = KotlinLogging.logger { }
+private val logger = KotlinLogging.logger { }
 
 fun isInManagedNamespace(shinyProxy: ShinyProxy): Boolean {
     when (Operator.getOperatorInstance().mode) {
