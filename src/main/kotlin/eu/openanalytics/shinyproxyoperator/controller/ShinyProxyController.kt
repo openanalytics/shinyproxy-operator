@@ -210,24 +210,24 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         return sp to sp?.status?.getInstanceByHash(shinyProxyInstance.hashOfSpec)
     }
 
-    private fun updateLatestMarker(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        val latestInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec) ?: return
+    private fun updateLatestMarker(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean {
+        val latestInstance = shinyProxy.status.getInstanceByHash(shinyProxy.hashOfCurrentSpec) ?: return false
         if (latestInstance.isLatestInstance) {
             // already updated marker
-            return
+            return false
         }
 
         if (latestInstance != shinyProxyInstance) {
             // not called by latest instance -> not updating the latest marker
             // this update could be triggered by an older instance while the latest instance is not ready yet
-            return
+            return false
         }
 
         updateStatus(shinyProxy) {
             it.status.instances.forEach { inst -> inst.isLatestInstance = false }
             it.status.getInstanceByHash(latestInstance.hashOfSpec)?.isLatestInstance = true
         }
-        eventFactory.createInstanceReadyEvent(shinyProxy, latestInstance)
+        return true
     }
 
     suspend fun reconcileSingleShinyProxyInstance(resourceRetriever: ResourceRetriever, _shinyProxy: ShinyProxy, _shinyProxyInstance: ShinyProxyInstance) {
@@ -278,23 +278,24 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 3/$amountOfSteps: Ok] [Component/ReplicaSet] ReplicaSet ready" }
 
-        updateLatestMarker(shinyProxy, shinyProxyInstance)
+        val hasUpdatedLatestMaker = updateLatestMarker(shinyProxy, shinyProxyInstance)
 
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 4/$amountOfSteps: Ok] [Status/LatestMarker]" }
 
         // refresh the ShinyProxy variables after updating the latest marker
         val (updatedShinyProxy, updatedShinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance)
-        if (updatedShinyProxy == null) return
+        if (updatedShinyProxy == null || updatedShinyProxyInstance == null) return
 
         serviceController.reconcile(resourceRetriever, updatedShinyProxy)
-        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 5/$amountOfSteps: Ok] [Component/Service]" }
+        logger.debug { "${updatedShinyProxy.logPrefix(shinyProxyInstance)} [Step 5/$amountOfSteps: Ok] [Component/Service]" }
 
         ingressController.reconcile(resourceRetriever, updatedShinyProxy)
-        logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 6/$amountOfSteps: Ok] [Component/Ingress]" }
+        logger.debug { "${updatedShinyProxy.logPrefix(shinyProxyInstance)} [Step 6/$amountOfSteps: Ok] [Component/Ingress]" }
 
-        if (updatedShinyProxyInstance != null) {
-            reconcileListener?.onInstanceFullyReconciled(updatedShinyProxy, updatedShinyProxyInstance)
+        if (hasUpdatedLatestMaker) {
+            eventFactory.createInstanceReadyEvent(updatedShinyProxy, updatedShinyProxyInstance)
         }
+        reconcileListener?.onInstanceFullyReconciled(updatedShinyProxy, updatedShinyProxyInstance)
     }
 
     private suspend fun checkForObsoleteInstances(resourceRetriever: ResourceRetriever, shinyProxyLister: Lister<ShinyProxy>) {
