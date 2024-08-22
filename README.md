@@ -121,31 +121,15 @@ ShinyProxy and the operator for the best experience.
 
 ## Kubernetes versions
 
-|       | k8s 1.29.x | k8s 1.28.x | k8s 1.27.x | k8s 1.26.x | k8s 1.25.x | k8s 1.24.x | k8s 1.23.x | k8s 1.22.x | k8s >= v1.21.3 | k8s <= v1.21.2 | k8s >= 1.20.10 | k8s <= v1.20.9 | v1.19 | <= v1.18 |
-|-------|------------|------------|------------|------------|------------|------------|------------|------------|----------------|----------------|----------------|----------------|-------|----------|
-| 2.1.0 | ✓          | ✓          | ✓          | ✓          | ✓          | ✓          | ✓          | ✓          | ✓              | ✓¹             | ✓              | ✓¹             | 	✓    | 	-       |
-| 2.0.0 | ✓²         | ✓²         | ✓²         | ✓²         | ✓²         | ✓²         | ✓          | ✓          | ✓              | ✓¹             | ✓              | ✓¹             | 	✓    | 	-       |
+|       | k8s 1.29.x | k8s 1.28.x | k8s 1.27.x | k8s 1.26.x | k8s 1.25.x | k8s 1.24.x | k8s 1.23.x | k8s 1.22.x | k8s >= v1.21.3 | k8s >= 1.20.10 | v1.19 | <= v1.18 |
+|-------|------------|------------|------------|------------|------------|------------|------------|------------|----------------|----------------|-------|----------|
+| 2.1.0 | ✓          | ✓          | ✓          | ✓          | ✓          | ✓          | ✓          | ✓          | ✓              | ✓              | 	✓    | 	-       |
+| 2.0.0 | ✓¹         | ✓¹         | ✓¹         | ✓¹         | ✓¹         | ✓¹         | ✓          | ✓          | ✓              | ✓              | 	✓    | 	-       |
 
 **Note:**
 
-- ¹ requires a workaround, see below.
-- ² version 2.0.0 supports these Kubernetes versions, but might stop syncing after some time, this issue is solved in version 2.1.0
-
-### Workaround for bug in Kubernetes
-
-A [bug](https://github.com/kubernetes/kubernetes/issues/102464) affecting the
-operator was introduced in Kubernetes 1.20 and fixed in versions 1.20.10 and
-1.21.3. However, some deployments (e.g. using EKS) are not able to use this
-version. When using the affected versions, Kubernetes stops sending events for
-the `Service` resources after a certain amount of time. Therefore, the Operator
-is unaware of any events happening on services and is therefore unable to fully
-configure a ShinyProxy server. The bug only occurs after the operator has been
-running for a random time between 30 minutes and two hours. Unfortunately, the
-only reasonable work-around is to regularly restart the Operator. Since version
-`0.1.0-SNAPSHOT-20210831.075527`, it is possible to specify the
-`SPO_PROCESS_MAX_LIFETIME` environment variable. After the configured time (in
-minutes), the operator stops. The corresponding Docker container then
-automatically restarts the Java process.
+- ¹ version 2.0.0 supports these Kubernetes versions, but might stop syncing
+  after some time, this issue is solved in version 2.1.0
 
 ### Update to 2.0.0
 

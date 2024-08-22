@@ -29,11 +29,11 @@ import eu.openanalytics.shinyproxyoperator.controller.RecyclableChecker
 import eu.openanalytics.shinyproxyoperator.controller.ReplicaSetStatusChecker
 import eu.openanalytics.shinyproxyoperator.controller.ResourceListener
 import eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever
+import eu.openanalytics.shinyproxyoperator.controller.ServiceController
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyListener
 import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.controller.ServiceController
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.ConfigMapList
 import io.fabric8.kubernetes.api.model.Service
@@ -55,7 +55,6 @@ import mu.KotlinLogging
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.config.Configurator
 import java.util.*
-import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
 
 
@@ -78,7 +77,6 @@ class Operator(client: NamespacedKubernetesClient? = null,
     val probeTimeout: Int
     val startupProbeInitialDelay: Int
 
-    private val processMaxLifetime: Long
     private val podRetriever: PodRetriever
     private val shinyProxyClient: ShinyProxyClient
     private val recyclableChecker: IRecyclableChecker
@@ -118,19 +116,6 @@ class Operator(client: NamespacedKubernetesClient? = null,
         this.probeFailureThreshold = readConfigValue(probeFailureThreshold, 0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
         this.probeTimeout = readConfigValue(probeTimeout, 1, "SPO_PROBE_TIMEOUT", String::toInt)
         this.startupProbeInitialDelay = readConfigValue(startupProbeInitialDelay, 60, "SPO_STARTUP_PROBE_INITIAL_DELAY", String::toInt)
-        this.processMaxLifetime = readConfigValue(null, -1, "SPO_PROCESS_MAX_LIFETIME", String::toLong)
-        if (this.processMaxLifetime != -1L) {
-            Timer().schedule(this.processMaxLifetime * 60 * 1000) {
-                logger.warn { "Max lifetime of process reached, preparing shutdown" }
-                sendChannel.close()
-                while (!channel.isClosedForReceive && !channel.isEmpty && !shinyProxyController.idle) {
-                    logger.warn { "Still processing events in queue, delaying shutdown" }
-                    Thread.sleep(250)
-                }
-                logger.warn { "Queue is empty, exiting process" }
-                exitProcess(1)
-            }
-        }
 
         val level = readConfigValue(logLevel, Level.DEBUG, "SPO_LOG_LEVEL") { Level.toLevel(it) }
         Configurator.setRootLevel(level)

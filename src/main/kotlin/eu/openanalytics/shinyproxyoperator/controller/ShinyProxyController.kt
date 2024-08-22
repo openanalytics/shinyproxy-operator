@@ -59,10 +59,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
 
     private val scope = CoroutineScope(Dispatchers.Default)
 
-    @Volatile
-    var idle: Boolean = true
-        private set
-
     suspend fun run(resourceRetriever: ResourceRetriever, shinyProxyLister: Lister<ShinyProxy>) {
         timer(period = 3_000L, initialDelay = 3_000L) {
             runBlocking {
@@ -76,7 +72,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
         while (true) {
             try {
-                idle = true
                 receiveAndHandleEvent(resourceRetriever, shinyProxyLister)
             } catch (cancellationException: CancellationException) {
                 logger.warn { "Controller cancelled -> stopping" }
@@ -128,7 +123,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
 
         val event = channel.receive()
-        idle = false
         for (i in 1..5) {
             try {
                 tryReceiveAndHandleEvent(event)
