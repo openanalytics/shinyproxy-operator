@@ -52,13 +52,8 @@ class ServiceController(
             || services[0].metadata?.labels?.get(LabelFactory.REVISION_LABEL) != latestInstance.revision.toString()
 
         if (mustBeUpdated) {
-            val replicaSet = getReplicaSet(resourceRetriever, shinyProxy, latestInstance)
-            if (replicaSet == null) {
-                logger.warn { "${shinyProxy.logPrefix(latestInstance)} [Component/Service] Cannot reconcile Service since it has no ReplicaSet - probably this resource is being deleted" }
-                return
-            }
+            val replicaSet = getReplicaSet(resourceRetriever, shinyProxy, latestInstance) ?: return
             if (!Readiness.getInstance().isReady(replicaSet)) {
-                logger.warn { "${shinyProxy.logPrefix(latestInstance)} [Component/Service] Cannot reconcile Service since the corresponding ReplicaSet is not ready yet - it is probably being created" }
                 return
             }
             // ReplicaSet exists and is ready -> time to create ingress

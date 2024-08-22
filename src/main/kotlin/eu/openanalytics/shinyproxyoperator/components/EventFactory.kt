@@ -53,7 +53,7 @@ class EventFactory(private val kubeClient: KubernetesClient) {
             }) {
             return
         }
-        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} Pods are failing: ${message?.replace("\n", "")}" }
+        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxy failed to start: ${message?.replace("\n", "")}" }
         createEvent(shinyProxy, shinyProxyInstance, "Warning", "StartingNewInstanceFailed", "ShinyProxy failed to start", truncatedMessage)
     }
 

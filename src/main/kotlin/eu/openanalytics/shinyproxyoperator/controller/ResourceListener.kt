@@ -75,11 +75,7 @@ class ResourceListener<T : HasMetadata, L : KubernetesResourceList<T>, R : Resou
             ?: shinyProxy.status.latestInstance()?.hashOfSpec
             ?: return
 
-        val shinyProxyInstance = shinyProxy.status.getInstanceByHash(hashOfInstance)
-        if (shinyProxyInstance == null) {
-            logger.warn { "[${resource.kind}] [${resource.metadata.namespace}/${resource.metadata.name}] Cannot find hash of instance for this resource - probably the resource is being deleted" }
-            return
-        }
+        val shinyProxyInstance = shinyProxy.status.getInstanceByHash(hashOfInstance) ?: return
 
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Event/${trigger} component] [Component/${resource.kind}]" }
         channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy, shinyProxyInstance))

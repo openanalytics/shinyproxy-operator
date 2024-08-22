@@ -227,17 +227,11 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     suspend fun reconcileSingleShinyProxyInstance(resourceRetriever: ResourceRetriever, _shinyProxy: ShinyProxy, _shinyProxyInstance: ShinyProxyInstance) {
         val (shinyProxy, shinyProxyInstance) = refreshShinyProxy(_shinyProxy, _shinyProxyInstance) // refresh shinyproxy to ensure status is always up to date
 
-        if (shinyProxy == null || shinyProxyInstance == null) {
-            logger.info { "${_shinyProxy.logPrefix(_shinyProxyInstance)} Cannot reconcile ShinProxyInstance because this instance does not exists." }
+        if (shinyProxy == null || shinyProxyInstance == null || !shinyProxy.status.instances.contains(shinyProxyInstance)) {
             return
         }
 
         logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 0/$amountOfSteps: Ok] ReconcileSingleShinyProxy" }
-
-        if (!shinyProxy.status.instances.contains(shinyProxyInstance)) {
-            logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Cannot reconcile ShinProxyInstance because it is being deleted." }
-            return
-        }
 
         val configMaps = resourceRetriever.getConfigMapByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)
         if (configMaps.isEmpty()) {
@@ -256,13 +250,6 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         }
 
         logger.debug { "${shinyProxy.logPrefix(shinyProxyInstance)} [Step 2/$amountOfSteps: Ok] [Component/ReplicaSet]" }
-
-        // Extra check, if this check is positive we have some bug, see #24986
-        if (replicaSets.size > 1) {
-            logger.error(Throwable()) {
-                "${shinyProxy.logPrefix(shinyProxyInstance)} Trying to reconcile but detected more than one ReplicaSet which matches the labels for a single instance. ${replicaSets.map { it.metadata.name }} ${replicaSets.map { Readiness.getInstance().isReady(it) }}"
-            }
-        }
 
         if (!Readiness.getInstance().isReady(replicaSets[0])) {
             // do no proceed until replicaset is ready
@@ -316,7 +303,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
     }
 
     suspend fun deleteSingleShinyProxyInstance(resourceRetriever: ResourceRetriever, shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 1/3]: Update status" }
+        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 1/2]: Update status" }
         eventFactory.createDeletingInstanceEvent(shinyProxy, shinyProxyInstance)
         // Important: update status BEFORE deleting, otherwise we will start reconciling this instance, before it's completely deleted
         updateStatus(shinyProxy) {
@@ -326,7 +313,7 @@ class ShinyProxyController(private val channel: Channel<ShinyProxyEvent>,
         scope.launch { // run async
             // delete resources after delay of 30 seconds to ensure all routes are updated before deleting replicaset
             delay(30_000)
-            logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 3/3]: Delete resources" }
+            logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} DeleteSingleShinyProxyInstance [Step 2/2]: Delete resources" }
 
             for (replicaSet in resourceRetriever.getReplicaSetByLabels(LabelFactory.labelsForShinyProxyInstance(shinyProxy, shinyProxyInstance), shinyProxy.metadata.namespace)) {
                 kubernetesClient.resource(replicaSet).delete()
