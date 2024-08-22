@@ -35,11 +35,13 @@ class EventFactory(private val kubeClient: KubernetesClient) {
     private val logger = KotlinLogging.logger {}
 
     fun createNewInstanceEvent(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        createEvent(shinyProxy, shinyProxyInstance, "Normal", "StartingNewInstance", "Configuration changed")
+        createEvent(shinyProxy, shinyProxyInstance, "Normal", "StartingNewInstance",
+            "Configuration changed, starting new instance: ${shinyProxyInstance.hashOfSpec}, revision: ${shinyProxyInstance.revision}")
     }
 
     fun createInstanceReadyEvent(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        createEvent(shinyProxy, shinyProxyInstance, "Normal", "InstanceReady", "ShinyProxy ready")
+        createEvent(shinyProxy, shinyProxyInstance, "Normal", "InstanceReady",
+            "ShinyProxy instance ready: ${shinyProxyInstance.hashOfSpec}, revision: ${shinyProxyInstance.revision}")
     }
 
     fun createInstanceFailed(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, message: String?, creationTimestamp: Instant?) {
@@ -53,19 +55,22 @@ class EventFactory(private val kubeClient: KubernetesClient) {
             }) {
             return
         }
-        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxy failed to start: ${message?.replace("\n", "")}" }
-        createEvent(shinyProxy, shinyProxyInstance, "Warning", "StartingNewInstanceFailed", "ShinyProxy failed to start", truncatedMessage)
+        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} ShinyProxy instance failed to start: ${message?.replace("\n", "")}" }
+        createEvent(shinyProxy, shinyProxyInstance, "Warning", "StartingNewInstanceFailed",
+            "ShinyProxy instance failed to start: ${shinyProxyInstance.hashOfSpec}, revision: ${shinyProxyInstance.revision}, output: $truncatedMessage")
     }
 
     fun createDeletingInstanceEvent(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        createEvent(shinyProxy, shinyProxyInstance, "Normal", "DeletingInstance", "Deleting ShinyProxy instance")
+        createEvent(shinyProxy, shinyProxyInstance, "Normal", "DeletingInstance",
+            "Deleting ShinyProxy instance: ${shinyProxyInstance.hashOfSpec}, revision: ${shinyProxyInstance.revision}")
     }
 
     fun createInstanceDeletedEvent(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance) {
-        createEvent(shinyProxy, shinyProxyInstance, "Normal", "InstanceDeleted", "ShinyProxy instance deleted")
+        createEvent(shinyProxy, shinyProxyInstance, "Normal", "InstanceDeleted",
+            "Deleted ShinyProxy instance: ${shinyProxyInstance.hashOfSpec}, revision: ${shinyProxyInstance.revision}")
     }
 
-    private fun createEvent(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, type: String, action: String, reason: String, message: String? = null) {
+    private fun createEvent(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, type: String, action: String, message: String? = null) {
         val k8sMicroTime = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'.'SSSSSSXXX")
 
         //@formatter:off
@@ -92,9 +97,9 @@ class EventFactory(private val kubeClient: KubernetesClient) {
             .withNewEventTime(k8sMicroTime.format(ZonedDateTime.now()))
             .withReportingInstance("shinyproxy-operator")
             .withReportingComponent("shinyproxy-operator")
-            .withAction(action) // which action failed, machine-readable
-            .withType(type) // Warning or Normal
-            .withReason(reason); // reason is why the action was taken, human-readable, 128 characters
+            .withAction(action)
+            .withReason(action)
+            .withType(type)
         //@formatter:on
 
         if (message != null) {
