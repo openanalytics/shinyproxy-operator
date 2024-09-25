@@ -5,8 +5,8 @@ metadata:
     ci: shinyproxy-operator-build
 spec:
   containers:
-    - name: containerproxy-build
-      image: 196229073436.dkr.ecr.eu-west-1.amazonaws.com/openanalytics/containerproxy-build
+    - name: shinyproxy-operator-build
+      image: public.ecr.aws/docker/library/maven:3-eclipse-temurin-17-focal
       command:
         - cat
       tty: true

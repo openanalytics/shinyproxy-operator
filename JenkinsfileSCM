@@ -2,7 +2,9 @@ pipeline {
 
     agent {
         kubernetes {
+            inheritFrom "default"
             yamlFile 'kubernetesPod.yaml'
+            yamlMergeStrategy merge()
         }
     }
 
@@ -16,7 +18,7 @@ pipeline {
 
             steps {
 
-                container('containerproxy-build') {
+                container('shinyproxy-operator-build') {
 
                      configFileProvider([configFile(fileId: 'maven-settings-rsb', variable: 'MAVEN_SETTINGS_RSB')]) {
 
