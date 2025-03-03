@@ -20,20 +20,15 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
-import mu.KotlinLogging
-import kotlin.system.exitProcess
+import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 
 
-suspend fun main() {
-    val logger = KotlinLogging.logger {}
-    try {
-        val operator = KubernetesOperator()
-        operator.init()
-        operator.run()
-    } catch (exception: Exception) {
-        logger.warn { "Exception : ${exception.message}" }
-        exception.printStackTrace()
-        exitProcess(1)
-    }
+abstract class IShinyProxySource {
+
+    abstract suspend fun init()
+
+    abstract suspend fun run()
+
+    abstract suspend fun get(namespace: String, name: String): ShinyProxy?
+
 }

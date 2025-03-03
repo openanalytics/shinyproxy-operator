@@ -1,4 +1,4 @@
-/**
+/*
  * ShinyProxy-Operator
  *
  * Copyright (C) 2021-2024 Open Analytics

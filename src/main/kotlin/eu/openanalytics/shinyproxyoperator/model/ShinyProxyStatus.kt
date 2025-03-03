@@ -18,22 +18,20 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator
+package eu.openanalytics.shinyproxyoperator.model
 
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
-import mu.KotlinLogging
-import kotlin.system.exitProcess
+data class ShinyProxyStatus(val realmId: String, val hashOfCurrentSpec: String, val instances: List<ShinyProxyInstance> = arrayListOf()) {
 
-
-suspend fun main() {
-    val logger = KotlinLogging.logger {}
-    try {
-        val operator = KubernetesOperator()
-        operator.init()
-        operator.run()
-    } catch (exception: Exception) {
-        logger.warn { "Exception : ${exception.message}" }
-        exception.printStackTrace()
-        exitProcess(1)
+    fun getInstanceByHash(hash: String): ShinyProxyInstance? {
+        return instances.filter { it.hashOfSpec == hash }.maxByOrNull { it.revision }
     }
+
+    fun getInstance(shinyProxyInstance: ShinyProxyInstance): ShinyProxyInstance? {
+        return instances.firstOrNull { it.hashOfSpec == shinyProxyInstance.hashOfSpec && it.revision == shinyProxyInstance.revision }
+    }
+
+    fun latestInstance(): ShinyProxyInstance? {
+        return instances.firstOrNull { it.isLatestInstance }
+    }
+
 }

@@ -20,20 +20,28 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
 import mu.KotlinLogging
-import kotlin.system.exitProcess
 
+private val logger = KotlinLogging.logger {}
 
-suspend fun main() {
-    val logger = KotlinLogging.logger {}
-    try {
-        val operator = KubernetesOperator()
-        operator.init()
-        operator.run()
-    } catch (exception: Exception) {
-        logger.warn { "Exception : ${exception.message}" }
-        exception.printStackTrace()
-        exitProcess(1)
+fun <T> readConfigValue(constructorValue: T? = null, default: T, envVarName: String, convertor: (String) -> T): T {
+    val e = System.getenv(envVarName)
+    val res = when {
+        constructorValue != null -> constructorValue
+        e != null -> convertor(e)
+        else -> default
     }
+    logger.info { "Using $res for property $envVarName" }
+    return res
+}
+
+fun <T> readConfigValue(default: T?, envVarName: String, convertor: (String) -> T): T {
+    val e = System.getenv(envVarName)
+    val res = when {
+        e != null -> convertor(e)
+        default == null -> error("No value provided for required config option '${envVarName}'")
+        else -> default
+    }
+    logger.info { "Using $res for property $envVarName" }
+    return res
 }

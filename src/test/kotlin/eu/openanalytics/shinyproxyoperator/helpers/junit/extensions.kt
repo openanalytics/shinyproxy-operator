@@ -18,22 +18,13 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator
+package eu.openanalytics.shinyproxyoperator.helpers.junit
 
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
-import mu.KotlinLogging
-import kotlin.system.exitProcess
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeout
 
-
-suspend fun main() {
-    val logger = KotlinLogging.logger {}
-    try {
-        val operator = KubernetesOperator()
-        operator.init()
-        operator.run()
-    } catch (exception: Exception) {
-        logger.warn { "Exception : ${exception.message}" }
-        exception.printStackTrace()
-        exitProcess(1)
+suspend fun <T> CompletableDeferred<T>.awaitWithTimeout(): T {
+    return withTimeout(120_000) {
+        return@withTimeout await()
     }
 }

@@ -18,22 +18,12 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator
+package eu.openanalytics.shinyproxyoperator.impl.kubernetes.crd
 
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
-import mu.KotlinLogging
-import kotlin.system.exitProcess
+import com.fasterxml.jackson.databind.JsonDeserializer
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import io.fabric8.kubernetes.api.model.KubernetesResource
 
 
-suspend fun main() {
-    val logger = KotlinLogging.logger {}
-    try {
-        val operator = KubernetesOperator()
-        operator.init()
-        operator.run()
-    } catch (exception: Exception) {
-        logger.warn { "Exception : ${exception.message}" }
-        exception.printStackTrace()
-        exitProcess(1)
-    }
-}
+@JsonDeserialize(using = JsonDeserializer.None::class)
+data class ShinyProxyStatusCustomResource(val instances: List<ShinyProxyInstanceResource> = arrayListOf()) : KubernetesResource

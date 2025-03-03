@@ -26,11 +26,7 @@
             <AppenderRef ref="Console" level="WARN"/>
             <AppenderRef ref="File" level="TRACE"/>
         </Logger>
-        <Logger name="eu.openanalytics.shinyproxyoperator.controller.PodRetriever" additivity="false">
-            <AppenderRef ref="Console" level="WARN"/>
-            <AppenderRef ref="File" level="DEBUG"/>
-        </Logger>
-        <Logger name="eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever" additivity="false">
+        <Logger name="eu.openanalytics.shinyproxyoperator.impl.kubernetes.controller.PodRetriever" additivity="false">
             <AppenderRef ref="Console" level="WARN"/>
             <AppenderRef ref="File" level="DEBUG"/>
         </Logger>

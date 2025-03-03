@@ -20,20 +20,22 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
-import mu.KotlinLogging
-import kotlin.system.exitProcess
+import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 
+interface IEventController {
 
-suspend fun main() {
-    val logger = KotlinLogging.logger {}
-    try {
-        val operator = KubernetesOperator()
-        operator.init()
-        operator.run()
-    } catch (exception: Exception) {
-        logger.warn { "Exception : ${exception.message}" }
-        exception.printStackTrace()
-        exitProcess(1)
-    }
+    fun createNewInstanceEvent(shinyProxyInstance: ShinyProxyInstance)
+
+    fun createInstanceReadyEvent(shinyProxyInstance: ShinyProxyInstance)
+
+    fun createInstanceFailed(shinyProxyInstance: ShinyProxyInstance, message: String?)
+
+    fun createDeletingInstanceEvent(shinyProxyInstance: ShinyProxyInstance)
+
+    fun createInstanceDeletedEvent(shinyProxyInstance: ShinyProxyInstance)
+
+    fun createInstanceReconciledEvent(shinyProxyInstance: ShinyProxyInstance)
+
+    fun inputError(message: String)
+
 }
