@@ -29,7 +29,7 @@ import io.fabric8.kubernetes.api.model.networking.v1.Ingress
 import io.fabric8.kubernetes.api.model.networking.v1.IngressList
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.dsl.Resource
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class IngressController(
         kubeClient: KubernetesClient,

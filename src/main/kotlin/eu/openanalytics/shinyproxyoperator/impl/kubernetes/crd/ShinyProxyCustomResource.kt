@@ -76,4 +76,12 @@ class ShinyProxyCustomResource : CustomResource<JsonNode, ShinyProxyStatusCustom
         return@lazy spec.getSubPath()
     }
 
+    override fun setKind(kind: String) {
+        // prevent fabric8 form logging a message here
+    }
+
+    override fun setApiVersion(version: String) {
+        // prevent fabric8 form logging a message here
+    }
+
 }

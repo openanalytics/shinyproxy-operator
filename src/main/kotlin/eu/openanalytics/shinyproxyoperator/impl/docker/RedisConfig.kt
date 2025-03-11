@@ -24,7 +24,7 @@ import eu.openanalytics.shinyproxyoperator.FileManager
 import eu.openanalytics.shinyproxyoperator.readConfigValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig

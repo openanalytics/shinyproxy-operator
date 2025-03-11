@@ -32,7 +32,7 @@ import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
 import java.nio.file.Path
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class GrafanaConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, private val mainDataDir: Path, private val caddyConfig: CaddyConfig) {
 

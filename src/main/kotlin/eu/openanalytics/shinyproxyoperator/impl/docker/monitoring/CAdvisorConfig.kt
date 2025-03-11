@@ -23,7 +23,7 @@ package eu.openanalytics.shinyproxyoperator.impl.docker.monitoring
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerActions
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOrchestrator
 import eu.openanalytics.shinyproxyoperator.readConfigValue
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.Device

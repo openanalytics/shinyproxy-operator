@@ -25,7 +25,7 @@ import io.fabric8.kubernetes.api.model.StatusBuilder
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.okhttp.OkHttpClientFactory
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response

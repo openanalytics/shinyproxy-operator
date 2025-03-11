@@ -27,7 +27,7 @@ import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class ReplicaSetFactory(private val kubeClient: KubernetesClient) {
 

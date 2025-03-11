@@ -27,7 +27,7 @@ import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 
 class ConfigMapFactory(private val kubeClient: KubernetesClient) {

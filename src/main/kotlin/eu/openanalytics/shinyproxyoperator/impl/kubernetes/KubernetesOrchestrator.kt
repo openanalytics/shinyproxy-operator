@@ -43,7 +43,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource
 import io.fabric8.kubernetes.client.readiness.Readiness
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class KubernetesOrchestrator(private val kubernetesClient: KubernetesClient,
                              private val shinyProxyClient: ShinyProxyClient,

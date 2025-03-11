@@ -31,7 +31,7 @@ import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.concurrent.timer
 
 class ShinyProxyController(

@@ -30,7 +30,7 @@ import io.fabric8.kubernetes.api.model.networking.v1.HTTPIngressPathBuilder
 import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder
 import io.fabric8.kubernetes.api.model.networking.v1.IngressRuleBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class IngressFactory(private val kubeClient: KubernetesClient) {
 

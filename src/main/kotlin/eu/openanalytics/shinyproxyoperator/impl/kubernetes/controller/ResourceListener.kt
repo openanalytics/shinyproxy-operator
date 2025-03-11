@@ -36,7 +36,7 @@ import io.fabric8.kubernetes.client.informers.cache.Indexer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class ResourceListener<T : HasMetadata, L : KubernetesResourceList<T>, R : Resource<T>>(
         private val channel: SendChannel<ShinyProxyEvent>, private val resourceClient: MixedOperation<T, L, R>

@@ -27,7 +27,7 @@ import eu.openanalytics.shinyproxyoperator.impl.docker.CraneConfig.Companion.CRA
 import eu.openanalytics.shinyproxyoperator.impl.docker.CraneConfig.Companion.CRANE_INSTANCE_LABEL
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.exceptions.ContainerNotFoundException
 import org.mandas.docker.client.exceptions.NetworkNotFoundException

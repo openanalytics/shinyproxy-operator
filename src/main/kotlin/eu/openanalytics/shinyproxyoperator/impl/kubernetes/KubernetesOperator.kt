@@ -54,7 +54,7 @@ import io.fabric8.kubernetes.client.utils.Serialization
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.config.Configurator
 import java.util.*

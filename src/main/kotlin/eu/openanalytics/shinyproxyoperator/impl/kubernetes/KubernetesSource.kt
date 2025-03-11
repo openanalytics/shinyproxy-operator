@@ -32,7 +32,7 @@ import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class KubernetesSource(private val shinyProxyClient: ShinyProxyClient,
                        private val channel: Channel<ShinyProxyEvent>,

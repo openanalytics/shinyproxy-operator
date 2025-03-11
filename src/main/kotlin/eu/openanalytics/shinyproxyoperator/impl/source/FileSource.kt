@@ -34,7 +34,7 @@ import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.readConfigValue
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.filefilter.DirectoryFileFilter
 import org.apache.commons.io.filefilter.RegexFileFilter

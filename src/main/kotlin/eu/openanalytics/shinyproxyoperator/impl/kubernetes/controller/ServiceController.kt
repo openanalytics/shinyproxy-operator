@@ -33,7 +33,7 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource
 import io.fabric8.kubernetes.client.dsl.ServiceResource
 import io.fabric8.kubernetes.client.readiness.Readiness
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class ServiceController(
         serviceClient: MixedOperation<Service, ServiceList, ServiceResource<Service>>,

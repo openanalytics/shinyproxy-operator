@@ -29,7 +29,7 @@ import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.api.model.PodTemplateSpec
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javax.json.JsonPatch
 import javax.json.JsonStructure
 

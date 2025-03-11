@@ -31,7 +31,7 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder
 import io.fabric8.kubernetes.api.model.ServiceList
 import io.fabric8.kubernetes.client.dsl.MixedOperation
 import io.fabric8.kubernetes.client.dsl.ServiceResource
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 
 class ServiceFactory(private val serviceClient: MixedOperation<Service, ServiceList, ServiceResource<Service>>) {
 

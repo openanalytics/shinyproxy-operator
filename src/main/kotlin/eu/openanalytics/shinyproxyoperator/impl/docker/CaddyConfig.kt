@@ -34,7 +34,7 @@ import eu.openanalytics.shinyproxyoperator.readConfigValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.mandas.docker.client.DockerClient

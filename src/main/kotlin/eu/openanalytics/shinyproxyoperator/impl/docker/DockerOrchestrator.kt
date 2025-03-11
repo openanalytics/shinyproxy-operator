@@ -42,7 +42,7 @@ import eu.openanalytics.shinyproxyoperator.readConfigValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.lang3.RandomStringUtils
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder

@@ -24,7 +24,7 @@ import eu.openanalytics.shinyproxyoperator.IEventController
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesSource
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import kotlinx.coroutines.runBlocking
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
 import java.util.Timer
 import kotlin.concurrent.timer

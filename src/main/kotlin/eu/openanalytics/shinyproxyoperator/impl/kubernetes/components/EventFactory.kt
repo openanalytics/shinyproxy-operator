@@ -25,7 +25,7 @@ import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.EventBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
-import mu.KotlinLogging
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
