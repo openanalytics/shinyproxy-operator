@@ -20,7 +20,12 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
+import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOperator
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import mu.KotlinLogging
 import kotlin.system.exitProcess
 
@@ -28,9 +33,27 @@ import kotlin.system.exitProcess
 suspend fun main() {
     val logger = KotlinLogging.logger {}
     try {
-        val operator = KubernetesOperator()
+
+        val orchestratorName = readConfigValue( "kubernetes", "SPO_ORCHESTRATOR") { it.lowercase() }
+        val operator: IOperator = if (orchestratorName == "kubernetes") {
+            KubernetesOperator()
+        } else if (orchestratorName == "docker") {
+            DockerOperator()
+        } else {
+            println()
+            println()
+            println("ERROR: Invalid env variable SPO_ORCHESTRATOR: 'kubernetes' and 'docker' are supported.")
+            println()
+            exitProcess(1)
+        }
+
+        logger.info { "Starting background processes of ShinyProxy Operator" }
         operator.init()
-        operator.run()
+
+        CoroutineScope(Dispatchers.Default).launch(CoroutineName("run")) {
+            logger.info { "Starting ShinyProxy Operator" }
+            operator.run()
+        }
     } catch (exception: Exception) {
         logger.warn { "Exception : ${exception.message}" }
         exception.printStackTrace()

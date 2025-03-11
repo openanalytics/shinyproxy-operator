@@ -25,7 +25,7 @@ import eu.openanalytics.shinyproxyoperator.LabelFactory.APP_LABEL
 import eu.openanalytics.shinyproxyoperator.LabelFactory.APP_LABEL_VALUE
 import eu.openanalytics.shinyproxyoperator.LabelFactory.INSTANCE_LABEL
 import eu.openanalytics.shinyproxyoperator.LabelFactory.REALM_ID_LABEL
-import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
+import eu.openanalytics.shinyproxyoperator.impl.kubernetes.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.crd.ShinyProxyCustomResource
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getImagePullPolicy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy

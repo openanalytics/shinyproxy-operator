@@ -1,0 +1,22 @@
+apiVersion: 1
+
+prune: true
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    uid: prometheus
+    url: http://sp-prometheus:9090
+    version: 1
+    jsonData:
+      timeInterval: "30s"
+      seriesEndpoint: true
+  - name: Loki
+    type: loki
+    access: proxy
+    orgId: 1
+    uid: loki
+    url: http://sp-grafana-loki:3100
+    version: 1

@@ -1,0 +1,83 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+discovery.docker "linux" {
+  host = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+}
+
+discovery.relabel "default" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_id"]
+    target_label = "container_id"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_openanalytics_eu_sp_realm_id"]
+    target_label = "sp_realm_id"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_openanalytics_eu_sp_spec_id"]
+    target_label = "sp_spec_id"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_openanalytics_eu_sp_user_id"]
+    target_label = "sp_user_id"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_openanalytics_eu_sp_proxy_id"]
+    target_label = "sp_proxy_id"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_openanalytics_eu_sp_app_instance"]
+    target_label = "sp_proxy_instance"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_openanalytics_eu_proxy_created_timestamp"]
+    target_label = "sp_proxy_created_timestamp"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_openanalytics_eu_proxy_sp_instance"]
+    target_label = "sp_instance"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_openanalytics_eu_sp_instance"]
+    target_label = "sp_instance"
+  }
+
+  rule {
+    action       = "replace"
+    target_label = "namespace"
+    replacement  = "default"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_app"]
+    target_label = "app"
+  }
+
+}
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.linux.targets
+  forward_to = [loki.write.local.receiver]
+  relabel_rules = discovery.relabel.default.rules
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://sp-grafana-loki:3100/loki/api/v1/push"
+  }
+}

@@ -1,0 +1,26 @@
+scrape_configs:
+  - job_name: 'shinyproxy'
+    metrics_path: '/actuator/prometheus'
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        match_first_network: false
+        port: 9090
+    relabel_configs:
+      - source_labels:
+          - "__meta_docker_container_label_app"
+        regex: "shinyproxy"
+        action: keep
+      - source_labels:
+          - "__meta_docker_network_name"
+        regex: "sp-shared-network"
+        action: keep
+      - source_labels:
+          - "__meta_docker_container_label_app"
+        target_label: "app"
+      - target_label: "namespace"
+        replacement: "default"
+  - job_name: cadvisor
+    scrape_interval: 5s
+    static_configs:
+      - targets:
+          - sp-cadvisor:8080

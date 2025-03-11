@@ -22,6 +22,7 @@ package eu.openanalytics.shinyproxyoperator.impl.kubernetes
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.IEventController
+import eu.openanalytics.shinyproxyoperator.IOperator
 import eu.openanalytics.shinyproxyoperator.IRecyclableChecker
 import eu.openanalytics.shinyproxyoperator.controller.EventController
 import eu.openanalytics.shinyproxyoperator.controller.RecyclableChecker
@@ -64,7 +65,7 @@ typealias ShinyProxyClient = MixedOperation<ShinyProxyCustomResource, Kubernetes
 class KubernetesOperator(client: NamespacedKubernetesClient? = null,
                          mode: Mode? = null,
                          eventController: IEventController? = null,
-                         recyclableChecker: IRecyclableChecker? = null) {
+                         recyclableChecker: IRecyclableChecker? = null) : IOperator {
 
     private val logger = KotlinLogging.logger {}
     private val client = client ?: createKubernetesClient()
@@ -182,9 +183,7 @@ class KubernetesOperator(client: NamespacedKubernetesClient? = null,
 
     }
 
-    suspend fun init() {
-        logger.info { "Starting background processes of ShinyProxy Operator" }
-
+    override suspend fun init() {
         checkCrdExists("shinyproxies.openanalytics.eu", "ShinyProxy")
 
         try {
@@ -209,9 +208,8 @@ class KubernetesOperator(client: NamespacedKubernetesClient? = null,
         }
     }
 
-    suspend fun run() {
+    override suspend fun run() {
         try {
-            logger.info { "Starting ShinyProxy Operator" }
             shinyProxyController.run()
         } catch (e: KubernetesClientException) {
             logger.warn { "Kubernetes Client Exception : ${e.message}" }

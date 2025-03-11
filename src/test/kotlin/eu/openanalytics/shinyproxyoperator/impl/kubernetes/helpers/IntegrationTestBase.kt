@@ -25,8 +25,8 @@ import eu.openanalytics.shinyproxyoperator.LabelFactory
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.Mode
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.createKubernetesClient
-import eu.openanalytics.shinyproxyoperator.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.controller.EventController
+import eu.openanalytics.shinyproxyoperator.impl.kubernetes.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.crd.ShinyProxyCustomResource
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
