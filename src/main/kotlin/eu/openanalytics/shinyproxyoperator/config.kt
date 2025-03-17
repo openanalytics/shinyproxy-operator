@@ -22,26 +22,19 @@ package eu.openanalytics.shinyproxyoperator
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 
-private val logger = KotlinLogging.logger {}
+open class Config {
 
-fun <T> readConfigValue(constructorValue: T? = null, default: T, envVarName: String, convertor: (String) -> T): T {
-    val e = System.getenv(envVarName)
-    val res = when {
-        constructorValue != null -> constructorValue
-        e != null -> convertor(e)
-        else -> default
-    }
-    logger.info { "Using $res for property $envVarName" }
-    return res
-}
+    protected val logger = KotlinLogging.logger {}
 
-fun <T> readConfigValue(default: T?, envVarName: String, convertor: (String) -> T): T {
-    val e = System.getenv(envVarName)
-    val res = when {
-        e != null -> convertor(e)
-        default == null -> error("No value provided for required config option '${envVarName}'")
-        else -> default
+    open fun <T> readConfigValue(default: T?, envVarName: String, convertor: (String) -> T): T {
+        val e = System.getenv(envVarName)
+        val res = when {
+            e != null -> convertor(e)
+            default == null -> error("No value provided for required config option '${envVarName}'")
+            else -> default
+        }
+        logger.info { "Using $res for property $envVarName" }
+        return res
     }
-    logger.info { "Using $res for property $envVarName" }
-    return res
+
 }

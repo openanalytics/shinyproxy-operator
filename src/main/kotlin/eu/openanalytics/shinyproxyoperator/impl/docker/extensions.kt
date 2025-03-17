@@ -30,7 +30,7 @@ fun Container.getLabelOrNull(label: String): String? {
 
 fun Container.getSharedNetworkIpAddress(): String? {
     val ip = networkSettings().networks()[DockerOrchestrator.SHARED_NETWORK_NAME]?.ipAddress()
-    if (ip?.isBlank() == true) {
+    if (ip.isNullOrBlank()) {
         return null
     }
     return ip

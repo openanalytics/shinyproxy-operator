@@ -29,9 +29,14 @@ import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.concurrent.timer
 
 class ShinyProxyController(
@@ -114,7 +119,7 @@ class ShinyProxyController(
                         logger.warn { "Did not find source for realm: ${event.realmId}." }
                         return
                     }
-                    val status =  orchestrator.getShinyProxyStatus(shinyProxy)
+                    val status = orchestrator.getShinyProxyStatus(shinyProxy)
                     val hash = event.shinyProxyInstance ?: status?.latestInstance()?.hashOfSpec ?: shinyProxy.hashOfCurrentSpec
                     val shinyProxyInstance = status?.getInstanceByHash(hash)
                     if (shinyProxyInstance == null) {

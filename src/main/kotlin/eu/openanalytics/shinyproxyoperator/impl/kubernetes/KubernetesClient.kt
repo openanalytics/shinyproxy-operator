@@ -39,6 +39,6 @@ fun createKubernetesClient(httpClientFactory: HttpClient.Factory? = null): Names
     }
 
     return builder.withKubernetesSerialization(kubernetesSerialization)
-            .build()
-            .adapt(NamespacedKubernetesClient::class.java)
+        .build()
+        .adapt(NamespacedKubernetesClient::class.java)
 }

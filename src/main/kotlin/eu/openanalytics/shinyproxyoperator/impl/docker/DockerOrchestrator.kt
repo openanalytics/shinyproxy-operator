@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.FileManager
 import eu.openanalytics.shinyproxyoperator.IOrchestrator
 import eu.openanalytics.shinyproxyoperator.IShinyProxySource
@@ -38,11 +39,10 @@ import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyStatus
-import eu.openanalytics.shinyproxyoperator.readConfigValue
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.lang3.RandomStringUtils
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder
@@ -55,10 +55,12 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
-class DockerOrchestrator(channel: Channel<ShinyProxyEvent>) : IOrchestrator {
+class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
+                         config: Config,
+                         private val dataDir: Path,
+                         private val inputDir: Path) : IOrchestrator {
 
-    private val dataDir: Path = readConfigValue( Path.of("/opt/shinyproxy-docker-operator/data/"), "SPO_DOCKER_DATA_DIR") { Path.of(it) }
-    private val dockerGID: Int = readConfigValue( null, "SPO_DOCKER_GID") { it.toInt() }
+    private val dockerGID: Int = config.readConfigValue(null, "SPO_DOCKER_GID") { it.toInt() }
     private val state = mutableMapOf<String, ShinyProxyStatus>()
 
     private val logger = KotlinLogging.logger { }
@@ -86,12 +88,12 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>) : IOrchestrator {
             .fromEnv()
             .readTimeoutMillis(0) // no timeout, needed for startContainer and logs, #32606
             .build()
-        caddyConfig = CaddyConfig(dockerClient, dataDir)
+        caddyConfig = CaddyConfig(dockerClient, dataDir, config)
         dockerActions = DockerActions(dockerClient)
-        shinyProxyReadyChecker = ShinyProxyReadyChecker(channel, dockerActions, dataDir)
-        redisConfig = RedisConfig(dockerClient, dockerActions, dataDir)
-        craneConfig = CraneConfig(dockerClient, dockerActions, dataDir, redisConfig, caddyConfig, persistentState)
-        monitoringConfig = MonitoringConfig(dockerClient, dockerActions, dataDir, caddyConfig)
+        shinyProxyReadyChecker = ShinyProxyReadyChecker(channel, dockerActions, dockerClient, dataDir)
+        redisConfig = RedisConfig(dockerClient, dockerActions, dataDir, config)
+        craneConfig = CraneConfig(dockerClient, dockerActions, dataDir, inputDir, redisConfig, caddyConfig, persistentState)
+        monitoringConfig = MonitoringConfig(dockerClient, dockerActions, dataDir, caddyConfig, config)
         fileManager.createDirectories(dataDir)
         eventWriter = FileWriter(dataDir.resolve("events.json").toFile(), true)
     }
@@ -213,6 +215,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>) : IOrchestrator {
                         HostConfig.Bind.builder()
                             .from(dir.resolve("templates").toString())
                             .to("/opt/shinyproxy/templates")
+                            .readOnly(true)
                             .build(),
                         HostConfig.Bind.builder()
                             .from(dir.resolve("termination-log").toString())
@@ -242,14 +245,23 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>) : IOrchestrator {
     }
 
     private fun copyTemplates(shinyProxy: ShinyProxy, dir: Path) {
-        val source = Path.of("input", "templates", shinyProxy.name)
-        if (!Files.exists(source) || !Files.isDirectory(source)) {
-            return
-        }
+        val source = getTemplateSource(shinyProxy) ?: return
         val destination = dir.resolve("templates")
         fileManager.createDirectories(destination)
         source.toFile().copyRecursively(destination.toFile(), true)
         logger.info { "${logPrefix(shinyProxy)} [Docker] Templates copied" }
+    }
+
+    private fun getTemplateSource(shinyProxy: ShinyProxy): Path? {
+        val source = inputDir.resolve("templates").resolve(shinyProxy.name)
+        if (Files.exists(source) && Files.isDirectory(source)) {
+            return source
+        }
+        val source2 = inputDir.resolve("templates").resolve(shinyProxy.realmId)
+        if (Files.exists(source2) && Files.isDirectory(source2)) {
+            return source2
+        }
+        return null
     }
 
     override suspend fun deleteInstance(shinyProxyInstance: ShinyProxyInstance) {
@@ -388,6 +400,11 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>) : IOrchestrator {
             caddyConfig.addShinyProxy(shinyProxy, latestInstance) // not reconcile yet, wait for all ShinyProxy servers to be added
             craneConfig.init(shinyProxy)
         }
+    }
+
+    fun stop() {
+        shinyProxyReadyChecker.stop()
+        craneConfig.stop()
     }
 
     private fun generateConfig(shinyProxy: ShinyProxy, networkName: String): String {

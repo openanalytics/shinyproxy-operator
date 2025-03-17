@@ -24,29 +24,37 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.readValue
+import eu.openanalytics.shinyproxyoperator.Config
+import eu.openanalytics.shinyproxyoperator.IEventController
 import eu.openanalytics.shinyproxyoperator.IShinyProxySource
-import eu.openanalytics.shinyproxyoperator.controller.EventController
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOrchestrator
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.readConfigValue
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.filefilter.DirectoryFileFilter
 import org.apache.commons.io.filefilter.RegexFileFilter
-import java.io.File
+import java.nio.file.Path
+import java.util.*
 import kotlin.concurrent.timer
 
-class FileSource(private val channel: Channel<ShinyProxyEvent>, private val orchestrator: DockerOrchestrator, private val eventController: EventController) : IShinyProxySource() {
+class FileSource(
+    private val channel: Channel<ShinyProxyEvent>,
+    config: Config,
+    private val orchestrator: DockerOrchestrator,
+    private val eventController: IEventController,
+    private val inputDir: Path,
+) : IShinyProxySource() {
 
     private val objectMapper = ObjectMapper(YAMLFactory())
     private val shinyProxies = mutableMapOf<String, ShinyProxy>()
     private val logger = KotlinLogging.logger {}
-    private val dir = File(readConfigValue( "/opt/shinyproxy-docker-operator/input", "SPO_INPUT_DIR") { it })
+    private var timer: Timer? = null
+    private val pollInterval: Int = config.readConfigValue(60, "SPO_FILE_POLL_INTERVAL") { it.toInt() }
 
     companion object {
         const val NAMESPACE = "default"
@@ -58,7 +66,7 @@ class FileSource(private val channel: Channel<ShinyProxyEvent>, private val orch
     }
 
     override suspend fun run() {
-        timer(period = 60_000L, initialDelay = 60_000L) {
+        timer = timer(period = pollInterval * 10_00L, initialDelay = pollInterval * 10_000L) {
             runBlocking {
                 try {
                     runOnce()
@@ -75,7 +83,7 @@ class FileSource(private val channel: Channel<ShinyProxyEvent>, private val orch
 
     private suspend fun runOnce() {
         // sort for deterministic ordering on each run
-        val files = FileUtils.listFiles(dir, RegexFileFilter("^.*\\.shinyproxy\\.(yml|yaml)$"), DirectoryFileFilter.DIRECTORY).sortedBy { it.name }
+        val files = FileUtils.listFiles(inputDir.toFile(), RegexFileFilter("^.*\\.shinyproxy\\.(yml|yaml)$"), DirectoryFileFilter.DIRECTORY).sortedBy { it.name }
 
         var hasInputError = false
         val nameToFile = hashMapOf<String, String>()
@@ -138,6 +146,10 @@ class FileSource(private val channel: Channel<ShinyProxyEvent>, private val orch
                 shinyProxies.remove(realmId)
             }
         }
+    }
+
+    fun stop() {
+        timer?.cancel()
     }
 
 }

@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.kubernetes
 
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.IOrchestrator
 import eu.openanalytics.shinyproxyoperator.IShinyProxySource
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.components.ConfigMapFactory
@@ -52,11 +53,12 @@ class KubernetesOrchestrator(private val kubernetesClient: KubernetesClient,
                              private val kubernetesSource: KubernetesSource,
                              private val podRetriever: PodRetriever,
                              private val configMapListener: ResourceListener<ConfigMap, ConfigMapList, Resource<ConfigMap>>,
-                             private val replicaSetListener: ResourceListener<ReplicaSet, ReplicaSetList, RollableScalableResource<ReplicaSet>>) : IOrchestrator {
+                             private val replicaSetListener: ResourceListener<ReplicaSet, ReplicaSetList, RollableScalableResource<ReplicaSet>>,
+                             config: Config) : IOrchestrator {
 
     private val logger = KotlinLogging.logger {}
     private val configMapFactory = ConfigMapFactory(kubernetesClient)
-    private val replicaSetFactory = ReplicaSetFactory(kubernetesClient)
+    private val replicaSetFactory = ReplicaSetFactory(kubernetesClient, config)
     private val eventFactory = EventFactory(kubernetesClient)
 
     override suspend fun init(source: IShinyProxySource) {
@@ -156,7 +158,7 @@ class KubernetesOrchestrator(private val kubernetesClient: KubernetesClient,
     }
 
     override suspend fun deleteRealm(realmId: String) {
-       // no-op
+        // no-op
     }
 
     override fun getContainerIPs(shinyProxyInstance: ShinyProxyInstance): List<String> {
@@ -166,7 +168,7 @@ class KubernetesOrchestrator(private val kubernetesClient: KubernetesClient,
 
     override fun logEvent(shinyProxyInstance: ShinyProxyInstance, type: String, action: String, message: String?) {
         val shinyProxyUid = shinyProxyClient.inNamespace(shinyProxyInstance.namespace).withName(shinyProxyInstance.name).get()?.metadata?.uid ?: return
-        eventFactory.logEvent(shinyProxyInstance, type, action,shinyProxyUid, message)
+        eventFactory.logEvent(shinyProxyInstance, type, action, shinyProxyUid, message)
     }
 
     override fun logEvent(type: String, action: String, message: String?) {

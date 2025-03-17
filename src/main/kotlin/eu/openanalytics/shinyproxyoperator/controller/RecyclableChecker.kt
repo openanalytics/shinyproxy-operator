@@ -27,8 +27,8 @@ import eu.openanalytics.shinyproxyoperator.IOrchestrator
 import eu.openanalytics.shinyproxyoperator.IRecyclableChecker
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
-import kotlinx.coroutines.delay
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException

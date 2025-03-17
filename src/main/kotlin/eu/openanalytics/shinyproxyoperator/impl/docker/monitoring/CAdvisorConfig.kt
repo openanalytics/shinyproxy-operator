@@ -20,19 +20,19 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.docker.monitoring
 
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerActions
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOrchestrator
-import eu.openanalytics.shinyproxyoperator.readConfigValue
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.Device
 import org.mandas.docker.client.messages.HostConfig
 
-class CAdvisorConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions) {
+class CAdvisorConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, config: Config) {
 
     private val logger = KotlinLogging.logger {}
-    private val cAdvisorImage: String = readConfigValue(null, "gcr.io/cadvisor/cadvisor:v0.49.1", "SPO_CADVISOR_IMAGE") { it }
+    private val cAdvisorImage: String = config.readConfigValue("gcr.io/cadvisor/cadvisor:v0.49.1", "SPO_CADVISOR_IMAGE") { it }
     private val containerName = "sp-cadvisor"
 
     fun reconcile() {

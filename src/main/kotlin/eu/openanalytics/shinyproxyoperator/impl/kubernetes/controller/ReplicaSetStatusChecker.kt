@@ -23,10 +23,10 @@ package eu.openanalytics.shinyproxyoperator.impl.kubernetes.controller
 import eu.openanalytics.shinyproxyoperator.IEventController
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesSource
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
-import kotlinx.coroutines.runBlocking
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.runBlocking
 import java.time.Instant
-import java.util.Timer
+import java.util.*
 import kotlin.concurrent.timer
 
 class ReplicaSetStatusChecker(private val podRetriever: PodRetriever,
@@ -51,7 +51,7 @@ class ReplicaSetStatusChecker(private val podRetriever: PodRetriever,
                         }
                     }
                 } catch (e: Exception) {
-                    logger.warn("Error while checking ReplicaSet status", e)
+                    logger.warn(e) { "${"Error while checking ReplicaSet status"}" }
                 }
             }
         }

@@ -36,9 +36,9 @@ import io.fabric8.kubernetes.client.readiness.Readiness
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 class ServiceController(
-        serviceClient: MixedOperation<Service, ServiceList, ServiceResource<Service>>,
-        private val serviceListener: ResourceListener<Service, ServiceList, ServiceResource<Service>>,
-        private val replicaSetListener: ResourceListener<ReplicaSet, ReplicaSetList, RollableScalableResource<ReplicaSet>>
+    serviceClient: MixedOperation<Service, ServiceList, ServiceResource<Service>>,
+    private val serviceListener: ResourceListener<Service, ServiceList, ServiceResource<Service>>,
+    private val replicaSetListener: ResourceListener<ReplicaSet, ReplicaSetList, RollableScalableResource<ReplicaSet>>
 ) {
 
     private val logger = KotlinLogging.logger {}
@@ -47,8 +47,8 @@ class ServiceController(
     fun reconcile(shinyProxy: ShinyProxy, latestInstance: ShinyProxyInstance, shinyProxyUid: String) {
         val services = serviceListener.getByShinyProxy(shinyProxy)
         val mustBeUpdated = services.isEmpty()
-                || services[0].metadata?.labels?.get(LabelFactory.LATEST_INSTANCE_LABEL) != latestInstance.hashOfSpec
-                || services[0].metadata?.labels?.get(LabelFactory.REVISION_LABEL) != latestInstance.revision.toString()
+        || services[0].metadata?.labels?.get(LabelFactory.LATEST_INSTANCE_LABEL) != latestInstance.hashOfSpec
+        || services[0].metadata?.labels?.get(LabelFactory.REVISION_LABEL) != latestInstance.revision.toString()
 
         if (mustBeUpdated) {
             val replicaSet = getReplicaSet(latestInstance) ?: return

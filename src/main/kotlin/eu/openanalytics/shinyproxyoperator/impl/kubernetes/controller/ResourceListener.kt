@@ -34,12 +34,12 @@ import io.fabric8.kubernetes.client.informers.ResourceEventHandler
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Indexer
 import io.fabric8.kubernetes.client.informers.cache.Lister
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
-import io.github.oshai.kotlinlogging.KotlinLogging
 
 class ResourceListener<T : HasMetadata, L : KubernetesResourceList<T>, R : Resource<T>>(
-        private val channel: SendChannel<ShinyProxyEvent>, private val resourceClient: MixedOperation<T, L, R>
+    private val channel: SendChannel<ShinyProxyEvent>, private val resourceClient: MixedOperation<T, L, R>
 ) {
 
     private val logger = KotlinLogging.logger {}
@@ -94,11 +94,11 @@ class ResourceListener<T : HasMetadata, L : KubernetesResourceList<T>, R : Resou
         val hashOfInstance = labels[LabelFactory.INSTANCE_LABEL]
 
         channel.send(ShinyProxyEvent(
-                ShinyProxyEventType.RECONCILE,
-                realmId,
-                ownerReference.name,
-                resource.metadata.namespace,
-                hashOfInstance))
+            ShinyProxyEventType.RECONCILE,
+            realmId,
+            ownerReference.name,
+            resource.metadata.namespace,
+            hashOfInstance))
     }
 
 

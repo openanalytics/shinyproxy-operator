@@ -22,18 +22,22 @@
 package eu.openanalytics.shinyproxyoperator.impl.kubernetes.helpers
 
 import eu.openanalytics.shinyproxyoperator.LabelFactory
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.Mode
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.createKubernetesClient
 import eu.openanalytics.shinyproxyoperator.controller.EventController
+import eu.openanalytics.shinyproxyoperator.helpers.AwaitableEvenController
+import eu.openanalytics.shinyproxyoperator.helpers.MockConfig
+import eu.openanalytics.shinyproxyoperator.helpers.MockRecyclableChecker
+import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
+import eu.openanalytics.shinyproxyoperator.impl.kubernetes.Mode
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.crd.ShinyProxyCustomResource
+import eu.openanalytics.shinyproxyoperator.impl.kubernetes.createKubernetesClient
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.api.model.PodList
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient
 import io.fabric8.kubernetes.client.dsl.Resource
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -43,7 +47,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 
@@ -112,7 +115,8 @@ abstract class IntegrationTestBase {
             val recyclableChecker = MockRecyclableChecker()
             val eventController = AwaitableEvenController()
 
-            val operator = KubernetesOperator(namespacedKubernetesClient, mode, eventController, recyclableChecker)
+            val config = MockConfig(mapOf("SPO_MODE" to mode.toString()))
+            val operator = KubernetesOperator(config, namespacedKubernetesClient, eventController, recyclableChecker)
             val shinyProxyClient: ShinyProxyClient = stableClient.inNamespace(namespace).resources(ShinyProxyCustomResource::class.java)
             eventController.setDelegate(EventController(operator.orchestrator))
 
@@ -201,7 +205,7 @@ abstract class IntegrationTestBase {
                     logger.info { "Pod: ${stableClient.kubernetesSerialization.asJson(stableClient.pods().inNamespace(shinyProxy.namespace).withName("itest-curl-helper").get())}" }
                     logger.info { "Pod: ${stableClient.pods().inNamespace(shinyProxy.namespace).withName("itest-curl-helper").log}" }
                 } catch (e: Throwable) {
-                    logger. info { e }
+                    logger.info { e }
                 }
 
                 val newNumApps = getPodsForInstance(instance.hash)?.items?.filter { it.status.phase.equals("Running") }?.size ?: continue

@@ -231,3 +231,4 @@ docs/deployment/overlays/0-dev/**
 build.sh
 input/
 redis_password.txt
+logs/

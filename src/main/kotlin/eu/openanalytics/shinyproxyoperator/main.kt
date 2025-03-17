@@ -22,23 +22,23 @@ package eu.openanalytics.shinyproxyoperator
 
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOperator
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlin.system.exitProcess
 
 
 suspend fun main() {
     val logger = KotlinLogging.logger {}
     try {
-
-        val orchestratorName = readConfigValue( "kubernetes", "SPO_ORCHESTRATOR") { it.lowercase() }
+        val config = Config()
+        val orchestratorName = config.readConfigValue("kubernetes", "SPO_ORCHESTRATOR") { it.lowercase() }
         val operator: IOperator = if (orchestratorName == "kubernetes") {
-            KubernetesOperator()
+            KubernetesOperator(config)
         } else if (orchestratorName == "docker") {
-            DockerOperator()
+            DockerOperator(config)
         } else {
             println()
             println()

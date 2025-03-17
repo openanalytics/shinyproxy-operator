@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.docker.monitoring
 
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.FileManager
 import eu.openanalytics.shinyproxyoperator.LabelFactory.REALM_ID_LABEL
 import eu.openanalytics.shinyproxyoperator.impl.docker.CaddyConfig
@@ -27,18 +28,17 @@ import eu.openanalytics.shinyproxyoperator.impl.docker.DockerActions
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOrchestrator
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.readConfigValue
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
 import java.nio.file.Path
-import io.github.oshai.kotlinlogging.KotlinLogging
 
-class GrafanaConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, private val mainDataDir: Path, private val caddyConfig: CaddyConfig) {
+class GrafanaConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, private val mainDataDir: Path, private val caddyConfig: CaddyConfig, config: Config) {
 
     private val logger = KotlinLogging.logger {}
-    private val grafanaImage: String = readConfigValue(null, "grafana/grafana-oss:11.5.1", "SPO_GRAFANA_IMAGE") { it }
-    private val grafanaRole: String = readConfigValue(null, "Viewer", "SPO_GRAFANA_ROLE") { it }
+    private val grafanaImage: String = config.readConfigValue("grafana/grafana-oss:11.5.1", "SPO_GRAFANA_IMAGE") { it }
+    private val grafanaRole: String = config.readConfigValue("Viewer", "SPO_GRAFANA_ROLE") { it }
     private val fileManager = FileManager()
 
     suspend fun reconcile(shinyProxy: ShinyProxy) {

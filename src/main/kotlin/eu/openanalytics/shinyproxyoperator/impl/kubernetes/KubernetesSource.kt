@@ -21,18 +21,18 @@
 package eu.openanalytics.shinyproxyoperator.impl.kubernetes
 
 import eu.openanalytics.shinyproxyoperator.IShinyProxySource
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.crd.ShinyProxyCustomResource
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEventType
+import eu.openanalytics.shinyproxyoperator.impl.kubernetes.crd.ShinyProxyCustomResource
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyStatus
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer
 import io.fabric8.kubernetes.client.informers.cache.Lister
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
-import io.github.oshai.kotlinlogging.KotlinLogging
 
 class KubernetesSource(private val shinyProxyClient: ShinyProxyClient,
                        private val channel: Channel<ShinyProxyEvent>,
@@ -58,11 +58,11 @@ class KubernetesSource(private val shinyProxyClient: ShinyProxyClient,
                     logger.debug { "${logPrefix(shinyProxy.realmId)} [Event/Update]" }
                     runBlocking {
                         channel.send(ShinyProxyEvent(
-                                ShinyProxyEventType.RECONCILE,
-                                shinyProxy.realmId,
-                                shinyProxy.metadata.name,
-                                shinyProxy.metadata.namespace,
-                                shinyProxy.hashOfCurrentSpec)
+                            ShinyProxyEventType.RECONCILE,
+                            shinyProxy.realmId,
+                            shinyProxy.metadata.name,
+                            shinyProxy.metadata.namespace,
+                            shinyProxy.hashOfCurrentSpec)
                         )
                     }
                 } else {
@@ -74,11 +74,11 @@ class KubernetesSource(private val shinyProxyClient: ShinyProxyClient,
 
                     runBlocking {
                         channel.send(ShinyProxyEvent(
-                                ShinyProxyEventType.UPDATE_SPEC,
-                                shinyProxy.realmId,
-                                shinyProxy.metadata.name,
-                                shinyProxy.metadata.namespace,
-                                shinyProxy.hashOfCurrentSpec)
+                            ShinyProxyEventType.UPDATE_SPEC,
+                            shinyProxy.realmId,
+                            shinyProxy.metadata.name,
+                            shinyProxy.metadata.namespace,
+                            shinyProxy.hashOfCurrentSpec)
                         )
                     }
                 }

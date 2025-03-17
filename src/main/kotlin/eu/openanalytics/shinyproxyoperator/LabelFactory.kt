@@ -28,10 +28,10 @@ object LabelFactory {
     fun labelsForShinyProxyInstance(shinyProxyInstance: ShinyProxyInstance, version: Long? = null): Map<String, String> {
         val hashOfSpec = shinyProxyInstance.hashOfSpec
         val labels = hashMapOf(
-                APP_LABEL to APP_LABEL_VALUE,
-                REALM_ID_LABEL to shinyProxyInstance.realmId,
-                INSTANCE_LABEL to hashOfSpec,
-                REVISION_LABEL to shinyProxyInstance.revision.toString(),
+            APP_LABEL to APP_LABEL_VALUE,
+            REALM_ID_LABEL to shinyProxyInstance.realmId,
+            INSTANCE_LABEL to hashOfSpec,
+            REVISION_LABEL to shinyProxyInstance.revision.toString(),
         )
         if (version != null) {
             labels[VERSION_LABEL] = version.toString()
@@ -41,8 +41,8 @@ object LabelFactory {
 
     fun labelsForShinyProxy(realmId: String): Map<String, String> {
         return mapOf(
-                APP_LABEL to APP_LABEL_VALUE,
-                REALM_ID_LABEL to realmId
+            APP_LABEL to APP_LABEL_VALUE,
+            REALM_ID_LABEL to realmId
         )
     }
 

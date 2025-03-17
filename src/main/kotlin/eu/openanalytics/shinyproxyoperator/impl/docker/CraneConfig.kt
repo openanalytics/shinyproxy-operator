@@ -31,26 +31,27 @@ import eu.openanalytics.shinyproxyoperator.LabelFactory
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.readConfigValue
 import eu.openanalytics.shinyproxyoperator.sha1
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.commons.lang3.RandomStringUtils
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.Container
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
-import java.io.File
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.io.path.exists
+import kotlin.io.path.readText
 
 class CraneConfig(private val dockerClient: DockerClient,
                   private val dockerActions: DockerActions,
                   private val dataDir: Path,
+                  private val inputDir: Path,
                   private val redisConfig: RedisConfig,
                   private val caddyConfig: CaddyConfig,
                   private val persistentState: PersistentState) {
@@ -61,7 +62,6 @@ class CraneConfig(private val dockerClient: DockerClient,
     private val scope = CoroutineScope(Dispatchers.Default)
     private val deletedContainers = ConcurrentHashMap.newKeySet<String>()
     private val craneReadyChecker = CraneReadyChecker()
-    private val dir = File(readConfigValue( "/opt/shinyproxy-docker-operator/input", "SPO_INPUT_DIR") { it })
 
     init {
         yamlMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
@@ -275,7 +275,7 @@ class CraneConfig(private val dockerClient: DockerClient,
             "${shinyProxy.realmId}.crane.yml", "${shinyProxy.realmId}.crane.yaml",
         )
         for (configFile in configFiles) {
-            val path = dir.resolve(configFile)
+            val path = inputDir.resolve(configFile)
             if (path.exists()) {
                 return@withContext path.readText()
             }
@@ -293,7 +293,7 @@ class CraneConfig(private val dockerClient: DockerClient,
     private fun getIp(containerId: String, shinyProxy: ShinyProxy): String? {
         val container = dockerClient.inspectContainer(containerId)
         val ip = container.getSharedNetworkIpAddress()
-        if (ip == null) {
+        if (ip.isNullOrBlank()) {
             logger.warn { "${logPrefix(shinyProxy)} [Crane] No ip address found for container" }
             return null
         }
@@ -322,6 +322,10 @@ class CraneConfig(private val dockerClient: DockerClient,
             return hashContainer
         }
         return containers.maxBy { it.created() }
+    }
+
+    fun stop() {
+        craneReadyChecker.stop()
     }
 
 }

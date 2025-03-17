@@ -46,4 +46,4 @@ fun ShinyProxy.getCaddyRedirects(): List<CaddyRedirect> {
     return listOf()
 }
 
-data class CaddyRedirect(val from: String, val to: String, val statusCode: Int=302)
+data class CaddyRedirect(val from: String, val to: String, val statusCode: Int = 302)

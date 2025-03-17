@@ -20,30 +20,33 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.docker
 
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.FileManager
-import eu.openanalytics.shinyproxyoperator.readConfigValue
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
 import java.nio.file.Files
 import java.nio.file.Path
 
-class RedisConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path) {
+class RedisConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path, config: Config) {
 
     private val containerName = "sp-redis"
     private val dataDir: Path = mainDataDir.resolve(containerName)
     private val redisPassword: String
     private val logger = KotlinLogging.logger {}
-    private val redisImage: String = readConfigValue( "redis:7.2.4", "SPO_REDIS_IMAGE") { it }
+    private val redisImage: String = config.readConfigValue("redis:7.2.4", "SPO_REDIS_IMAGE") { it }
     private val fileManager = FileManager()
 
     init {
         redisPassword = readPasswordFile("/run/secrets/redis_password")
             ?: readPasswordFile("redis_password.txt")
-            ?: error("Invalid redis password")
+            ?: config.readConfigValue("", "SPO_REDIS_PASSWORD") { it }
+        if (redisPassword == "") {
+            error("Invalid redis password")
+        }
     }
 
     fun getRedisPassword(): String {
@@ -74,9 +77,9 @@ class RedisConfig(private val dockerClient: DockerClient, private val dockerActi
                     .to("/data")
                     .build(),
                     HostConfig.Bind.builder()
-                    .from(dataDir.resolve("redis.conf").toString())
-                    .to("/etc/redis.conf")
-                    .build()
+                        .from(dataDir.resolve("redis.conf").toString())
+                        .to("/etc/redis.conf")
+                        .build()
                 )
                 .restartPolicy(HostConfig.RestartPolicy.always())
                 .build()
@@ -95,7 +98,7 @@ class RedisConfig(private val dockerClient: DockerClient, private val dockerActi
         }
     }
 
-    private fun readPasswordFile(path: String) : String? {
+    private fun readPasswordFile(path: String): String? {
         val nPath = Path.of(path)
         if (!Files.exists(nPath)) {
             return null

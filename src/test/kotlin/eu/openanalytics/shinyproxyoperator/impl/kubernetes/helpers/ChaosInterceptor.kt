@@ -61,7 +61,7 @@ class ChaosInterceptor : Interceptor {
 
     companion object {
         fun createChaosKubernetesClient(): NamespacedKubernetesClient {
-            val factory = object: OkHttpClientFactory() {
+            val factory = object : OkHttpClientFactory() {
                 override fun additionalConfig(builder: OkHttpClient.Builder) {
                     builder.addInterceptor(ChaosInterceptor())
                 }

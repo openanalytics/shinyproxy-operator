@@ -18,19 +18,18 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator.impl.kubernetes.helpers
+package eu.openanalytics.shinyproxyoperator.helpers
 
-import eu.openanalytics.shinyproxyoperator.IRecyclableChecker
-import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
+import eu.openanalytics.shinyproxyoperator.Config
 
+class MockConfig(private val overrides: Map<String, String>) : Config() {
 
-class MockRecyclableChecker : IRecyclableChecker {
-
-    @Volatile
-    var isRecyclable: Boolean = false
-
-    override suspend fun isInstanceRecyclable(shinyProxyInstance: ShinyProxyInstance): Boolean {
-        return isRecyclable
+    override fun <T> readConfigValue(default: T?, envVarName: String, convertor: (String) -> T): T {
+        val override = overrides[envVarName]
+        if (override != null) {
+            return convertor(override)
+        }
+        return super.readConfigValue(default, envVarName, convertor)
     }
 
 }

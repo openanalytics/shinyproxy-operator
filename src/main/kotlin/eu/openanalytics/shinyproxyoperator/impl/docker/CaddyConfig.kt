@@ -26,15 +26,15 @@ import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import com.fasterxml.jackson.module.kotlin.convertValue
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.FileManager
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.readConfigValue
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import io.github.oshai.kotlinlogging.KotlinLogging
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.mandas.docker.client.DockerClient
@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit
 import javax.json.JsonPatch
 import javax.json.JsonStructure
 
-class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path) {
+class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, config: Config) {
 
     private val containerName = "sp-caddy"
     private val dataDir: Path = mainDataDir.resolve(containerName)
@@ -60,8 +60,8 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path) {
     private val objectMapper = ObjectMapper()
     private val yamlMapper = ObjectMapper(YAMLFactory())
     private val fileManager = FileManager()
-    private val caddyImage: String = readConfigValue( "caddy:2.8", "SPO_CADDY_IMAGE") { it }
-    private val enableTls = readConfigValue( false, "SPO_CADDY_ENABLE_TLS") { it.toBoolean() }
+    private val caddyImage: String = config.readConfigValue("caddy:2.8", "SPO_CADDY_IMAGE") { it }
+    private val enableTls = config.readConfigValue(false, "SPO_CADDY_ENABLE_TLS") { it.toBoolean() }
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(3, TimeUnit.SECONDS)
         .readTimeout(3, TimeUnit.SECONDS)
@@ -243,7 +243,7 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path) {
 
     private fun generateTlsConnectionPolicies(): List<Map<String, Any>> {
         val policies = arrayListOf<Map<String, Any>>()
-        for (shinyProxy in shinyProxies.values) {
+        for (shinyProxy in shinyProxies.values.sortedBy { it.first.realmId }) {
             val crt = shinyProxy.first.getCaddyTlsCertFile()
             val key = shinyProxy.first.getCaddyTlsKeyFile()
             if (crt != null && key != null) {

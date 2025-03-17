@@ -253,7 +253,7 @@ class ShinyProxyTestInstance(private val namespace: String,
 
     fun retrieveInstance(revision: Int = 0): Triple<ShinyProxy, ShinyProxyStatus, ShinyProxyInstance> {
         for (sp in shinyProxyClient.inNamespace(namespace).list().items) {
-            val instance= sp.status.instances.find { it.hashOfSpec == hash && it.revision == revision }
+            val instance = sp.status.instances.find { it.hashOfSpec == hash && it.revision == revision }
             if (sp != null && instance != null) {
                 val status = sp.getSpStatus()
                 return Triple(

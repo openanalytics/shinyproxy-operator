@@ -32,8 +32,8 @@ import io.fabric8.kubernetes.client.dsl.Resource
 import io.github.oshai.kotlinlogging.KotlinLogging
 
 class IngressController(
-        kubeClient: KubernetesClient,
-        private val ingressListener: ResourceListener<Ingress, IngressList, Resource<Ingress>>
+    kubeClient: KubernetesClient,
+    private val ingressListener: ResourceListener<Ingress, IngressList, Resource<Ingress>>
 ) {
 
     private val logger = KotlinLogging.logger {}

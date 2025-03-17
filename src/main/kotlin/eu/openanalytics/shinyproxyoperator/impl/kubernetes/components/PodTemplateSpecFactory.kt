@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.kubernetes.components
 
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.LabelFactory
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getAntiAffinityRequired
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getAntiAffinityTopologyKey
@@ -27,7 +28,6 @@ import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getImagePullPolicy
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getParsedKubernetesPodTemplateSpecPatches
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
-import eu.openanalytics.shinyproxyoperator.readConfigValue
 import io.fabric8.kubernetes.api.model.Affinity
 import io.fabric8.kubernetes.api.model.AffinityBuilder
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder
@@ -37,14 +37,14 @@ import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
 import io.fabric8.kubernetes.api.model.VolumeBuilder
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder
 
-class PodTemplateSpecFactory {
+class PodTemplateSpecFactory(config: Config) {
 
     private val podTemplatePatcher = Patcher()
 
-    private val probeInitialDelay = readConfigValue(0, "SPO_PROBE_INITIAL_DELAY", String::toInt )
-    private val probeFailureThreshold = readConfigValue(0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
-    private val probeTimeout = readConfigValue(1, "SPO_PROBE_TIMEOUT", String::toInt)
-    private val startupProbeInitialDelay = readConfigValue(60, "SPO_STARTUP_PROBE_INITIAL_DELAY", String::toInt)
+    private val probeInitialDelay = config.readConfigValue(0, "SPO_PROBE_INITIAL_DELAY", String::toInt)
+    private val probeFailureThreshold = config.readConfigValue(0, "SPO_PROBE_FAILURE_THRESHOLD", String::toInt)
+    private val probeTimeout = config.readConfigValue(1, "SPO_PROBE_TIMEOUT", String::toInt)
+    private val startupProbeInitialDelay = config.readConfigValue(60, "SPO_STARTUP_PROBE_INITIAL_DELAY", String::toInt)
 
     fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): PodTemplateSpec {
         val version = if (shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {

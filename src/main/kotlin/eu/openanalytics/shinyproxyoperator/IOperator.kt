@@ -26,4 +26,6 @@ interface IOperator {
 
     suspend fun run()
 
+    fun stop()
+
 }

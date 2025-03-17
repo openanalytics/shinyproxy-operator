@@ -18,13 +18,19 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator.helpers.junit
+package eu.openanalytics.shinyproxyoperator.helpers
 
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.withTimeout
+import eu.openanalytics.shinyproxyoperator.IRecyclableChecker
+import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 
-suspend fun <T> CompletableDeferred<T>.awaitWithTimeout(): T {
-    return withTimeout(120_000) {
-        return@withTimeout await()
+
+class MockRecyclableChecker : IRecyclableChecker {
+
+    @Volatile
+    var isRecyclable: Boolean = false
+
+    override suspend fun isInstanceRecyclable(shinyProxyInstance: ShinyProxyInstance): Boolean {
+        return isRecyclable
     }
+
 }

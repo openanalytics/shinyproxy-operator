@@ -23,15 +23,15 @@ package eu.openanalytics.shinyproxyoperator.impl.kubernetes
 import eu.openanalytics.shinyproxyoperator.LabelFactory
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEventType
-import eu.openanalytics.shinyproxyoperator.helpers.junit.awaitWithTimeout
+import eu.openanalytics.shinyproxyoperator.helpers.awaitWithTimeout
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.helpers.IntegrationTestBase
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.helpers.ShinyProxyTestInstance
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.client.readiness.Readiness
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
@@ -103,7 +103,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 4. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 5. assert correctness
             spTestInstance.assertInstanceIsCorrect()
@@ -129,7 +129,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 4. assert correctness
             spTestInstance.assertInstanceIsCorrect()
@@ -155,7 +155,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
             logger.info { "Fully created instance." }
 
             // 4. assert correctness
@@ -170,7 +170,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 }
             }
             logger.info { "ReplicaSet was deleted" }
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
             logger.info { "Reconciled after deleting RS" }
 
             withTimeout(10_000) {
@@ -186,7 +186,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 getAndDelete(stableClient.configMaps().withName("sp-${sp.name}-cm-${spTestInstance.hash}".take(63)))
                 logger.info { "Deleted ConfigMap" }
             }
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
             logger.info { "Reconciled after deleting CM" }
             spTestInstance.assertInstanceIsCorrect()
 
@@ -195,7 +195,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 getAndDelete(stableClient.services().withName("sp-${sp.name}-svc".take(63)))
                 logger.info { "Deleted Service" }
             }
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
             logger.info { "Reconciled after deleting SVC" }
             spTestInstance.assertInstanceIsCorrect()
 
@@ -204,7 +204,7 @@ class MainIntegrationTest : IntegrationTestBase() {
                 getAndDelete(stableClient.network().v1().ingresses().withName("sp-${sp.name}-ing".take(63)))
                 logger.info { "Deleted Ingress" }
             }
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
             spTestInstance.assertInstanceIsCorrect()
             logger.info { "Reconciled after deleting Ingress" }
         }
@@ -253,7 +253,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 4. assertions
             val (retrievedSp, retrievedStatus) = spTestInstance.retrieveInstance()
@@ -324,7 +324,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstanceOriginal)
+            eventController.waitForNextReconcile(spTestInstanceOriginal.hash)
 
             // 4. assert correctness
             spTestInstanceOriginal.assertInstanceIsCorrect()
@@ -341,13 +341,13 @@ class MainIntegrationTest : IntegrationTestBase() {
             logger.debug { "Base instance created -> updated" }
 
             // 6. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstanceUpdated)
+            eventController.waitForNextReconcile(spTestInstanceUpdated.hash)
 
             // 7. mark old shinyproxy as recyclable (old pods keeps existing)
             recyclableChecker.isRecyclable = true
 
             // 8. wait for delete to happen
-            eventController.waitForDeletion(spTestInstanceOriginal).awaitWithTimeout()
+            eventController.waitForDeletion(spTestInstanceOriginal.hash).awaitWithTimeout()
 
             // 9. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
@@ -378,7 +378,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstanceOriginal)
+            eventController.waitForNextReconcile(spTestInstanceOriginal.hash)
 
             // 4. assert correctness
             spTestInstanceOriginal.assertInstanceIsCorrect()
@@ -400,7 +400,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             logger.debug { "Base instance created -> updated" }
 
             // 7. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstanceUpdated)
+            eventController.waitForNextReconcile(spTestInstanceUpdated.hash)
             spTestInstanceUpdated.assertEvent("Normal", "StartingNewInstance", "Configuration changed, starting new instance: ${spTestInstanceUpdated.hash}, revision: 0")
             spTestInstanceUpdated.assertEvent("Normal", "InstanceReady", "ShinyProxy instance ready: ${spTestInstanceUpdated.hash}, revision: 0")
 
@@ -415,7 +415,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             recyclableChecker.isRecyclable = true
 
             // 10. wait for delete to happen
-            eventController.waitForDeletion(spTestInstanceOriginal).awaitWithTimeout()
+            eventController.waitForDeletion(spTestInstanceOriginal.hash).awaitWithTimeout()
             spTestInstanceOriginal.assertEvent("Normal", "DeletingInstance", "Deleting ShinyProxy instance: ${spTestInstanceOriginal.hash}, revision: 0")
             spTestInstanceOriginal.assertEvent("Normal", "InstanceDeleted", "Deleted ShinyProxy instance: ${spTestInstanceOriginal.hash}, revision: 0")
 
@@ -450,7 +450,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 4. assert correctness
             spTestInstance.assertInstanceIsCorrect()
@@ -465,7 +465,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             spTestInstance2.create()
 
             // 6. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance2)
+            eventController.waitForNextReconcile(spTestInstance2.hash)
 
             // 7. assert correctness
             spTestInstance2.assertInstanceIsCorrect()
@@ -490,7 +490,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 4. assert correctness
             spTestInstance.assertInstanceIsCorrect(1, true)
@@ -498,7 +498,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             // 5. additional assert correctness of ingress
             val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
             assertEquals(1, ingresses.size)
-            assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"));
+            assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"))
         }
 
 
@@ -521,7 +521,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 4. assert correctness
 
@@ -530,7 +530,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             // 5. additional assert correctness of ingress
             val ingresses = namespacedClient.inNamespace(namespace).network().v1().ingresses().list().items
             assertEquals(1, ingresses.size)
-            assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"));
+            assertTrue(ingresses.get(0).spec.rules.get(0).http.paths.get(0).path.endsWith("/"))
         }
 
     /**
@@ -556,7 +556,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstanceOriginal)
+            eventController.waitForNextReconcile(spTestInstanceOriginal.hash)
 
             // 4. assert correctness
             spTestInstanceOriginal.assertInstanceIsCorrect()
@@ -595,7 +595,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             logger.debug { "Inserted reconcile" }
 
             // 8. wait for reconcile of old instance
-            eventController.waitForNextReconcile(spTestInstanceOriginal)
+            eventController.waitForNextReconcile(spTestInstanceOriginal.hash)
 
             // 9. assert that status still points to old instance (the bug)
             val (freshSP, freshStatus, instance) = spTestInstanceOriginal.retrieveInstance()
@@ -605,10 +605,10 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 6. wait until instance is created
             recyclableChecker.isRecyclable = true
-            eventController.waitForNextReconcile(spTestInstanceUpdated)
+            eventController.waitForNextReconcile(spTestInstanceUpdated.hash)
 
             // 7. wait for delete to happen
-            eventController.waitForDeletion(spTestInstanceOriginal).awaitWithTimeout()
+            eventController.waitForDeletion(spTestInstanceOriginal.hash).awaitWithTimeout()
 
             // 8. assert correctness
             spTestInstanceUpdated.assertInstanceIsCorrect()
@@ -641,7 +641,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         }
 
         // 3. wait until instance is created
-        eventController.waitForNextReconcile(spTestInstance)
+        eventController.waitForNextReconcile(spTestInstance.hash)
 
         // 4. stop the operator
         job.cancel()
@@ -675,9 +675,9 @@ class MainIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `restore old config version`() =
-    // idea of test: launch instance A, update config to get instance B, and then update config again to A
-        // the operator will start a new instance, with an increased revision
         setup(Mode.NAMESPACED) { namespace, shinyProxyClient, namespacedClient, stableClient, operator, eventController, recyclableChecker ->
+            // idea of test: launch instance A, update config to get instance B, and then update config again to A
+            // the operator will start a new instance, with an increased revision
             // 1. create a SP instance
             val instanceA = ShinyProxyTestInstance(
                 namespace,
@@ -694,7 +694,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(instanceA)
+            eventController.waitForNextReconcile(instanceA.hash)
 
             // 4. assert correctness
             instanceA.assertInstanceIsCorrect()
@@ -710,11 +710,11 @@ class MainIntegrationTest : IntegrationTestBase() {
                 shinyProxyClient,
                 "simple_config_updated.yaml",
             )
-            val spB = instanceB.create()
+            instanceB.create()
             logger.debug { "Base instance created -> updated" }
 
             // 7. wait until instance is created
-            eventController.waitForNextReconcile(instanceB)
+            eventController.waitForNextReconcile(instanceB.hash)
 
             // 8. wait for delete to not happen
             delay(5000)
@@ -734,11 +734,11 @@ class MainIntegrationTest : IntegrationTestBase() {
             instanceAPrime.create()
 
             // 11. wait until instance is created
-            eventController.waitForNextReconcile(instanceAPrime)
+            eventController.waitForNextReconcile(instanceAPrime.hash, 1)
 
             // 12. wait for delete of instance A to happen
-            val deleteAFuture = eventController.waitForDeletion(instanceA)
-            val deleteBFuture = eventController.waitForDeletion(instanceB)
+            val deleteAFuture = eventController.waitForDeletion(instanceA.hash)
+            val deleteBFuture = eventController.waitForDeletion(instanceB.hash)
             recyclableChecker.isRecyclable = true
             deleteAFuture.awaitWithTimeout()
 
@@ -781,7 +781,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(instanceA)
+            eventController.waitForNextReconcile(instanceA.hash)
 
             // 4. assert correctness
             instanceA.assertInstanceIsCorrect()
@@ -797,11 +797,11 @@ class MainIntegrationTest : IntegrationTestBase() {
                 shinyProxyClient,
                 "simple_config_updated_broken.yaml",
             )
-            val spB = instanceB.create()
+            instanceB.create()
             logger.debug { "Base instance created -> updated" }
 
             // 7. wait for instance to startup (startup will fail)
-            val result = eventController.waitForNextReconcile(instanceB)
+            val result = eventController.waitForNextReconcile(instanceB.hash)
             assertEquals("StartingNewInstanceFailed", result)
 
             // 8. update config to again have the config of A
@@ -815,12 +815,12 @@ class MainIntegrationTest : IntegrationTestBase() {
             instanceAPrime.create()
 
             // 9. wait until instance is created
-            eventController.waitForNextReconcile(instanceAPrime)
+            eventController.waitForNextReconcile(instanceAPrime.hash, 1)
 
             // 10. wait for delete of instance A to happen
             recyclableChecker.isRecyclable = true
-            val deleteAFuture = eventController.waitForDeletion(instanceA)
-            val deleteBFuture = eventController.waitForDeletion(instanceB)
+            val deleteAFuture = eventController.waitForDeletion(instanceA.hash)
+            val deleteBFuture = eventController.waitForDeletion(instanceB.hash)
             deleteAFuture.awaitWithTimeout()
 
             // 11. assert instance A does not exists anymore
@@ -939,7 +939,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 4. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 5. assert correctness
             spTestInstance.assertInstanceIsCorrect()
@@ -965,7 +965,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 4. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 5. assert correctness
             spTestInstance.assertInstanceIsCorrect()
@@ -1014,7 +1014,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 4. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 5. assert correctness
             spTestInstance.assertInstanceIsCorrect()
@@ -1062,7 +1062,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 4. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 5. assert correctness
             spTestInstance.assertInstanceIsCorrect()
@@ -1110,7 +1110,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 4. assert correctness
             val (sp, status, instance) = spTestInstance.retrieveInstance()
@@ -1178,7 +1178,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 4. assert correctness
             val (sp, status, instance) = spTestInstance.retrieveInstance()
@@ -1232,7 +1232,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            eventController.waitForNextReconcile(spTestInstance)
+            eventController.waitForNextReconcile(spTestInstance.hash)
 
             // 4. assert correctness
             spTestInstance.assertInstanceIsCorrect()
@@ -1267,7 +1267,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             }
 
             // 3. wait until instance is created
-            val result = eventController.waitForNextReconcile(spTestInstance)
+            val result = eventController.waitForNextReconcile(spTestInstance.hash)
             assertEquals("StartingNewInstanceFailed", result)
 
             // 4. check k8s events
@@ -1280,7 +1280,7 @@ class MainIntegrationTest : IntegrationTestBase() {
             )
             repeat(3) {
                 // check that reonciles are happening without new events being created
-                eventController.waitForNextReconcile(spTestInstance)
+                eventController.waitForNextReconcile(spTestInstance.hash)
                 assertEquals("StartingNewInstanceFailed", result)
                 spTestInstance.assertEventCount(2)
             }

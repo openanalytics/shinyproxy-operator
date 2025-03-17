@@ -20,22 +20,22 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.docker.monitoring
 
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.impl.docker.CaddyConfig
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerActions
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.readConfigValue
 import org.mandas.docker.client.DockerClient
 import java.nio.file.Path
 
-class MonitoringConfig(dockerClient: DockerClient, dockerActions: DockerActions, mainDataDir: Path, caddyConfig: CaddyConfig) {
+class MonitoringConfig(dockerClient: DockerClient, dockerActions: DockerActions, mainDataDir: Path, caddyConfig: CaddyConfig, config: Config) {
 
-    private val enableMonitoring = readConfigValue(null, false, "SPO_ENABLE_MONITORING") { it.toBoolean() }
+    private val enableMonitoring = config.readConfigValue(false, "SPO_ENABLE_MONITORING") { it.toBoolean() }
 
-    private val grafanaAlloyConfig = GrafanaAlloyConfig(dockerClient, dockerActions, mainDataDir)
-    private val grafanaLokiConfig = GrafanaLokiConfig(dockerClient, dockerActions, mainDataDir)
-    private val prometheusConfig = PrometheusConfig(dockerClient, dockerActions, mainDataDir)
-    private val cAdvisorConfig = CAdvisorConfig(dockerClient, dockerActions)
-    internal val grafanaConfig = GrafanaConfig(dockerClient, dockerActions, mainDataDir, caddyConfig)
+    private val grafanaAlloyConfig = GrafanaAlloyConfig(dockerClient, dockerActions, mainDataDir, config)
+    private val grafanaLokiConfig = GrafanaLokiConfig(dockerClient, dockerActions, mainDataDir, config)
+    private val prometheusConfig = PrometheusConfig(dockerClient, dockerActions, mainDataDir, config)
+    private val cAdvisorConfig = CAdvisorConfig(dockerClient, dockerActions, config)
+    internal val grafanaConfig = GrafanaConfig(dockerClient, dockerActions, mainDataDir, caddyConfig, config)
 
     suspend fun reconcile(shinyProxy: ShinyProxy) {
         if (enableMonitoring) {

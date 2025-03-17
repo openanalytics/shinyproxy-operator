@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.kubernetes.components
 
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.LabelFactory
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
@@ -29,11 +30,11 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSetBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.github.oshai.kotlinlogging.KotlinLogging
 
-class ReplicaSetFactory(private val kubeClient: KubernetesClient) {
+class ReplicaSetFactory(private val kubeClient: KubernetesClient, config: Config) {
 
     private val logger = KotlinLogging.logger {}
 
-    private val podTemplateSpecFactory = PodTemplateSpecFactory()
+    private val podTemplateSpecFactory = PodTemplateSpecFactory(config)
 
     fun create(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, shinyProxyUid: String) {
         //@formatter:off

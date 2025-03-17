@@ -31,7 +31,7 @@ interface IOrchestrator {
 
     fun getShinyProxyStatus(shinyProxy: ShinyProxy): ShinyProxyStatus?
 
-    fun getShinyProxyStatuses() : List<ShinyProxyStatus>
+    fun getShinyProxyStatuses(): List<ShinyProxyStatus>
 
     fun addNewInstanceToStatus(shinyProxy: ShinyProxy, newInstance: ShinyProxyInstance)
 

@@ -24,9 +24,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.convertValue
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import eu.openanalytics.shinyproxyoperator.sha1
 import eu.openanalytics.shinyproxyoperator.convertToYamlString
 import eu.openanalytics.shinyproxyoperator.getSubPath
+import eu.openanalytics.shinyproxyoperator.sha1
 
 class ShinyProxy(private val spec: JsonNode, val name: String, val namespace: String) {
 

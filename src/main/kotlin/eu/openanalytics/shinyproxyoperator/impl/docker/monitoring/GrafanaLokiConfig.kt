@@ -20,20 +20,20 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.docker.monitoring
 
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.FileManager
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerActions
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOrchestrator
-import eu.openanalytics.shinyproxyoperator.readConfigValue
 import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
 import java.nio.file.Path
 
-class GrafanaLokiConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path) {
+class GrafanaLokiConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path, config: Config) {
 
     private val logger = KotlinLogging.logger {}
-    private val lokiImage: String = readConfigValue(null, "grafana/loki:3.2.2", "SPO_GRAFANA_GRAFANA_IMAGE") { it }
+    private val lokiImage: String = config.readConfigValue("grafana/loki:3.2.2", "SPO_GRAFANA_GRAFANA_IMAGE") { it }
     private val fileManager = FileManager()
     private val containerName = "sp-grafana-loki"
     private val dataDir: Path = mainDataDir.resolve(containerName)

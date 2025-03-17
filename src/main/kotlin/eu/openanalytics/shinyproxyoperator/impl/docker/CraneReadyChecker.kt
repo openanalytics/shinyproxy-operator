@@ -24,12 +24,12 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.logPrefix
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
-import io.github.oshai.kotlinlogging.KotlinLogging
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
@@ -68,6 +68,10 @@ class CraneReadyChecker {
             return TaskStatus.WIP
         }
         return task.getCompleted()
+    }
+
+    fun stop() {
+        tasks.values.forEach { it.cancel() }
     }
 
     private suspend fun checkInstance(ip: String, realmId: String): TaskStatus {

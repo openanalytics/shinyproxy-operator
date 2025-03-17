@@ -1,0 +1,36 @@
+mount: /tmp/crane-mount
+app:
+  openid-issuer-uri: https://gitlab.com
+  storage-location: /mnt/
+  repositories:
+    project1:
+      read-access:
+        any-authenticated-user: true
+    project2:
+      read-access:
+        any-authenticated-user: true
+
+spring:
+  session:
+    store-type: redis
+  security:
+    oauth2:
+      client:
+        registration:
+          crane:
+            client-secret: client-secret
+            client-id: client-id
+            scope: openid
+        provider:
+          crane:
+            issuer-uri: https://gitlab.com
+
+server:
+  servlet:
+    context-path: /crane/
+    session:
+      cookie:
+        name: CSESSION
+
+fqdn: itest.local
+image: openanalytics/crane:1.0.0

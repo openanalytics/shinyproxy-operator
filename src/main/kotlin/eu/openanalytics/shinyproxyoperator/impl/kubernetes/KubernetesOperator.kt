@@ -21,6 +21,7 @@
 package eu.openanalytics.shinyproxyoperator.impl.kubernetes
 
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.IEventController
 import eu.openanalytics.shinyproxyoperator.IOperator
 import eu.openanalytics.shinyproxyoperator.IRecyclableChecker
@@ -34,7 +35,6 @@ import eu.openanalytics.shinyproxyoperator.impl.kubernetes.controller.ReplicaSet
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.controller.ResourceListener
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.controller.ServiceController
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.crd.ShinyProxyCustomResource
-import eu.openanalytics.shinyproxyoperator.readConfigValue
 import io.fabric8.kubernetes.api.model.ConfigMap
 import io.fabric8.kubernetes.api.model.ConfigMapList
 import io.fabric8.kubernetes.api.model.KubernetesResourceList
@@ -51,10 +51,10 @@ import io.fabric8.kubernetes.client.dsl.Resource
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource
 import io.fabric8.kubernetes.client.dsl.ServiceResource
 import io.fabric8.kubernetes.client.utils.Serialization
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
-import io.github.oshai.kotlinlogging.KotlinLogging
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.core.config.Configurator
 import java.util.*
@@ -62,8 +62,8 @@ import kotlin.system.exitProcess
 
 typealias ShinyProxyClient = MixedOperation<ShinyProxyCustomResource, KubernetesResourceList<ShinyProxyCustomResource>, Resource<ShinyProxyCustomResource>>
 
-class KubernetesOperator(client: NamespacedKubernetesClient? = null,
-                         mode: Mode? = null,
+class KubernetesOperator(config: Config,
+                         client: NamespacedKubernetesClient? = null,
                          eventController: IEventController? = null,
                          recyclableChecker: IRecyclableChecker? = null) : IOperator {
 
@@ -96,7 +96,7 @@ class KubernetesOperator(client: NamespacedKubernetesClient? = null,
         Serialization.jsonMapper().registerKotlinModule()
         Serialization.yamlMapper().registerKotlinModule()
 
-        this.mode = readConfigValue(mode, Mode.CLUSTERED, "SPO_MODE") {
+        mode = config.readConfigValue(Mode.CLUSTERED, "SPO_MODE") {
             when (it.lowercase(Locale.getDefault())) {
                 "clustered" -> Mode.CLUSTERED
                 "namespaced" -> Mode.NAMESPACED
@@ -104,9 +104,9 @@ class KubernetesOperator(client: NamespacedKubernetesClient? = null,
             }
         }
 
-        val level = readConfigValue(Level.DEBUG, "SPO_LOG_LEVEL") { Level.toLevel(it) }
+        val level = config.readConfigValue(Level.DEBUG, "SPO_LOG_LEVEL") { Level.toLevel(it) }
         Configurator.setRootLevel(level)
-        logger.info { "Running in ${this.mode} mode" }
+        logger.info { "Running in $mode mode" }
 
         namespace = if (this.client.namespace == null) {
             logger.info { "No namespace found via config, assuming default." }
@@ -116,11 +116,11 @@ class KubernetesOperator(client: NamespacedKubernetesClient? = null,
         }
         logger.info { "Using namespace : $namespace " }
 
-        this.shinyProxyClient = when (this.mode) {
+        this.shinyProxyClient = when (mode) {
             Mode.CLUSTERED -> this.client.inAnyNamespace().resources(ShinyProxyCustomResource::class.java)
             Mode.NAMESPACED -> this.client.inNamespace(namespace).resources(ShinyProxyCustomResource::class.java)
         }
-        if (this.mode == Mode.CLUSTERED) {
+        if (mode == Mode.CLUSTERED) {
             replicaSetListener = ResourceListener(sendChannel, this.client.inAnyNamespace().apps().replicaSets())
             serviceListener = ResourceListener(sendChannel, this.client.inAnyNamespace().services())
             configMapListener = ResourceListener(sendChannel, this.client.inAnyNamespace().configMaps())
@@ -135,7 +135,7 @@ class KubernetesOperator(client: NamespacedKubernetesClient? = null,
             serviceController = ServiceController(this.client.inNamespace(namespace).services(), serviceListener, replicaSetListener)
             ingressController = IngressController(this.client, ingressListener)
         }
-        kubernetesSource = KubernetesSource(shinyProxyClient, channel, this.mode, this.namespace)
+        kubernetesSource = KubernetesSource(shinyProxyClient, channel, mode, this.namespace)
         orchestrator = KubernetesOrchestrator(
             this.client,
             shinyProxyClient,
@@ -144,7 +144,8 @@ class KubernetesOperator(client: NamespacedKubernetesClient? = null,
             kubernetesSource,
             podRetriever,
             configMapListener,
-            replicaSetListener
+            replicaSetListener,
+            config
         )
         this.eventController = eventController ?: EventController(orchestrator)
         this.shinyProxyController = ShinyProxyController(
@@ -218,7 +219,7 @@ class KubernetesOperator(client: NamespacedKubernetesClient? = null,
         }
     }
 
-    fun stop() {
+    override fun stop() {
         replicaSetStatusChecker.stop()
         replicaSetListener.stop()
         serviceListener.stop()

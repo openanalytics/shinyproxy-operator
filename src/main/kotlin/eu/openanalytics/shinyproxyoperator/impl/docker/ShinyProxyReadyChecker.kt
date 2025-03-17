@@ -27,22 +27,24 @@ import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import io.github.oshai.kotlinlogging.KotlinLogging
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.Container
 import java.io.IOException
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
-class ShinyProxyReadyChecker(private val channel: Channel<ShinyProxyEvent>, private val dockerActions: DockerActions, private val dataDir: Path) {
+class ShinyProxyReadyChecker(private val channel: Channel<ShinyProxyEvent>, private val dockerActions: DockerActions, private val dockerClient: DockerClient, private val dataDir: Path) {
 
     private val scope = CoroutineScope(Dispatchers.Default)
     private val tasks = ConcurrentHashMap<TaskKey, Deferred<TaskStatus>>()
@@ -62,8 +64,11 @@ class ShinyProxyReadyChecker(private val channel: Channel<ShinyProxyEvent>, priv
 
     fun add(shinyProxyInstance: ShinyProxyInstance) {
         val containers = dockerActions.getContainers(shinyProxyInstance)
-        tasks[TaskKey.of(shinyProxyInstance)] = scope.async {
-            checkInstances(containers, shinyProxyInstance)
+        val key = TaskKey.of(shinyProxyInstance)
+        if (!tasks.contains(key)) {
+            tasks[TaskKey.of(shinyProxyInstance)] = scope.async {
+                checkInstances(containers, shinyProxyInstance)
+            }
         }
     }
 
@@ -73,6 +78,10 @@ class ShinyProxyReadyChecker(private val channel: Channel<ShinyProxyEvent>, priv
             return TaskStatus.WIP
         }
         return task.getCompleted()
+    }
+
+    fun stop() {
+        scope.cancel()
     }
 
     private suspend fun checkInstances(containers: List<Container>, shinyProxyInstance: ShinyProxyInstance): TaskStatus {
@@ -92,7 +101,7 @@ class ShinyProxyReadyChecker(private val channel: Channel<ShinyProxyEvent>, priv
             if (!failed && status == TaskStatus.FAILED) {
                 failed = true
                 val message = readTerminationMessage(container)
-                channel.send(ShinyProxyEvent(ShinyProxyEventType.FAILURE, shinyProxyInstance.realmId, shinyProxyInstance.name, shinyProxyInstance.name, shinyProxyInstance.hashOfSpec, message = message))
+                channel.send(ShinyProxyEvent(ShinyProxyEventType.FAILURE, shinyProxyInstance.realmId, shinyProxyInstance.name, shinyProxyInstance.namespace, shinyProxyInstance.hashOfSpec, message = message))
             }
         }
 
@@ -116,6 +125,10 @@ class ShinyProxyReadyChecker(private val channel: Channel<ShinyProxyEvent>, priv
                 logger.info { "${logPrefix(shinyProxyInstance)} [Container: ${container.shortId()}] ready" }
                 return TaskStatus.READY
             }
+            if (containerWasRestarted(container)) {
+                logger.info { "${logPrefix(shinyProxyInstance)} [Container: ${container.shortId()}] failed (container has been restarted) (${checks}/${MAX_CHECKS})" }
+                return TaskStatus.FAILED
+            }
             logger.info { "${logPrefix(shinyProxyInstance)} [Container: ${container.shortId()}] not ready yet (${checks}/${MAX_CHECKS})" }
             delay(5_000)
         }
@@ -135,6 +148,11 @@ class ShinyProxyReadyChecker(private val channel: Channel<ShinyProxyEvent>, priv
             return null
         }
         return objectMapper.readValue(body, Response::class.java)
+    }
+
+    private fun containerWasRestarted(container: Container): Boolean {
+        val containerInfo = dockerClient.inspectContainer(container.id())
+        return containerInfo.restartCount() >= 1
     }
 
     fun remove(shinyProxyInstance: ShinyProxyInstance) {
