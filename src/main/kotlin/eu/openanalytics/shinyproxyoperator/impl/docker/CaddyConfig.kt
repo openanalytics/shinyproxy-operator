@@ -23,8 +23,6 @@ package eu.openanalytics.shinyproxyoperator.impl.docker
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module
-import com.fasterxml.jackson.module.kotlin.convertValue
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.FileManager
@@ -46,8 +44,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.concurrent.TimeUnit
-import javax.json.JsonPatch
-import javax.json.JsonStructure
 
 class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, config: Config) {
 
@@ -98,9 +94,9 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
     }
 
     suspend fun reconcile() {
-        reconcileContainer(patch(mapOf(
+        reconcileContainer(objectMapper.writeValueAsString((mapOf(
             "apps" to mapOf("http" to mapOf("servers" to mapOf("shinyproxy" to generateServer())), "tls" to generateTls())
-        )))
+        ))))
     }
 
     private fun generateServer(): Map<String, Any> {
@@ -110,17 +106,20 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
 
     private fun generateRoutes(): List<Map<String, Any>> {
         return shinyProxies.values.flatMap { (shinyProxy, latestShinyProxyInstance) ->
-            return@flatMap generateShinyProxyConfig(shinyProxy, latestShinyProxyInstance) + generateCraneConfig(shinyProxy)
+            listOf(generateShinyProxyConfig(shinyProxy, latestShinyProxyInstance), generateCraneConfig(shinyProxy))
         }
+            .filterNotNull()
+            .sortedByDescending { it.second } // sort by longest sub-path first
+            .map { it.first }
     }
 
-    private fun generateShinyProxyConfig(shinyProxy: ShinyProxy, latestShinyProxyInstance: ShinyProxyInstance): List<Map<String, Any>> {
+    private fun generateShinyProxyConfig(shinyProxy: ShinyProxy, latestShinyProxyInstance: ShinyProxyInstance): Pair<Map<String, Any>, Int>? {
         val ipAddress = dockerActions.getContainers(latestShinyProxyInstance).map { it.getSharedNetworkIpAddress() }
         if (ipAddress.isEmpty()) {
             logger.warn { "No ip address found for realm ${shinyProxy.realmId}" }
-            return listOf()
+            return null
         }
-        return listOf(mapOf(
+        return mapOf(
             "handle" to listOf(
                 mapOf(
                     "handler" to "subroute",
@@ -137,12 +136,12 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
                 mapOf("host" to shinyProxy.allFqdns, "path" to listOf(shinyProxy.subPath + "*")),
             ),
             "terminal" to true
-        ))
+        ) to shinyProxy.subPath.count { it == '/' }
     }
 
-    private fun generateCraneConfig(shinyProxy: ShinyProxy): List<Map<String, Any>> {
-        val craneServer = craneServers[shinyProxy.realmId] ?: return listOf()
-        return listOf(mapOf(
+    private fun generateCraneConfig(shinyProxy: ShinyProxy): Pair<Map<String, Any>, Int>? {
+        val craneServer = craneServers[shinyProxy.realmId] ?: return null
+        return mapOf(
             "handle" to listOf(
                 mapOf(
                     "handler" to "subroute",
@@ -159,7 +158,7 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
                 mapOf("host" to shinyProxy.allFqdns, "path" to listOf(craneServer.subPath + "*")),
             ),
             "terminal" to true
-        ))
+        ) to craneServer.subPath.count { it == '/' }
     }
 
     private fun generateRedirects(shinyProxy: ShinyProxy): List<Map<String, Any>> {
@@ -344,52 +343,6 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
         } catch (e: IOException) {
             return false
         }
-    }
-
-    private fun getCaddyInputConfig(): CaddyInputConfig? {
-        if (Files.exists(Path.of("input/caddy.yml"))) {
-            return yamlMapper.readValue<CaddyInputConfig>(Files.readString(Path.of("input/caddy.yml")))
-        } else if (Files.exists(Path.of("input/caddy.yaml"))) {
-            return yamlMapper.readValue<CaddyInputConfig>(Files.readString(Path.of("input/caddy.yaml")))
-        }
-        return null
-    }
-
-    data class CaddyInputConfig(val patches: JsonPatch?)
-
-    private fun patch(config: Map<String, Any>): String {
-        val patches = getCaddyInputConfig()?.patches
-        val configAsJsonValue: JsonStructure = objectMapper.convertValue<JsonStructure>(config)
-        val patchedAsJsonValue = if (patches == null) {
-            logger.info { "No Caddy patches" }
-            configAsJsonValue
-        } else {
-            patches.apply(configAsJsonValue)
-        }
-        try {
-            return objectMapper.writeValueAsString(sortByPaths(patchedAsJsonValue))
-        } catch (e: Exception) {
-            logger.warn(e) { "Failed to sort caddy routes" }
-        }
-        return objectMapper.writeValueAsString(patchedAsJsonValue)
-    }
-
-    private fun sortByPaths(json: JsonStructure): HashMap<String, Any> {
-        val map: HashMap<String, Any> = objectMapper.convertValue<HashMap<String, Any>>(json)
-        val apps = map["apps"] as? HashMap<*, *> ?: error("no apps")
-        val http = apps["http"] as? HashMap<*, *> ?: error("no http")
-        val servers = http["servers"] as? HashMap<*, *> ?: error("no servers")
-        val shinyproxy = servers["shinyproxy"] as? HashMap<*, *> ?: error("no shinyproxy")
-        val routes = (shinyproxy["routes"] as? ArrayList<*>) ?: error("no routes")
-        routes.sortByDescending { it ->
-            val route = it as? HashMap<*, *> ?: error("no route")
-            val match = route["match"] as? List<*> ?: error("no match")
-            val firstMatch = match[0] as? HashMap<*, *> ?: error("no first match")
-            val path = firstMatch["path"] as? List<*> ?: error("no path")
-            val firstPath = path.getOrNull(0) ?: error("no first path")
-            (firstPath as String).count { it == '/' }
-        }
-        return map
     }
 
     data class CraneServer(val ip: String, val subPath: String)
