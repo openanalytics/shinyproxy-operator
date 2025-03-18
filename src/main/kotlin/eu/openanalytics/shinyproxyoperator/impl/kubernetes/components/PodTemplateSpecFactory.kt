@@ -58,7 +58,7 @@ class PodTemplateSpecFactory(config: Config) {
                 .withNewMetadata()
                     .withGenerateName(ResourceNameFactory.createNameForPod(shinyProxy, shinyProxyInstance))
                     .withNamespace(shinyProxy.namespace)
-                    .withLabels<String, String>(LabelFactory.labelsForShinyProxyInstance(shinyProxyInstance, version))
+                    .withLabels<String, String>(shinyProxy.labels + LabelFactory.labelsForShinyProxyInstance(shinyProxyInstance, version))
                 .endMetadata()
                 .withNewSpec()
                     .addNewContainer()

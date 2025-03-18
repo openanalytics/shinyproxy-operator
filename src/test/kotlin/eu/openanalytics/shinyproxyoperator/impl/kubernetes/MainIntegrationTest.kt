@@ -121,7 +121,6 @@ class MainIntegrationTest : IntegrationTestBase() {
             )
             spTestInstance.create()
 
-
             // 2. start the operator and let it do it's work
             scope.launch {
                 operator.init()
@@ -133,6 +132,12 @@ class MainIntegrationTest : IntegrationTestBase() {
 
             // 4. assert correctness
             spTestInstance.assertInstanceIsCorrect()
+
+            // 5. check custom label
+            val replicaSets = namespacedClient.apps().replicaSets().list().items
+            assertEquals(1, replicaSets.size)
+            val replicaSet = replicaSets[0]
+            assertEquals("label-value", replicaSet.spec.template.metadata.labels?.get("some-example-label"))
         }
 
     @Test
