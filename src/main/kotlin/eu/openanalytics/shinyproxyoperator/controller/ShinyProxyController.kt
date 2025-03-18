@@ -29,6 +29,7 @@ import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
+import io.fabric8.kubernetes.client.KubernetesClientException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -216,34 +217,46 @@ class ShinyProxyController(
         shinyProxy: ShinyProxy,
         shinyProxyInstance: ShinyProxyInstance
     ) {
-        if (orchestrator.getShinyProxyStatus(shinyProxy)?.getInstance(shinyProxyInstance) == null) {
-            return
-        }
-        logger.info { "${logPrefix(shinyProxyInstance)} [Step 0/4: Ok] ReconcileSingleShinyProxy" }
+        try {
+            if (orchestrator.getShinyProxyStatus(shinyProxy)?.getInstance(shinyProxyInstance) == null) {
+                return
+            }
+            logger.info { "${logPrefix(shinyProxyInstance)} [Step 0/4: Ok] ReconcileSingleShinyProxy" }
 
-        val ready = orchestrator.reconcileInstance(shinyProxy, shinyProxyInstance)
-        if (!ready) {
-            logger.info { "${logPrefix(shinyProxyInstance)} [Step 1/4: Reconciling] [Container]" }
-            return
-        }
-        logger.info { "${logPrefix(shinyProxyInstance)} [Step 1/4: Ok] [Container]" }
+            val ready = orchestrator.reconcileInstance(shinyProxy, shinyProxyInstance)
+            if (!ready) {
+                logger.info { "${logPrefix(shinyProxyInstance)} [Step 1/4: Reconciling] [Container]" }
+                return
+            }
+            logger.info { "${logPrefix(shinyProxyInstance)} [Step 1/4: Ok] [Container]" }
 
-        val hasUpdatedLatestMaker = reconcileLatestMarker(shinyProxy, shinyProxyInstance)
-        val updatedShinyProxyInstance = orchestrator.getShinyProxyStatus(shinyProxy)?.getInstance(shinyProxyInstance) ?: return
-        if (hasUpdatedLatestMaker) {
-            logger.info { "${logPrefix(shinyProxyInstance)} [Step 2/4: Ok] [LatestMarker] Instance became latest" }
-        } else {
-            logger.info { "${logPrefix(shinyProxyInstance)} [Step 2/4: Ok] [LatestMarker]" }
-        }
+            val hasUpdatedLatestMaker = reconcileLatestMarker(shinyProxy, shinyProxyInstance)
+            val updatedShinyProxyInstance = orchestrator.getShinyProxyStatus(shinyProxy)?.getInstance(shinyProxyInstance) ?: return
+            if (hasUpdatedLatestMaker) {
+                logger.info { "${logPrefix(shinyProxyInstance)} [Step 2/4: Ok] [LatestMarker] Instance became latest" }
+            } else {
+                logger.info { "${logPrefix(shinyProxyInstance)} [Step 2/4: Ok] [LatestMarker]" }
+            }
 
-        logger.info { "${logPrefix(shinyProxyInstance)} [Step 3/4: Reconciling] [Ingress]" }
-        orchestrator.reconcileIngress(shinyProxy, updatedShinyProxyInstance)
-        logger.info { "${logPrefix(shinyProxyInstance)} [Step 4/4: Ok] [Ingress]" }
+            logger.info { "${logPrefix(shinyProxyInstance)} [Step 3/4: Reconciling] [Ingress]" }
+            orchestrator.reconcileIngress(shinyProxy, updatedShinyProxyInstance)
+            logger.info { "${logPrefix(shinyProxyInstance)} [Step 4/4: Ok] [Ingress]" }
 
-        if (hasUpdatedLatestMaker) {
-            eventController.createInstanceReadyEvent(updatedShinyProxyInstance)
+            if (hasUpdatedLatestMaker) {
+                eventController.createInstanceReadyEvent(updatedShinyProxyInstance)
+            }
+            eventController.createInstanceReconciledEvent(updatedShinyProxyInstance)
+        } catch (e: KubernetesClientException) {
+            if (e.status != null && e.status.message != null) {
+                eventController.createInstanceFailed(shinyProxyInstance, "KubernetesClientException: " + e.status.message)
+            } else {
+                eventController.createInstanceFailed(shinyProxyInstance, e.message)
+            }
+            throw e
+        } catch (e: Exception) {
+            eventController.createInstanceFailed(shinyProxyInstance, e.message)
+            throw e
         }
-        eventController.createInstanceReconciledEvent(updatedShinyProxyInstance)
     }
 
     private fun instanceFailure(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, message: String?) {

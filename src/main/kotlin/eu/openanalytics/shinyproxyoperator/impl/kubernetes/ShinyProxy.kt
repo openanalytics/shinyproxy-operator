@@ -24,7 +24,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
+import io.github.oshai.kotlinlogging.KotlinLogging
 import javax.json.JsonPatch
+
+val logger = KotlinLogging.logger {}
 
 fun ShinyProxy.getParsedKubernetesPodTemplateSpecPatches(): JsonPatch? {
     if (getSpec().get("kubernetesPodTemplateSpecPatches")?.isTextual == true) {
@@ -34,8 +37,8 @@ fun ShinyProxy.getParsedKubernetesPodTemplateSpecPatches(): JsonPatch? {
             yamlReader.registerModule(JSR353Module())
             return yamlReader.readValue(getSpec().get("kubernetesPodTemplateSpecPatches").textValue(), JsonPatch::class.java)
         } catch (exception: Exception) {
-            exception.printStackTrace() // log the exception for easier debugging
-            throw exception
+            logger.warn(exception) { "Error while parsing 'kubernetesPodTemplateSpecPatches" }
+            throw RuntimeException("Error while parsing 'kubernetesPodTemplateSpecPatches': " + exception.javaClass.simpleName + ": " + exception.message)
         }
     }
     return null
@@ -70,10 +73,9 @@ fun ShinyProxy.getParsedServicePatches(): JsonPatch? {
             yamlReader.registerModule(JSR353Module())
             return yamlReader.readValue(getSpec().get("kubernetesServicePatches").textValue(), JsonPatch::class.java)
         } catch (exception: Exception) {
-            exception.printStackTrace() // log the exception for easier debugging
-            throw exception
+            logger.warn(exception) { "Error while parsing 'kubernetesServicePatches" }
+            throw RuntimeException("Error while parsing 'kubernetesServicePatches': " + exception.javaClass.simpleName + ": " + exception.message)
         }
-
     }
     return null
 }
@@ -87,8 +89,8 @@ fun ShinyProxy.getParsedIngressPatches(): JsonPatch? {
             yamlReader.registerModule(JSR353Module())
             return yamlReader.readValue(getSpec().get("kubernetesIngressPatches").textValue(), JsonPatch::class.java)
         } catch (exception: Exception) {
-            exception.printStackTrace() // log the exception for easier debugging
-            throw exception
+            logger.warn(exception) { "Error while parsing 'kubernetesIngressPatches" }
+            throw RuntimeException("Error while parsing 'kubernetesServicePatches': " + exception.javaClass.simpleName + ": " + exception.message)
         }
     }
     return null

@@ -30,6 +30,7 @@ import io.fabric8.kubernetes.api.model.PodTemplateSpec
 import io.fabric8.kubernetes.api.model.Service
 import io.fabric8.kubernetes.api.model.networking.v1.Ingress
 import io.github.oshai.kotlinlogging.KotlinLogging
+import javax.json.JsonException
 import javax.json.JsonPatch
 import javax.json.JsonStructure
 
@@ -55,20 +56,25 @@ class Patcher {
 
         logger.debug { "Original Service (before applying patches): ${mapper.writeValueAsString(service)}" }
 
-        // 1. convert Service to javax.json.JsonValue object.
-        // This conversion does not actually convert to a string, but some internal
-        // representation of Jackson.
-        val podAsJsonValue: JsonStructure = mapper.convertValue(service, JsonStructure::class.java)
-        // 2. apply patch
-        val patchedAsJsonValue: JsonStructure = patch.apply(podAsJsonValue)
-        // 3. convert back to a Service
-        val patchedService = mapper.convertValue(patchedAsJsonValue, Service::class.java)
+        try {
+            // 1. convert Service to javax.json.JsonValue object.
+            // This conversion does not actually convert to a string, but some internal
+            // representation of Jackson.
+            val podAsJsonValue: JsonStructure = mapper.convertValue(service, JsonStructure::class.java)
+            // 2. apply patch
+            val patchedAsJsonValue: JsonStructure = patch.apply(podAsJsonValue)
+            // 3. convert back to a Service
+            val patchedService = mapper.convertValue(patchedAsJsonValue, Service::class.java)
 
-        logger.debug { "Patched Service (after applying patches): ${mapper.writeValueAsString(patchedService)}" }
+            logger.debug { "Patched Service (after applying patches): ${mapper.writeValueAsString(patchedService)}" }
 
-        return patchedService
+            return patchedService
+        } catch (e: JsonException) {
+            throw RuntimeException("Error while patching service (check logs for full objects): " + e.message?.replaceFirst(Regex("'.*' contains"), "'[redacted]' contains"))
+        } catch (e: Exception) {
+            throw RuntimeException("Error while patching service (check logs for full objects): " + e.javaClass.simpleName + ": " + e.message)
+        }
     }
-
     /**
      * Applies a JsonPatch to the given Ingress.
      */
@@ -79,18 +85,24 @@ class Patcher {
 
         logger.debug { "Original Ingress (before applying patches): ${mapper.writeValueAsString(ingress)}" }
 
-        // 1. convert PodTemplate to javax.json.JsonValue object.
-        // This conversion does not actually convert to a string, but some internal
-        // representation of Jackson.
-        val podAsJsonValue: JsonStructure = mapper.convertValue(ingress, JsonStructure::class.java)
-        // 2. apply patch
-        val patchedAsJsonValue: JsonStructure = patch.apply(podAsJsonValue)
-        // 3. convert back to a PodTemplate
-        val patchedIngress = mapper.convertValue(patchedAsJsonValue, Ingress::class.java)
+        try {
+            // 1. convert PodTemplate to javax.json.JsonValue object.
+            // This conversion does not actually convert to a string, but some internal
+            // representation of Jackson.
+            val podAsJsonValue: JsonStructure = mapper.convertValue(ingress, JsonStructure::class.java)
+            // 2. apply patch
+            val patchedAsJsonValue: JsonStructure = patch.apply(podAsJsonValue)
+            // 3. convert back to a PodTemplate
+            val patchedIngress = mapper.convertValue(patchedAsJsonValue, Ingress::class.java)
 
-        logger.debug { "Patched Ingress (after applying patches): ${mapper.writeValueAsString(patchedIngress)}" }
+            logger.debug { "Patched Ingress (after applying patches): ${mapper.writeValueAsString(patchedIngress)}" }
 
-        return patchedIngress
+            return patchedIngress
+        } catch (e: JsonException) {
+            throw RuntimeException("Error while patching ingress (check logs for full objects): " + e.message?.replaceFirst(Regex("'.*' contains"), "'[redacted]' contains"))
+        } catch (e: Exception) {
+            throw RuntimeException("Error while patching ingress (check logs for full objects): " + e.javaClass.simpleName + ": " + e.message)
+        }
     }
 
     /**
@@ -103,18 +115,24 @@ class Patcher {
 
         logger.debug { "Original PodTemplateSpec (before applying patches): ${mapper.writeValueAsString(pod)}" }
 
-        // 1. convert PodTemplate to javax.json.JsonValue object.
-        // This conversion does not actually convert to a string, but some internal
-        // representation of Jackson.
-        val podAsJsonValue: JsonStructure = mapper.convertValue(pod, JsonStructure::class.java)
-        // 2. apply patch
-        val patchedPodAsJsonValue: JsonStructure = patch.apply(podAsJsonValue)
-        // 3. convert back to a PodTemplate
-        val patchedPodTemplateSpec = mapper.convertValue(patchedPodAsJsonValue, PodTemplateSpec::class.java)
+        try {
+            // 1. convert PodTemplate to javax.json.JsonValue object.
+            // This conversion does not actually convert to a string, but some internal
+            // representation of Jackson.
+            val podAsJsonValue: JsonStructure = mapper.convertValue(pod, JsonStructure::class.java)
+            // 2. apply patch
+            val patchedPodAsJsonValue: JsonStructure = patch.apply(podAsJsonValue)
+            // 3. convert back to a PodTemplate
+            val patchedPodTemplateSpec = mapper.convertValue(patchedPodAsJsonValue, PodTemplateSpec::class.java)
 
-        logger.debug { "Patched PodTemplateSpec (after applying patches): ${mapper.writeValueAsString(patchedPodTemplateSpec)}" }
+            logger.debug { "Patched PodTemplateSpec (after applying patches): ${mapper.writeValueAsString(patchedPodTemplateSpec)}" }
 
-        return patchedPodTemplateSpec
+            return patchedPodTemplateSpec
+        } catch (e: JsonException) {
+            throw RuntimeException("Error while patching pod (check logs for full objects): " + e.message?.replaceFirst(Regex("'.*' contains"), "'[redacted]' contains"))
+        } catch (e: Exception) {
+            throw RuntimeException("Error while patching pod (check logs for full objects): " + e.javaClass.simpleName + ": " + e.message)
+        }
     }
 
 }
