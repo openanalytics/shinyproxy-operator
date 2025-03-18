@@ -15,6 +15,10 @@ caddyRedirects:
     to: https://example.com
   - from: /my-sub-path3
     to: some-relative-url
+  - from: /absolute-url/with/short*
+    to: https://example.com/short
+  - from: /absolute-url/with/long/path*
+    to: https://example.com/long
 proxy:
   store-mode: Redis
   realm-id: realm1

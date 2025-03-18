@@ -53,6 +53,28 @@ apps:
                       - handler: "static_response"
                         headers:
                           Location:
+                            - "https://example.com/long"
+                        status_code: 302
+                    match:
+                      - path:
+                          - "/some-path/absolute-url/with/long/path*"
+                  - handle:
+                      - handler: "rewrite"
+                        strip_path_prefix: "/some-path"
+                      - handler: "static_response"
+                        headers:
+                          Location:
+                            - "https://example.com/short"
+                        status_code: 302
+                    match:
+                      - path:
+                          - "/some-path/absolute-url/with/short*"
+                  - handle:
+                      - handler: "rewrite"
+                        strip_path_prefix: "/some-path"
+                      - handler: "static_response"
+                        headers:
+                          Location:
                             - "/some-absolute-url"
                         status_code: 302
                     match:

@@ -178,7 +178,7 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
                 } else {
                     shinyProxy.subPath + it.from
                 }
-                mapOf(
+                return@mapNotNull  mapOf(
                     "handle" to listOf(
                         mapOf(
                             "handler" to "rewrite",
@@ -190,8 +190,10 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
                             "status_code" to it.statusCode
                         )),
                     "match" to listOf(mapOf("path" to listOf(from)))
-                )
+                ) to from.count { c -> c == '/' }
             }
+            .sortedByDescending { it.second } // sort by longest sub-path first
+            .map { it.first }
         } catch (e: Exception) {
             logger.error(e) { "Failed to generate redirect rules" }
             return listOf()
