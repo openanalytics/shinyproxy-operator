@@ -66,7 +66,7 @@ class FileSource(
     }
 
     override suspend fun run() {
-        timer = timer(period = pollInterval * 10_00L, initialDelay = pollInterval * 10_000L) {
+        timer = timer(period = pollInterval * 1_000L, initialDelay = pollInterval * 1_000L) {
             runBlocking {
                 try {
                     runOnce()

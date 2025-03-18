@@ -42,6 +42,10 @@
             <AppenderRef ref="Console" level="INFO"/>
             <AppenderRef ref="File" level="INFO"/>
         </Logger>
+        <Logger name="org.mandas.docker.client.DefaultDockerClient" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="WARN"/>
+        </Logger>
         <Logger name="org.apache.http" additivity="false">
             <AppenderRef ref="Console" level="INFO"/>
             <AppenderRef ref="File" level="INFO"/>
