@@ -47,6 +47,10 @@ class KubernetesSource(private val shinyProxyClient: ShinyProxyClient,
         informer = shinyProxyClient.inform(object : ResourceEventHandler<ShinyProxyCustomResource> {
             override fun onAdd(shinyProxy: ShinyProxyCustomResource) {
                 if (!isInManagedNamespace(shinyProxy)) return
+                if (shinyProxy.status?.instances?.isNotEmpty() == true) {
+                    // ShinyProxy already has an instance -> not a new resource
+                    return
+                }
                 logger.debug { "${logPrefix(shinyProxy.realmId)} [Event/Add]" }
                 runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.ADD, shinyProxy.realmId, shinyProxy.metadata.name, shinyProxy.metadata.namespace, null)) }
             }
