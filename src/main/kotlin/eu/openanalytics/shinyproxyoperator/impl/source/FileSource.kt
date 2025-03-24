@@ -87,6 +87,7 @@ class FileSource(
 
         var hasInputError = false
         val nameToFile = hashMapOf<String, String>()
+        val urlToFile = hashMapOf<Pair<String, String>, String>()
         for (file in files) {
             try {
                 val spec = objectMapper.readValue<JsonNode>(file)
@@ -99,11 +100,16 @@ class FileSource(
 
                 // check for duplicate realms in files
                 if (nameToFile.containsKey(realmId)) {
-                    logger.warn { "Found duplicate realmId: '${shinyProxy.realmId}' in file: '${nameToFile[realmId]}', already defined in '${file.name}'" }
+                    logger.warn { "Found duplicate realmId: '${shinyProxy.realmId}' in file: '${file.name}', already defined in '${nameToFile[realmId]}'" }
                     hasInputError = true
                     continue
                 }
                 nameToFile[realmId] = file.name
+
+                if (!checkDuplicateUrl(urlToFile, shinyProxy, file.name)) {
+                    hasInputError = true
+                    continue
+                }
 
                 val existingShinyProxy = shinyProxies[shinyProxy.realmId]
                 if (existingShinyProxy == null) {
@@ -133,6 +139,24 @@ class FileSource(
             // only delete realms if all files were successfully processed
             checkForDeleted(nameToFile.keys)
         }
+    }
+
+    private fun checkDuplicateUrl(urlToFile: HashMap<Pair<String, String>, String>, shinyProxy: ShinyProxy, fileName: String): Boolean {
+        val baseUrl = Pair(shinyProxy.fqdn, shinyProxy.subPath)
+        if (urlToFile.containsKey(baseUrl)) {
+            logger.warn { "Found multiple ShinyProxy resources with the same URL, fqdn: '${shinyProxy.fqdn}', path: '${shinyProxy.subPath}', realm: '${shinyProxy.realmId}' in file: '${fileName}', already defined in '${urlToFile[baseUrl]}'" }
+            return false
+        }
+        urlToFile[baseUrl] = fileName
+        for (additionalFqdn in shinyProxy.additionalFqdns) {
+            val url = Pair(additionalFqdn, shinyProxy.subPath)
+            if (urlToFile.containsKey(url)) {
+                logger.warn { "Found multiple ShinyProxy resources with the same (additional) URL, additional fqdn: '${additionalFqdn}', path: '${shinyProxy.subPath}', realm: '${shinyProxy.realmId}' in file: '${fileName}', already defined in '${urlToFile[url]}'" }
+                return false
+            }
+            urlToFile[url] =fileName
+        }
+        return true
     }
 
     private suspend fun checkForDeleted(discoveredShinyProxies: Collection<String>) {

@@ -44,7 +44,9 @@ class KubernetesSource(private val shinyProxyClient: ShinyProxyClient,
     private val logger = KotlinLogging.logger {}
 
     override suspend fun init() {
-        informer = shinyProxyClient.inform(object : ResourceEventHandler<ShinyProxyCustomResource> {
+        informer = shinyProxyClient.inform(null, 10 * 60 * 1000.toLong())
+        lister = Lister(informer.indexer)
+        informer.addEventHandler(object : ResourceEventHandler<ShinyProxyCustomResource> {
             override fun onAdd(shinyProxy: ShinyProxyCustomResource) {
                 if (!isInManagedNamespace(shinyProxy)) return
                 if (shinyProxy.status?.instances?.isNotEmpty() == true) {
@@ -52,12 +54,18 @@ class KubernetesSource(private val shinyProxyClient: ShinyProxyClient,
                     return
                 }
                 logger.debug { "${logPrefix(shinyProxy.realmId)} [Event/Add]" }
+                if (!checkDuplicateUrl(shinyProxy)) {
+                    return
+                }
                 runBlocking { channel.send(ShinyProxyEvent(ShinyProxyEventType.ADD, shinyProxy.realmId, shinyProxy.metadata.name, shinyProxy.metadata.namespace, null)) }
             }
 
             override fun onUpdate(shinyProxy: ShinyProxyCustomResource, newShinyProxy: ShinyProxyCustomResource) {
                 if (!isInManagedNamespace(shinyProxy)) return
 
+                if (!checkDuplicateUrl(newShinyProxy)) {
+                    return
+                }
                 if (shinyProxy.hashOfCurrentSpec == newShinyProxy.hashOfCurrentSpec) {
                     logger.debug { "${logPrefix(shinyProxy.realmId)} [Event/Update]" }
                     runBlocking {
@@ -90,8 +98,7 @@ class KubernetesSource(private val shinyProxyClient: ShinyProxyClient,
 
             override fun onDelete(shinyProxy: ShinyProxyCustomResource, b: Boolean) {
             }
-        }, 10 * 60 * 1000.toLong())
-        lister = Lister(informer.indexer)
+        })
     }
 
     override suspend fun run() {
@@ -110,6 +117,31 @@ class KubernetesSource(private val shinyProxyClient: ShinyProxyClient,
         if (::informer.isInitialized) {
             informer.stop()
         }
+    }
+
+    private fun checkDuplicateUrl(shinyProxyCustomResource: ShinyProxyCustomResource): Boolean {
+        val shinyProxy = ShinyProxy(shinyProxyCustomResource.spec, shinyProxyCustomResource.metadata.name, shinyProxyCustomResource.metadata.namespace)
+        for (resource in lister.list()) {
+            val otherShinyproxy = ShinyProxy(resource.spec, resource.metadata.name, resource.metadata.namespace)
+            if (shinyProxy.realmId == otherShinyproxy.realmId || shinyProxy.subPath != otherShinyproxy.subPath) {
+                continue
+            }
+            if (shinyProxy.fqdn == otherShinyproxy.fqdn) {
+                logger.warn { "Found multiple ShinyProxy resources with the same URL, fqdn: '${shinyProxy.fqdn}', path: '${shinyProxy.subPath}', realm: '${shinyProxy.realmId}' already defined in realm '${otherShinyproxy.realmId}'" }
+                return false
+            }
+            for (additionalFqdn in shinyProxy.additionalFqdns) {
+                for (otherAdditionalFqdn in otherShinyproxy.additionalFqdns) {
+                    if (additionalFqdn == otherAdditionalFqdn) {
+                        logger.warn { "Found multiple ShinyProxy resources with the same (additional) URL, additional fqdn: '${additionalFqdn}', path: '${shinyProxy.subPath}', realm: '${shinyProxy.realmId}' already defined in realm '${otherShinyproxy.realmId}'" }
+                        return false
+                    }
+                }
+            }
+        }
+        // TODO additionalfqdns
+
+        return true
     }
 
     private fun isInManagedNamespace(shinyProxy: ShinyProxyCustomResource): Boolean {
