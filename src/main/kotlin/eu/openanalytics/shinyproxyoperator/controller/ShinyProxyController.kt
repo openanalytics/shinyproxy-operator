@@ -122,11 +122,7 @@ class ShinyProxyController(
                     }
                     val status = orchestrator.getShinyProxyStatus(shinyProxy)
                     val hash = event.shinyProxyInstance ?: status?.latestInstance()?.hashOfSpec ?: shinyProxy.hashOfCurrentSpec
-                    val shinyProxyInstance = status?.getInstanceByHash(hash)
-                    if (shinyProxyInstance == null) {
-                        logger.warn { "Received event with invalid shinyProxyInstance." }
-                        return
-                    }
+                    val shinyProxyInstance = status?.getInstanceByHash(hash) ?: return
 
                     reconcileSingleShinyProxyInstance(shinyProxy, shinyProxyInstance)
                 }
@@ -145,11 +141,7 @@ class ShinyProxyController(
                         logger.warn { "Did not find source for realm: ${event.realmId}." }
                         return
                     }
-                    val shinyProxyInstance = orchestrator.getShinyProxyStatus(shinyProxy)?.getInstanceByHash(event.shinyProxyInstance)
-                    if (shinyProxyInstance == null) {
-                        logger.warn { "Received event with invalid shinyProxyInstance." }
-                        return
-                    }
+                    val shinyProxyInstance = orchestrator.getShinyProxyStatus(shinyProxy)?.getInstanceByHash(event.shinyProxyInstance) ?: return
 
                     instanceFailure(shinyProxy, shinyProxyInstance, event.message)
                 }
