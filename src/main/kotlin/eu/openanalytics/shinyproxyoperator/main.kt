@@ -29,9 +29,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.system.exitProcess
 
-
 suspend fun main() {
     val logger = KotlinLogging.logger {}
+    Versions.print()
     try {
         val config = Config()
         val orchestratorName = config.readConfigValue("kubernetes", "SPO_ORCHESTRATOR") { it.lowercase() }

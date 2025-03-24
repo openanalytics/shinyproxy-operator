@@ -114,7 +114,7 @@ class KubernetesOperator(config: Config,
         } else {
             this.client.namespace
         }
-        logger.info { "Using namespace : $namespace " }
+        logger.info { "Using namespace: $namespace " }
 
         this.shinyProxyClient = when (mode) {
             Mode.CLUSTERED -> this.client.inAnyNamespace().resources(ShinyProxyCustomResource::class.java)

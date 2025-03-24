@@ -26,6 +26,10 @@
             <AppenderRef ref="Console" level="WARN"/>
             <AppenderRef ref="File" level="TRACE"/>
         </Logger>
+        <Logger name="io.fabric8.kubernetes.client.utils.HttpClientUtils" additivity="false">
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="File" level="INFO"/>
+        </Logger>
         <Logger name="eu.openanalytics.shinyproxyoperator.impl.kubernetes.controller.PodRetriever" additivity="false">
             <AppenderRef ref="Console" level="WARN"/>
             <AppenderRef ref="File" level="DEBUG"/>

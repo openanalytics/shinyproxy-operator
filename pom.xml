@@ -225,6 +225,12 @@
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <testSourceDirectory>src/test/kotlin</testSourceDirectory>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -332,6 +338,8 @@
                                 <exclude>**/*.xml</exclude>
                                 <exclude>**/*.txt</exclude>
                                 <exclude>**/*.bak</exclude>
+                                <exclude>**/*.conf</exclude>
+                                <exclude>**/*.pem</exclude>
                                 <exclude>**/Dockerfile</exclude>
                                 <exclude>docs/**</exclude>
                                 <exclude>src/main/resources/configs/**</exclude>
