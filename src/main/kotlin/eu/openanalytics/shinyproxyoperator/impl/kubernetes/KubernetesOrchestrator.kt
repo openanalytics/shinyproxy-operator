@@ -163,7 +163,7 @@ class KubernetesOrchestrator(private val kubernetesClient: KubernetesClient,
 
     override fun getContainerIPs(shinyProxyInstance: ShinyProxyInstance): List<String> {
         val pods = podRetriever.getShinyProxyPods(shinyProxyInstance)
-        return pods.map { it.status.podIP }
+        return pods.mapNotNull { it.status?.podIP }
     }
 
     override fun logEvent(shinyProxyInstance: ShinyProxyInstance, type: String, action: String, message: String?) {
