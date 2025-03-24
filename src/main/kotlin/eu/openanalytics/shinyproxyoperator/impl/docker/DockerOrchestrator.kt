@@ -95,7 +95,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
         craneConfig = CraneConfig(dockerClient, dockerActions, dataDir, inputDir, redisConfig, caddyConfig, persistentState)
         monitoringConfig = MonitoringConfig(dockerClient, dockerActions, dataDir, caddyConfig, config)
         fileManager.createDirectories(dataDir)
-        eventWriter = FileWriter(dataDir.resolve("events.json").toFile(), true)
+        eventWriter = FileWriter(dataDir.resolve("events.json").toFile())
     }
 
     companion object {
