@@ -7,6 +7,8 @@
     <groupId>eu.openanalytics</groupId>
     <artifactId>shinyproxy-operator</artifactId>
     <version>2.2.0-SNAPSHOT</version>
+    <inceptionYear>2021</inceptionYear>
+    <name>ShinyProxy-Operator</name>
 
     <organization>
         <name>Open Analytics NV</name>
@@ -37,6 +39,7 @@
         <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
         <maven.license.plugin.version>4.6</maven.license.plugin.version>
         <maven.surefire.plugin.version>3.5.2</maven.surefire.plugin.version>
+        <maven.build-helper-maven.plugin.version>3.6.0</maven.build-helper-maven.plugin.version>
     </properties>
 
     <distributionManagement>
@@ -310,6 +313,7 @@
             </plugin>
 
             <plugin>
+                <!-- License headers can be automatically updated using `mvn validate license:format`, no need to change year. -->
                 <groupId>com.mycila</groupId>
                 <artifactId>license-maven-plugin</artifactId>
                 <version>${maven.license.plugin.version}</version>
@@ -343,6 +347,7 @@
                                 <exclude>**/Dockerfile</exclude>
                                 <exclude>docs/**</exclude>
                                 <exclude>src/main/resources/configs/**</exclude>
+                                <exclude>src/test/resources/**</exclude>
                                 <exclude>LICENSE</exclude>
                                 <exclude>LICENSE_HEADER</exclude>
                                 <exclude>README.md</exclude>
@@ -354,7 +359,29 @@
                     </licenseSets>
                     <aggregate>true</aggregate>
                     <strictCheck>true</strictCheck>
+                    <properties>
+                        <year>${current.year}</year>
+                    </properties>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${maven.build-helper-maven.plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>timestamp-property</id>
+                        <goals>
+                            <goal>timestamp-property</goal>
+                        </goals>
+                        <phase>validate</phase>
+                        <configuration>
+                            <name>current.year</name>
+                            <pattern>yyyy</pattern>
+                            <locale>en-GB</locale>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
