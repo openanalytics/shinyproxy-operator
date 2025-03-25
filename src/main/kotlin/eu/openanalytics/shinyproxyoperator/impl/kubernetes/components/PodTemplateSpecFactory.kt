@@ -28,12 +28,16 @@ import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getImagePullPolicy
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getParsedKubernetesPodTemplateSpecPatches
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
+import eu.openanalytics.shinyproxyoperator.prettyMessage
 import io.fabric8.kubernetes.api.model.Affinity
 import io.fabric8.kubernetes.api.model.AffinityBuilder
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder
 import io.fabric8.kubernetes.api.model.EnvVarBuilder
 import io.fabric8.kubernetes.api.model.PodTemplateSpec
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
+import io.fabric8.kubernetes.api.model.Quantity
+import io.fabric8.kubernetes.api.model.ResourceRequirements
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder
 import io.fabric8.kubernetes.api.model.VolumeBuilder
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder
 
@@ -100,6 +104,7 @@ class PodTemplateSpecFactory(config: Config) {
                                 .withName("PROXY_VERSION")
                                 .withValue(version.toString())
                             .build()))
+                        .withResources(createResources(shinyProxy))
                         .withVolumeMounts(VolumeMountBuilder()
                             .withName("config-volume")
                             .withMountPath("/opt/shinyproxy/application.yml")
@@ -184,5 +189,55 @@ class PodTemplateSpecFactory(config: Config) {
         }
     }
 
+    private fun createResources(shinyProxy: ShinyProxy): ResourceRequirements? {
+        val resourceBuilder = ResourceRequirementsBuilder()
+        if (shinyProxy.memoryRequest != null) {
+            try {
+                resourceBuilder.addToRequests("memory", parseMemorQuantity(shinyProxy.memoryRequest!!))
+            } catch (e: Exception) {
+                throw RuntimeException("Invalid memoryRequest: " + e.prettyMessage(), e)
+            }
+        }
+        if (shinyProxy.memoryLimit != null) {
+            try {
+                resourceBuilder.addToLimits("memory", parseMemorQuantity(shinyProxy.memoryLimit!!))
+            } catch (e: Exception) {
+                throw RuntimeException("Invalid memoryLimit: " + e.prettyMessage(), e)
+            }
+        }
+        if (shinyProxy.cpuRequest != null) {
+            try {
+                resourceBuilder.addToRequests("cpu", parseCpuQuantity(shinyProxy.cpuRequest!!))
+            } catch (e: Exception) {
+                throw RuntimeException("Invalid cpuRequest: " + e.prettyMessage(), e)
+            }
+        }
+        if (shinyProxy.cpuLimit != null) {
+            try {
+                resourceBuilder.addToLimits("cpu", parseCpuQuantity(shinyProxy.cpuLimit!!))
+            } catch (e: Exception) {
+                throw RuntimeException("Invalid cpuLimit: " + e.prettyMessage(), e)
+            }
+        }
+        return resourceBuilder.build()
+    }
+
+    private fun parseCpuQuantity(value: String): Quantity {
+        val quantity = Quantity(value)
+        quantity.numericalAmount // validates the quantity
+        if (quantity.format != "m" && quantity.format != "") {
+            throw RuntimeException("Invalid format for CPU resources")
+        }
+        return quantity
+    }
+
+    private fun parseMemorQuantity(value: String): Quantity {
+        val quantity = Quantity(value)
+        quantity.numericalAmount // validates the quantity
+        if (quantity.format == "m" || quantity.format == "") {
+            throw RuntimeException("Invalid format for memory resources")
+        }
+        return quantity
+    }
 
 }
