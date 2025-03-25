@@ -26,6 +26,7 @@ import com.fasterxml.jackson.module.kotlin.convertValue
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import eu.openanalytics.shinyproxyoperator.convertToYamlString
 import eu.openanalytics.shinyproxyoperator.getSubPath
+import eu.openanalytics.shinyproxyoperator.getTextValueOrNull
 import eu.openanalytics.shinyproxyoperator.sha1
 
 class ShinyProxy(private val spec: JsonNode, val name: String, val namespace: String) {
@@ -50,6 +51,9 @@ class ShinyProxy(private val spec: JsonNode, val name: String, val namespace: St
     val additionalFqdns: List<String> by lazy {
         if (spec.get("additionalFqdns")?.isArray == true) {
             return@lazy spec.get("additionalFqdns").elements().asSequence().map { it.textValue() }.toList()
+        }
+        if (spec.get("additional-fqdns")?.isArray == true) {
+            return@lazy spec.get("additional-fqdns").elements().asSequence().map { it.textValue() }.toList()
         }
         return@lazy listOf()
     }
@@ -94,6 +98,26 @@ class ShinyProxy(private val spec: JsonNode, val name: String, val namespace: St
             return@lazy jacksonObjectMapper().convertValue(getSpec().get("labels"))
         }
         return@lazy mapOf()
+    }
+
+    @get:JsonIgnore
+    val memoryRequest: String? by lazy {
+        return@lazy spec.getTextValueOrNull("memory-request") ?: spec.getTextValueOrNull("memoryRequest")
+    }
+
+    @get:JsonIgnore
+    val memoryLimit: String? by lazy {
+        return@lazy spec.getTextValueOrNull("memory-limit") ?: spec.getTextValueOrNull("memoryLimit")
+    }
+
+    @get:JsonIgnore
+    val cpuRequest: String? by lazy {
+        return@lazy spec.getTextValueOrNull("cpu-request") ?: spec.getTextValueOrNull("cpuRequest")
+    }
+
+    @get:JsonIgnore
+    val cpuLimit: String? by lazy {
+        return@lazy spec.getTextValueOrNull("cpu-limit") ?: spec.getTextValueOrNull("cpuLimit")
     }
 
     fun getSpec(): JsonNode {

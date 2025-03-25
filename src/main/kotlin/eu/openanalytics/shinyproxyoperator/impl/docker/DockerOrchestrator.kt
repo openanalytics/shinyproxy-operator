@@ -39,6 +39,7 @@ import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyStatus
+import eu.openanalytics.shinyproxyoperator.prettyMessage
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -54,6 +55,8 @@ import java.nio.file.Path
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
+import java.util.*
+import java.util.regex.Pattern
 
 class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                          config: Config,
@@ -171,6 +174,20 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                 0
             }
 
+            var cpuPeriod: Long? = null
+            var cpuQuota: Long? = null
+            if (shinyProxy.cpuLimit != null) {
+                cpuPeriod = 100_000
+                try {
+                    cpuQuota = getCpuQuota(cpuPeriod, shinyProxy.cpuLimit!!)
+                } catch (e: Exception) {
+                    throw RuntimeException("Invalid cpu limit: " + e.prettyMessage(), e)
+                }
+            }
+            if (shinyProxy.cpuRequest != null) {
+                logger.warn { "Realm '${shinyProxy.realmId}' has 'cpuRequest' configured: this is not supported in Docker and is ignored." }
+            }
+
             repeat(shinyProxy.replicas - containers.size) {
                 val suffix = RandomStringUtils.randomAlphanumeric(10)
                 val containerName = "sp-${shinyProxyInstance.realmId}-${shinyProxyInstance.hashOfSpec}-${shinyProxyInstance.revision}-${suffix}"
@@ -224,6 +241,10 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                     )
                     .groupAdd(dockerGID.toString())
                     .restartPolicy(HostConfig.RestartPolicy.always())
+                    .memoryReservation(memoryToBytes(shinyProxy.memoryRequest))
+                    .memory(memoryToBytes(shinyProxy.memoryLimit))
+                    .cpuPeriod(cpuPeriod)
+                    .cpuQuota(cpuQuota)
                     .build()
 
                 val containerConfig = ContainerConfig.builder()
@@ -430,6 +451,31 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             ))
         }
         return objectMapper.writeValueAsString(config)
+    }
+
+    private fun memoryToBytes(memory: String?): Long? {
+        if (memory.isNullOrEmpty()) return null
+        val matcher = Pattern.compile("(\\d+)([bkmg]?)i?").matcher(memory.lowercase(Locale.getDefault()))
+        if (!matcher.matches()) {
+            throw IllegalArgumentException("Invalid memory argument: $memory")
+        }
+        val mem = matcher.group(1).toLong()
+        val unit = matcher.group(2)
+        return when (unit) {
+            "k" -> mem * 1024
+            "m" -> mem * (1024 * 1024).toLong()
+            "g" -> mem * (1024 * 1024 * 1024).toLong()
+            else -> throw IllegalArgumentException("Invalid memory argument: $memory")
+        }
+    }
+
+    private fun getCpuQuota(cpuPeriod: Long, cpu: String): Long {
+        val converted = if (cpu.endsWith("m")) {
+            cpu.dropLast(1).toDouble() / 1_000
+        } else {
+            cpu.toDouble()
+        }
+        return (cpuPeriod.toDouble() * converted).toLong()
     }
 
 }

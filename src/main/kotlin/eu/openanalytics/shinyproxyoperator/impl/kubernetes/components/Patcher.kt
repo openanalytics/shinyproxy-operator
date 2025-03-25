@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.IntOrStringDeserializer
+import eu.openanalytics.shinyproxyoperator.prettyMessage
 import io.fabric8.kubernetes.api.model.IntOrString
 import io.fabric8.kubernetes.api.model.PodTemplateSpec
 import io.fabric8.kubernetes.api.model.Service
@@ -72,7 +73,7 @@ class Patcher {
         } catch (e: JsonException) {
             throw RuntimeException("Error while patching service (check logs for full objects): " + e.message?.replaceFirst(Regex("'.*' contains"), "'[redacted]' contains"))
         } catch (e: Exception) {
-            throw RuntimeException("Error while patching service (check logs for full objects): " + e.javaClass.simpleName + ": " + e.message)
+            throw RuntimeException("Error while patching service (check logs for full objects): " + e.prettyMessage())
         }
     }
     /**
@@ -101,7 +102,7 @@ class Patcher {
         } catch (e: JsonException) {
             throw RuntimeException("Error while patching ingress (check logs for full objects): " + e.message?.replaceFirst(Regex("'.*' contains"), "'[redacted]' contains"))
         } catch (e: Exception) {
-            throw RuntimeException("Error while patching ingress (check logs for full objects): " + e.javaClass.simpleName + ": " + e.message)
+            throw RuntimeException("Error while patching ingress (check logs for full objects): " + e.prettyMessage())
         }
     }
 
@@ -131,7 +132,7 @@ class Patcher {
         } catch (e: JsonException) {
             throw RuntimeException("Error while patching pod (check logs for full objects): " + e.message?.replaceFirst(Regex("'.*' contains"), "'[redacted]' contains"))
         } catch (e: Exception) {
-            throw RuntimeException("Error while patching pod (check logs for full objects): " + e.javaClass.simpleName + ": " + e.message)
+            throw RuntimeException("Error while patching pod (check logs for full objects): " + e.prettyMessage())
         }
     }
 

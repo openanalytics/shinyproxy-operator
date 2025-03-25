@@ -54,3 +54,22 @@ fun JsonNode.getSubPath(): String {
     }
     return "/"
 }
+
+fun JsonNode.getTextValueOrNull(key: String): String? {
+    if (get(key)?.isTextual == true) {
+        return get(key).textValue()
+    }
+    if (get(key)?.isNumber == true) {
+        return get(key).numberValue().toString()
+    }
+    return null
+}
+
+fun Exception.prettyMessage(): String? {
+    val name = javaClass.simpleName
+    if (listOf("Exception", "RuntimeException", "IllegalArgumentException", "IllegalStateException", "IOExecption").contains(name)) {
+        // don't include name of exception if it's too generic
+        return message
+    }
+    return "$name: $message"
+}

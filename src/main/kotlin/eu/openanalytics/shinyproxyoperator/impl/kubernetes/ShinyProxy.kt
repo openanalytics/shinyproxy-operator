@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.datatype.jsr353.JSR353Module
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
+import eu.openanalytics.shinyproxyoperator.prettyMessage
 import io.github.oshai.kotlinlogging.KotlinLogging
 import javax.json.JsonPatch
 
@@ -38,7 +39,7 @@ fun ShinyProxy.getParsedKubernetesPodTemplateSpecPatches(): JsonPatch? {
             return yamlReader.readValue(getSpec().get("kubernetesPodTemplateSpecPatches").textValue(), JsonPatch::class.java)
         } catch (exception: Exception) {
             logger.warn(exception) { "Error while parsing 'kubernetesPodTemplateSpecPatches" }
-            throw RuntimeException("Error while parsing 'kubernetesPodTemplateSpecPatches': " + exception.javaClass.simpleName + ": " + exception.message)
+            throw RuntimeException("Error while parsing 'kubernetesPodTemplateSpecPatches': " + exception.prettyMessage())
         }
     }
     return null
@@ -74,7 +75,7 @@ fun ShinyProxy.getParsedServicePatches(): JsonPatch? {
             return yamlReader.readValue(getSpec().get("kubernetesServicePatches").textValue(), JsonPatch::class.java)
         } catch (exception: Exception) {
             logger.warn(exception) { "Error while parsing 'kubernetesServicePatches" }
-            throw RuntimeException("Error while parsing 'kubernetesServicePatches': " + exception.javaClass.simpleName + ": " + exception.message)
+            throw RuntimeException("Error while parsing 'kubernetesServicePatches': " + exception.prettyMessage())
         }
     }
     return null
@@ -90,7 +91,7 @@ fun ShinyProxy.getParsedIngressPatches(): JsonPatch? {
             return yamlReader.readValue(getSpec().get("kubernetesIngressPatches").textValue(), JsonPatch::class.java)
         } catch (exception: Exception) {
             logger.warn(exception) { "Error while parsing 'kubernetesIngressPatches" }
-            throw RuntimeException("Error while parsing 'kubernetesServicePatches': " + exception.javaClass.simpleName + ": " + exception.message)
+            throw RuntimeException("Error while parsing 'kubernetesServicePatches': " + exception.prettyMessage())
         }
     }
     return null

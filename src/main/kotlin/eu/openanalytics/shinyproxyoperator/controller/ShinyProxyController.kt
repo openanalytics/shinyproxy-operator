@@ -29,6 +29,7 @@ import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
+import eu.openanalytics.shinyproxyoperator.prettyMessage
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
@@ -242,11 +243,11 @@ class ShinyProxyController(
             if (e.status != null && e.status.message != null) {
                 eventController.createInstanceFailed(shinyProxyInstance, "KubernetesClientException: " + e.status.message)
             } else {
-                eventController.createInstanceFailed(shinyProxyInstance, e.message)
+                eventController.createInstanceFailed(shinyProxyInstance, e.prettyMessage())
             }
             throw e
         } catch (e: Exception) {
-            eventController.createInstanceFailed(shinyProxyInstance, e.message)
+            eventController.createInstanceFailed(shinyProxyInstance, e.prettyMessage())
             throw e
         }
     }
