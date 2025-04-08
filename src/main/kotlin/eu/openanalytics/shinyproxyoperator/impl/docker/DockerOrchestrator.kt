@@ -65,6 +65,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                          private val inputDir: Path) : IOrchestrator {
 
     private val dockerGID: Int = config.readConfigValue(null, "SPO_DOCKER_GID") { it.toInt() }
+    private val disableICC: Boolean = config.readConfigValue(false, "SPO_DISABLE_ICC") { it.toBoolean() }
     private val state = mutableMapOf<String, ShinyProxyStatus>()
 
     private val logger = KotlinLogging.logger { }
@@ -163,7 +164,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             val networkName = "sp-network-${shinyProxy.realmId}"
             if (!dockerActions.networkExists(networkName)) {
                 logger.info { "${logPrefix(shinyProxyInstance)} [Docker] Creating network" }
-                dockerActions.createNetwork(networkName)
+                dockerActions.createNetwork(networkName, disableICC)
             }
 
             logger.info { "${logPrefix(shinyProxyInstance)} [Docker] Pulling image" }
@@ -213,7 +214,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                 copyTemplates(shinyProxy, dir)
 
                 val hostConfigBuilder = HostConfig.builder()
-                    .networkMode(networkName)
+                    .networkMode(SHARED_NETWORK_NAME)
                     .binds(
                         HostConfig.Bind.builder()
                             .from("/var/run/docker.sock")
@@ -267,7 +268,9 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
 
                 logger.info { "${logPrefix(shinyProxyInstance)} [Docker] Creating new container" }
                 val containerId = dockerClient.createContainer(containerConfig, containerName).id()
-                dockerClient.connectToNetwork(containerId, SHARED_NETWORK_NAME)
+                if (!disableICC) {
+                    dockerClient.connectToNetwork(containerId, networkName)
+                }
                 dockerClient.startContainer(containerId)
             }
             shinyProxyReadyChecker.add(shinyProxyInstance)

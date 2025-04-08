@@ -47,12 +47,12 @@ class DockerActions(private val dockerClient: DockerClient) {
         }
     }
 
-    fun createNetwork(name: String) {
-        dockerClient.createNetwork(
-            NetworkConfig.builder()
-                .name(name)
-                .build()
-        )
+    fun createNetwork(name: String, disableICC: Boolean) {
+        val builder = NetworkConfig.builder().name(name)
+        if (disableICC) {
+            builder.addOption("com.docker.network.bridge.enable_icc", "false")
+        }
+        dockerClient.createNetwork(builder.build())
     }
 
     fun getContainerByName(name: String): Container? {
