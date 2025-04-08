@@ -323,7 +323,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "{sp_realm_id=~\".+\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\", sp_spec_id=~\"$app\", sp_proxy_id=\"$id\", sp_proxy_id!=\"\"} | line_format `[App]: {{ __line__ }}` ",
+          "expr": "{sp_realm_id=~\".+\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\", sp_proxy_id=\"$id\", sp_proxy_id!=\"\"} | line_format `[App]: {{ __line__ }}` ",
           "legendFormat": "",
           "refId": "A"
         },

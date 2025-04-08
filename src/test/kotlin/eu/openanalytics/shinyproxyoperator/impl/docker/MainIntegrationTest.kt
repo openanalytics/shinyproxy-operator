@@ -548,20 +548,25 @@ class MainIntegrationTest : IntegrationTestBase() {
             dockerAssertions.assertShinyProxyContainer(shinyProxyContainer1, shinyProxyInstance1)
             dockerAssertions.assertShinyProxyContainer(shinyProxyContainer2, shinyProxyInstance2)
 
+            // LOKI DRIVER
+            val containerInfo1 = dockerClient.inspectContainer(shinyProxyContainer1.id())
+            assertEquals("loki", containerInfo1.hostConfig().logConfig().logType())
+            assertEquals("http://localhost:3100/loki/api/v1/push", containerInfo1.hostConfig().logConfig().logOptions()["loki-url"])
+            assertEquals("non-blocking", containerInfo1.hostConfig().logConfig().logOptions()["mode"])
+            assertEquals("sp_realm_id=default-realm1,sp_instance=${hash1},namespace=default,app=shinyproxy", containerInfo1.hostConfig().logConfig().logOptions()["loki-external-labels"])
+
+            val containerInfo2 = dockerClient.inspectContainer(shinyProxyContainer2.id())
+            assertEquals("loki", containerInfo2.hostConfig().logConfig().logType())
+            assertEquals("http://localhost:3100/loki/api/v1/push", containerInfo2.hostConfig().logConfig().logOptions()["loki-url"])
+            assertEquals("non-blocking", containerInfo2.hostConfig().logConfig().logOptions()["mode"])
+            assertEquals("sp_realm_id=default-realm2,sp_instance=${hash2},namespace=default,app=shinyproxy", containerInfo2.hostConfig().logConfig().logOptions()["loki-external-labels"])
+
             // CADVISOR
             val cadvisorContainer = inspectContainer(getContainerByName("sp-cadvisor"))
             assertNotNull(cadvisorContainer)
             assertEquals(true, cadvisorContainer.state().running())
             assertEquals("sp-shared-network", cadvisorContainer.hostConfig().networkMode())
             assertEquals("always", cadvisorContainer.hostConfig().restartPolicy().name())
-
-            // GRAFANA-ALLOY
-            val alloyContainer = inspectContainer(getContainerByName("sp-grafana-alloy"))
-            assertNotNull(alloyContainer)
-            assertEquals(true, alloyContainer.state().running())
-            assertEquals("sp-shared-network", alloyContainer.hostConfig().networkMode())
-            assertEquals("always", alloyContainer.hostConfig().restartPolicy().name())
-            assertNotNull(dataDir.resolve("sp-grafana-alloy/config.alloy").readText())
 
             // GRAFANA
             val grafanaContainer = inspectContainer(getContainerByName("sp-grafana-grafana-default-realm1"))

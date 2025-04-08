@@ -28,6 +28,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
+import org.mandas.docker.client.messages.PortBinding
 import java.nio.file.Path
 
 class GrafanaLokiConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path, config: Config) {
@@ -67,11 +68,13 @@ class GrafanaLokiConfig(private val dockerClient: DockerClient, private val dock
                     .build(),
             )
             .restartPolicy(HostConfig.RestartPolicy.always())
+            .portBindings(mapOf("3100" to listOf(PortBinding.of("127.0.0.1", "3100"))))
             .build()
 
         val containerConfig = ContainerConfig.builder()
             .image(lokiImage)
             .hostConfig(hostConfig)
+            .exposedPorts("3100")
             .user("1000")
             .labels(mapOf("app" to "grafana-loki"))
             .build()
@@ -79,6 +82,10 @@ class GrafanaLokiConfig(private val dockerClient: DockerClient, private val dock
         logger.info { "[Grafana Loki] Creating new container" }
         val containerId = dockerClient.createContainer(containerConfig, containerName).id()!!
         dockerClient.startContainer(containerId)
+    }
+
+    fun getLokiPushUrl(): String {
+        return "http://localhost:3100/loki/api/v1/push"
     }
 
 }

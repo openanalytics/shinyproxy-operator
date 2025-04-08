@@ -49,6 +49,7 @@ import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
+import org.mandas.docker.client.messages.LogConfig
 import java.io.FileWriter
 import java.nio.file.Files
 import java.nio.file.Path
@@ -211,7 +212,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
 
                 copyTemplates(shinyProxy, dir)
 
-                val hostConfig = HostConfig.builder()
+                val hostConfigBuilder = HostConfig.builder()
                     .networkMode(networkName)
                     .binds(
                         HostConfig.Bind.builder()
@@ -245,11 +246,21 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                     .memory(memoryToBytes(shinyProxy.memoryLimit))
                     .cpuPeriod(cpuPeriod)
                     .cpuQuota(cpuQuota)
-                    .build()
+
+                if (monitoringConfig.isEnabled()) {
+                    hostConfigBuilder.logConfig(LogConfig.builder()
+                        .logType("loki")
+                        .logOptions(mapOf(
+                            "loki-url" to monitoringConfig.grafanaLokiConfig.getLokiPushUrl(),
+                            "mode" to "non-blocking",
+                            "loki-external-labels" to "sp_realm_id=${shinyProxy.realmId},sp_instance=${shinyProxyInstance.hashOfSpec},namespace=${shinyProxy.namespace},app=shinyproxy"
+                        ))
+                        .build())
+                }
 
                 val containerConfig = ContainerConfig.builder()
                     .image(shinyProxy.image)
-                    .hostConfig(hostConfig)
+                    .hostConfig(hostConfigBuilder.build())
                     .labels(shinyProxy.labels + LabelFactory.labelsForShinyProxyInstance(shinyProxyInstance, version))
                     .env("PROXY_VERSION=${version}", "PROXY_REALM_ID=${shinyProxy.realmId}", "SPRING_CONFIG_IMPORT=/opt/shinyproxy/generated.yml")
                     .build()
@@ -438,18 +449,19 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                     )
                 )
             ),
-            "proxy" to hashMapOf(
-                "docker" to mapOf(
-                    "default-container-network" to networkName
-                ),
-                "template-path" to "/opt/shinyproxy/templates"
-            )
+            "proxy" to buildMap {
+                put("docker", buildMap {
+                    put("default-container-network", networkName)
+                    if (monitoringConfig.isEnabled()) {
+                        put("loki-url", monitoringConfig.grafanaLokiConfig.getLokiPushUrl())
+                    }
+                })
+                put("template-path", "/opt/shinyproxy/templates")
+                if (monitoringConfig.isEnabled()) {
+                    put("monitoring", mapOf("grafana-url" to monitoringConfig.grafanaConfig.getGrafanaUrl(shinyProxy)))
+                }
+            }
         )
-        if (monitoringConfig.isEnabled()) {
-            config["proxy"]?.put("monitoring", hashMapOf(
-                "grafana-url" to monitoringConfig.grafanaConfig.getGrafanaUrl(shinyProxy)
-            ))
-        }
         return objectMapper.writeValueAsString(config)
     }
 

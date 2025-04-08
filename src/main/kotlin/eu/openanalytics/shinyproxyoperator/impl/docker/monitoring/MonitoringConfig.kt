@@ -31,15 +31,13 @@ class MonitoringConfig(dockerClient: DockerClient, dockerActions: DockerActions,
 
     private val enableMonitoring = config.readConfigValue(false, "SPO_ENABLE_MONITORING") { it.toBoolean() }
 
-    private val grafanaAlloyConfig = GrafanaAlloyConfig(dockerClient, dockerActions, mainDataDir, config)
-    private val grafanaLokiConfig = GrafanaLokiConfig(dockerClient, dockerActions, mainDataDir, config)
+    internal val grafanaLokiConfig = GrafanaLokiConfig(dockerClient, dockerActions, mainDataDir, config)
     private val prometheusConfig = PrometheusConfig(dockerClient, dockerActions, mainDataDir, config)
     private val cAdvisorConfig = CAdvisorConfig(dockerClient, dockerActions, config)
     internal val grafanaConfig = GrafanaConfig(dockerClient, dockerActions, mainDataDir, caddyConfig, config)
 
     suspend fun reconcile(shinyProxy: ShinyProxy) {
         if (enableMonitoring) {
-            grafanaAlloyConfig.reconcile()
             grafanaLokiConfig.reconcile()
             prometheusConfig.reconcile()
             cAdvisorConfig.reconcile()
