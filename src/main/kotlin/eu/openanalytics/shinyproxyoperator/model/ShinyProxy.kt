@@ -120,6 +120,14 @@ class ShinyProxy(private val spec: JsonNode, val name: String, val namespace: St
         return@lazy spec.getTextValueOrNull("cpu-limit") ?: spec.getTextValueOrNull("cpuLimit")
     }
 
+    @get:JsonIgnore
+    val dns: List<String> by lazy {
+        if (spec.get("dns")?.isArray == true) {
+            return@lazy spec.get("dns").elements().asSequence().map { it.textValue() }.toList()
+        }
+        return@lazy listOf()
+    }
+
     fun getSpec(): JsonNode {
         return spec
     }

@@ -247,6 +247,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                     .memory(memoryToBytes(shinyProxy.memoryLimit))
                     .cpuPeriod(cpuPeriod)
                     .cpuQuota(cpuQuota)
+                    .dns(shinyProxy.dns)
 
                 if (monitoringConfig.isEnabled()) {
                     hostConfigBuilder.logConfig(LogConfig.builder()
