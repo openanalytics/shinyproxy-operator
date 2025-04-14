@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.source
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
@@ -61,6 +62,7 @@ class FileSource(
     }
 
     override suspend fun init() {
+        objectMapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY)
         runOnce()
         logger.info { "FileSource ready" }
     }
@@ -127,8 +129,8 @@ class FileSource(
                     }
                 }
             } catch (e: Exception) {
-                logger.warn(e) { "Failed to read file ${file.name}" }
-                eventController.inputError("Failed to read file ${file.name}, error: ${e.message}")
+                logger.warn(e) { "Failed to read file '${file.name}'" }
+                eventController.inputError("Failed to read file '${file.name}', error: '${e.message}'")
                 hasInputError = true
             }
         }

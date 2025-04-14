@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.docker
 
+import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
@@ -45,6 +46,7 @@ import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.readText
 
@@ -61,10 +63,11 @@ class CraneConfig(private val dockerClient: DockerClient,
     private val logger = KotlinLogging.logger { }
     private val scope = CoroutineScope(Dispatchers.Default)
     private val deletedContainers = ConcurrentHashMap.newKeySet<String>()
-    private val craneReadyChecker = CraneReadyChecker()
+    private val craneReadyChecker = CraneReadyChecker(dockerClient, dataDir)
 
     init {
         yamlMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+        yamlMapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY)
     }
 
 
@@ -80,7 +83,7 @@ class CraneConfig(private val dockerClient: DockerClient,
             return
         }
 
-        val spec = yamlMapper.readValue<JsonNode>(config)
+        val spec = parseConfig(shinyProxy, config) ?: return
         val hash = hash(spec)
         var containerId = dockerActions.getCraneContainer(shinyProxy, hash, deletedContainers.toList())?.id()
         if (containerId == null) {
@@ -92,6 +95,8 @@ class CraneConfig(private val dockerClient: DockerClient,
             val containerName = "sp-crane-${shinyProxyInstance.realmId}-${hash}-${suffix}"
 
             val dir = dataDir.resolve(containerName)
+            val logsDir = dataDir.resolve("logs").resolve(containerName)
+            logsDir.createDirectories()
             withContext(Dispatchers.IO) {
                 fileManager.createDirectories(dir)
                 fileManager.writeFile(
@@ -114,7 +119,11 @@ class CraneConfig(private val dockerClient: DockerClient,
                     .from(dir.resolve("generated.yml").toString())
                     .to("/opt/crane/generated.yml")
                     .readOnly(true)
-                    .build()
+                    .build(),
+                HostConfig.Bind.builder()
+                    .from(logsDir.toString())
+                    .to("/opt/crane/logs")
+                    .build(),
             )
 
             val mount = getMount(spec)
@@ -145,14 +154,24 @@ class CraneConfig(private val dockerClient: DockerClient,
 
         if (containerId != null) {
             val ip = getIp(containerId, shinyProxy) ?: return
-            craneReadyChecker.add(ip, shinyProxy.realmId, hash)
-            if (craneReadyChecker.isReady(shinyProxy.realmId, hash) == CraneReadyChecker.TaskStatus.READY) {
+            craneReadyChecker.add(ip, shinyProxy.realmId, hash, containerId)
+            val status = craneReadyChecker.isReady(shinyProxy.realmId, hash)
+            if (status == CraneReadyChecker.TaskStatus.READY) {
                 logger.info { "${logPrefix(shinyProxyInstance)} [Crane] Container ready" }
                 caddyConfig.addCraneServer(shinyProxy.realmId, ip, getSubPath(spec))
                 caddyConfig.reconcile()
                 persistentState.storeLatestCrane(shinyProxy.realmId, hash)
                 deleteOldContainers(shinyProxy.realmId, hash)
             }
+        }
+    }
+
+    private fun parseConfig(shinyProxy: ShinyProxy, config: String): JsonNode? {
+        try {
+            return yamlMapper.readValue<JsonNode>(config)
+        } catch (e: Exception) {
+            logger.warn(e) { "${logPrefix(shinyProxy)} Failed to parse crane config" }
+            return null
         }
     }
 
@@ -187,7 +206,7 @@ class CraneConfig(private val dockerClient: DockerClient,
                 logger.warn { "${logPrefix(shinyProxy)} [Crane] No hash label found for container" }
                 return
             }
-            craneReadyChecker.add(ip, shinyProxy.realmId, hashOfContainer)
+            craneReadyChecker.add(ip, shinyProxy.realmId, hashOfContainer, container.id())
             caddyConfig.addCraneServer(shinyProxy.realmId, ip, getSubPath(spec))
         } catch (e: Exception) {
             logger.warn(e) { "Error while initializing CraneConfig" }
@@ -241,6 +260,11 @@ class CraneConfig(private val dockerClient: DockerClient,
                     )
                 )
             ),
+            "logging" to hashMapOf<String, Any>(
+                "file" to mapOf(
+                    "name" to "/opt/crane/logs/crane.log"
+                )
+            )
         )
         return yamlMapper.writeValueAsString(config)
     }

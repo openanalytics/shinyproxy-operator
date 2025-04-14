@@ -32,11 +32,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.mandas.docker.client.DockerClient
 import java.io.IOException
+import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
-class CraneReadyChecker {
+class CraneReadyChecker(private val dockerClient: DockerClient, private val dataDir: Path) {
 
     private val scope = CoroutineScope(Dispatchers.Default)
     private val tasks = ConcurrentHashMap<TaskKey, Deferred<TaskStatus>>()
@@ -54,10 +56,10 @@ class CraneReadyChecker {
         private const val MAX_CHECKS = 24
     }
 
-    fun add(ip: String, realmId: String, hashOfSpec: String) {
+    fun add(ip: String, realmId: String, hashOfSpec: String, containerId: String) {
         tasks.computeIfAbsent(TaskKey(realmId, hashOfSpec)) {
             scope.async {
-                checkInstance(ip, realmId)
+                checkInstance(ip, realmId, containerId)
             }
         }
     }
@@ -74,7 +76,7 @@ class CraneReadyChecker {
         tasks.values.forEach { it.cancel() }
     }
 
-    private suspend fun checkInstance(ip: String, realmId: String): TaskStatus {
+    private suspend fun checkInstance(ip: String, realmId: String, containerId: String): TaskStatus {
         for (checks in 0..MAX_CHECKS) {
             val resp = checkServer(ip)
             if (resp != null && resp.status.equals("up", ignoreCase = true)) {
@@ -84,7 +86,14 @@ class CraneReadyChecker {
             logger.info { "${logPrefix(realmId)} [Crane] Not ready yet (${checks}/${MAX_CHECKS})" }
             delay(5_000)
         }
-        logger.info { "${logPrefix(realmId)} [Crane] Failed (${MAX_CHECKS}/${MAX_CHECKS})" }
+        val containerName = dockerClient.inspectContainer(containerId)?.name()?.drop(1)
+        val message = if (containerName != null) {
+            val path = dataDir.resolve("logs").resolve(containerName).resolve("crane.log").toAbsolutePath().toString()
+            "full log file available at '${path}'"
+        } else {
+            null
+        }
+        logger.info { "${logPrefix(realmId)} [Crane] Failed (${MAX_CHECKS}/${MAX_CHECKS}): $message" }
         return TaskStatus.FAILED
     }
 

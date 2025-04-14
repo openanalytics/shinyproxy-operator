@@ -100,7 +100,13 @@ class ShinyProxyReadyChecker(private val channel: Channel<ShinyProxyEvent>, priv
             val status = check.await()
             if (!failed && status == TaskStatus.FAILED) {
                 failed = true
-                val message = readTerminationMessage(container)
+                val containerName = container.name()
+                val message = if (containerName != null) {
+                    val path = dataDir.resolve("logs").resolve(containerName).resolve("shinyproxy.log")
+                    "Full log file available at '${path}', last output: " + readTerminationMessage(container)
+                } else {
+                    readTerminationMessage(container)
+                }
                 channel.send(ShinyProxyEvent(ShinyProxyEventType.FAILURE, shinyProxyInstance.realmId, shinyProxyInstance.name, shinyProxyInstance.namespace, shinyProxyInstance.hashOfSpec, message = message))
             }
         }

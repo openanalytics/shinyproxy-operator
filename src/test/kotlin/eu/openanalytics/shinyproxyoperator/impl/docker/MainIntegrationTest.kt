@@ -248,7 +248,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
         // 6. wait for instance to startup (startup will fail)
         val error = eventController.waitForInputError()
-        assertEquals("Failed to read file realm1.shinyproxy.yaml, error: No or invalid realm-id", error)
+        assertEquals("Failed to read file 'realm1.shinyproxy.yaml', error: No or invalid realm-id", error)
 
         // 7. check that caddy still points to original instance
         dockerAssertions.assertCaddyContainer("simple_test_caddy.json", mapOf("#CONTAINER_IP#" to shinyProxyContainerA.getSharedNetworkIpAddress()!!))

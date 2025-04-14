@@ -58,6 +58,7 @@ import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.regex.Pattern
+import kotlin.io.path.createDirectories
 
 class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                          config: Config,
@@ -85,6 +86,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
         .disable(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
     private val craneConfig: CraneConfig
     private val persistentState = PersistentState(dataDir)
+    private val logFilesCleaner: LogFilesCleaner
 
     init {
         objectMapper.registerKotlinModule()
@@ -99,6 +101,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
         redisConfig = RedisConfig(dockerClient, dockerActions, dataDir, config)
         craneConfig = CraneConfig(dockerClient, dockerActions, dataDir, inputDir, redisConfig, caddyConfig, persistentState)
         monitoringConfig = MonitoringConfig(dockerClient, dockerActions, dataDir, caddyConfig, config)
+        logFilesCleaner = LogFilesCleaner(dataDir.resolve("logs"), fileManager, dockerActions)
         fileManager.createDirectories(dataDir)
         eventWriter = FileWriter(dataDir.resolve("events.json").toFile())
     }
@@ -195,6 +198,8 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                 val containerName = "sp-${shinyProxyInstance.realmId}-${shinyProxyInstance.hashOfSpec}-${shinyProxyInstance.revision}-${suffix}"
 
                 val dir = dataDir.resolve(containerName)
+                val logsDir = dataDir.resolve("logs").resolve(containerName)
+                logsDir.createDirectories()
                 withContext(Dispatchers.IO) {
                     fileManager.createDirectories(dir)
                     fileManager.writeFile(
@@ -212,6 +217,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                 }
 
                 copyTemplates(shinyProxy, dir)
+                fileManager.createDirectories(dir.resolve("logs"))
 
                 val hostConfigBuilder = HostConfig.builder()
                     .networkMode(SHARED_NETWORK_NAME)
@@ -235,6 +241,10 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                             .from(dir.resolve("templates").toString())
                             .to("/opt/shinyproxy/templates")
                             .readOnly(true)
+                            .build(),
+                        HostConfig.Bind.builder()
+                            .from(logsDir.toString())
+                            .to("/opt/shinyproxy/logs")
                             .build(),
                         HostConfig.Bind.builder()
                             .from(dir.resolve("termination-log").toString())
@@ -436,11 +446,13 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             caddyConfig.addShinyProxy(shinyProxy, latestInstance) // not reconcile yet, wait for all ShinyProxy servers to be added
             craneConfig.init(shinyProxy)
         }
+        logFilesCleaner.init()
     }
 
     fun stop() {
         shinyProxyReadyChecker.stop()
         craneConfig.stop()
+        logFilesCleaner.stop()
     }
 
     private fun generateConfig(shinyProxy: ShinyProxy, networkName: String): String {
@@ -464,6 +476,11 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                 if (monitoringConfig.isEnabled()) {
                     put("monitoring", mapOf("grafana-url" to monitoringConfig.grafanaConfig.getGrafanaUrl(shinyProxy)))
                 }
+            },
+            "logging" to buildMap {
+                put("file", buildMap {
+                    put("name", "/opt/shinyproxy/logs/shinyproxy.log")
+                })
             }
         )
         return objectMapper.writeValueAsString(config)

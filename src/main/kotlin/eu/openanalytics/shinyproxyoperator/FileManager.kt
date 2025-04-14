@@ -79,4 +79,10 @@ class FileManager {
         path.deleteRecursively()
     }
 
+    fun isDirectoryEmpty(path: Path): Boolean {
+        Files.newDirectoryStream(path).use { dirStream ->
+            return !dirStream.iterator().hasNext()
+        }
+    }
+
 }

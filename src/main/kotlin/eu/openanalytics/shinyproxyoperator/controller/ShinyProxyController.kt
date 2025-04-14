@@ -253,7 +253,11 @@ class ShinyProxyController(
     }
 
     private fun instanceFailure(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance, message: String?) {
-        logger.info { "${logPrefix(shinyProxyInstance)} Instance failed to start up" }
+        if (message != null) {
+            logger.info { "${logPrefix(shinyProxyInstance)} Instance failed to start up, output: $message" }
+        } else {
+            logger.info { "${logPrefix(shinyProxyInstance)} Instance failed to start up" }
+        }
         eventController.createInstanceFailed(shinyProxyInstance, message)
     }
 
