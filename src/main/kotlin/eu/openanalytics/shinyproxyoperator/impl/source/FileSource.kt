@@ -96,22 +96,18 @@ class FileSource(
                 if (spec.get("proxy")?.get("realm-id")?.isTextual != true) {
                     throw IllegalStateException("No or invalid realm-id")
                 }
-                val name = spec.get("proxy").get("realm-id").textValue().lowercase()
+                val name = spec.get("proxy").get("realm-id").textValue()
+                validateRealmId(name)
                 val shinyProxy = ShinyProxy(spec, name, "default")
                 val realmId = shinyProxy.realmId
 
                 // check for duplicate realms in files
                 if (nameToFile.containsKey(realmId)) {
-                    logger.warn { "Found duplicate realmId: '${shinyProxy.realmId}' in file: '${file.name}', already defined in '${nameToFile[realmId]}'" }
-                    hasInputError = true
-                    continue
+                    throw IllegalStateException("Found duplicate realmId: '${shinyProxy.realmId}' in file: '${file.name}', already defined in '${nameToFile[realmId]}'")
                 }
                 nameToFile[realmId] = file.name
 
-                if (!checkDuplicateUrl(urlToFile, shinyProxy, file.name)) {
-                    hasInputError = true
-                    continue
-                }
+                checkDuplicateUrl(urlToFile, shinyProxy, file.name)
 
                 val existingShinyProxy = shinyProxies[shinyProxy.realmId]
                 if (existingShinyProxy == null) {
@@ -143,22 +139,19 @@ class FileSource(
         }
     }
 
-    private fun checkDuplicateUrl(urlToFile: HashMap<Pair<String, String>, String>, shinyProxy: ShinyProxy, fileName: String): Boolean {
+    private fun checkDuplicateUrl(urlToFile: HashMap<Pair<String, String>, String>, shinyProxy: ShinyProxy, fileName: String) {
         val baseUrl = Pair(shinyProxy.fqdn, shinyProxy.subPath)
         if (urlToFile.containsKey(baseUrl)) {
-            logger.warn { "Found multiple ShinyProxy resources with the same URL, fqdn: '${shinyProxy.fqdn}', path: '${shinyProxy.subPath}', realm: '${shinyProxy.realmId}' in file: '${fileName}', already defined in '${urlToFile[baseUrl]}'" }
-            return false
+            throw IllegalStateException("Found multiple ShinyProxy resources with the same URL, fqdn: '${shinyProxy.fqdn}', path: '${shinyProxy.subPath}', realm: '${shinyProxy.realmId}' in file: '${fileName}', already defined in '${urlToFile[baseUrl]}'")
         }
         urlToFile[baseUrl] = fileName
         for (additionalFqdn in shinyProxy.additionalFqdns) {
             val url = Pair(additionalFqdn, shinyProxy.subPath)
             if (urlToFile.containsKey(url)) {
-                logger.warn { "Found multiple ShinyProxy resources with the same (additional) URL, additional fqdn: '${additionalFqdn}', path: '${shinyProxy.subPath}', realm: '${shinyProxy.realmId}' in file: '${fileName}', already defined in '${urlToFile[url]}'" }
-                return false
+                throw IllegalStateException("Found multiple ShinyProxy resources with the same (additional) URL, additional fqdn: '${additionalFqdn}', path: '${shinyProxy.subPath}', realm: '${shinyProxy.realmId}' in file: '${fileName}', already defined in '${urlToFile[url]}'")
             }
-            urlToFile[url] =fileName
+            urlToFile[url] = fileName
         }
-        return true
     }
 
     private suspend fun checkForDeleted(discoveredShinyProxies: Collection<String>) {
@@ -171,6 +164,25 @@ class FileSource(
                 channel.send(ShinyProxyEvent(ShinyProxyEventType.DELETE, realmId, realmId.removePrefix(NAMESPACE), NAMESPACE, null))
                 shinyProxies.remove(realmId)
             }
+        }
+    }
+
+    private fun validateRealmId(realmId: String) {
+        if (realmId.isBlank()) {
+            throw IllegalArgumentException("RealmId: '$realmId' is invalid: should not be blank")
+        }
+        if (realmId.length > 63) {
+            throw IllegalArgumentException("RealmId: '$realmId' is invalid: should contain at most 63 characters")
+        }
+        val regex = Regex("^[0-9a-z-]*$")
+        if (!realmId.matches(regex)) {
+            throw IllegalArgumentException("RealmId: '$realmId' is invalid: should contain only lowercase alphanumeric characters or '-'")
+        }
+        if (realmId.startsWith("-")) {
+            throw IllegalArgumentException("RealmId: '$realmId' is invalid: should not start with '-'")
+        }
+        if (realmId.endsWith("-")) {
+            throw IllegalArgumentException("RealmId: '$realmId' is invalid: should not end with '-'")
         }
     }
 
