@@ -98,7 +98,6 @@ abstract class IntegrationTestBase {
             val mockConfig = MockConfig(config + mapOf(
                 "SPO_DOCKER_DATA_DIR" to dataDir.toString(),
                 "SPO_INPUT_DIR" to inputDir.toString(),
-                "SPO_REDIS_PASSWORD" to "MOCK_REDIS_PASSWORD",
                 "SPO_FILE_POLL_INTERVAL" to "10"
             ))
             val eventController = AwaitableEvenController()

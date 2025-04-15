@@ -55,8 +55,10 @@ class DockerAssertions(private val base: IntegrationTestBase,
         assertEquals("redis", redisContainer.config().labels()["app"])
         assertEquals("1000", redisContainer.config().user())
 
-        val redisConfig = dataDir.resolve("sp-redis").resolve("redis.conf").readText()
-        assertEquals(readExpectedFile("redis.conf"), redisConfig)
+        // remove generated password from file
+        val redisConfig = dataDir.resolve("sp-redis").resolve("redis.conf").readText().dropLast(33)
+        val expectedRedisconfig = readExpectedFile("redis.conf").dropLast(20)
+        assertEquals(expectedRedisconfig, redisConfig)
     }
 
     fun assertCaddyContainer(expectedName: String, replacements: Map<String, String>, tls: Boolean = false) {
@@ -116,13 +118,14 @@ class DockerAssertions(private val base: IntegrationTestBase,
     fun assertShinyProxyContainer(shinyProxyContainer: Container, shinyProxyInstance: ShinyProxyInstance) {
         val containerInfo = base.dockerClient.inspectContainer(shinyProxyContainer.id())
         assertEquals(true, containerInfo.state().running())
-        assertEquals("sp-network-${shinyProxyInstance.realmId}", containerInfo.hostConfig().networkMode())
+        assertEquals("sp-shared-network", containerInfo.hostConfig().networkMode())
         assertEquals(listOf("sp-network-${shinyProxyInstance.realmId}", "sp-shared-network"), containerInfo.networkSettings().networks().keys.toList())
         assertEquals(listOf(
             "/var/run/docker.sock:/var/run/docker.sock:ro",
             "${dataDir}${containerInfo.name()}/application.yml:/opt/shinyproxy/application.yml:ro",
             "${dataDir}${containerInfo.name()}/generated.yml:/opt/shinyproxy/generated.yml:ro",
             "${dataDir}${containerInfo.name()}/templates:/opt/shinyproxy/templates:ro",
+            "${dataDir}/logs${containerInfo.name()}:/opt/shinyproxy/logs",
             "${dataDir}${containerInfo.name()}/termination-log:/dev/termination-log",
         ), containerInfo.hostConfig().binds())
         assertEquals(listOf(dockerGID), containerInfo.hostConfig().groupAdd())

@@ -25,27 +25,41 @@ import eu.openanalytics.shinyproxyoperator.FileManager
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.apache.commons.lang3.RandomStringUtils
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
 import java.nio.file.Files
 import java.nio.file.Path
 
-class RedisConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path, config: Config) {
+class RedisConfig(private val dockerClient: DockerClient,
+                  private val dockerActions: DockerActions,
+                  private val persistentState: PersistentState,
+                  mainDataDir: Path,
+                  config: Config) {
 
     private val containerName = "sp-redis"
     private val dataDir: Path = mainDataDir.resolve(containerName)
-    private val redisPassword: String
+    private lateinit var redisPassword: String
     private val logger = KotlinLogging.logger {}
     private val redisImage: String = config.readConfigValue("redis:7.2.4", "SPO_REDIS_IMAGE") { it }
     private val fileManager = FileManager()
 
-    init {
-        redisPassword = readPasswordFile("/run/secrets/redis_password")
-            ?: readPasswordFile("redis_password.txt")
-            ?: config.readConfigValue("", "SPO_REDIS_PASSWORD") { it }
-        if (redisPassword == "") {
-            error("Invalid redis password")
+    fun init() {
+        val redisPasswordInState = persistentState.readState().redisPassword
+        if (redisPasswordInState == null) {
+            val redisPasswordInConfig = readPasswordFile("/run/secrets/redis_password")
+                ?: readPasswordFile("redis_password.txt")
+            redisPassword = if (redisPasswordInConfig != null) {
+                redisPasswordInConfig
+            } else {
+                logger.info { "Generating password for Redis" }
+                RandomStringUtils.secureStrong().nextAlphanumeric(32)
+            }
+            persistentState.storeRedisPassword(redisPassword)
+        } else {
+            logger.info { "Re-using password from Redis state" }
+            redisPassword = redisPasswordInState
         }
     }
 

@@ -33,6 +33,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.readText
+import kotlin.io.path.writeText
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
@@ -248,7 +249,7 @@ class MainIntegrationTest : IntegrationTestBase() {
 
         // 6. wait for instance to startup (startup will fail)
         val error = eventController.waitForInputError()
-        assertEquals("Failed to read file 'realm1.shinyproxy.yaml', error: No or invalid realm-id", error)
+        assertEquals("Failed to read file 'realm1.shinyproxy.yaml', error: 'No or invalid realm-id'", error)
 
         // 7. check that caddy still points to original instance
         dockerAssertions.assertCaddyContainer("simple_test_caddy.json", mapOf("#CONTAINER_IP#" to shinyProxyContainerA.getSharedNetworkIpAddress()!!))
@@ -409,6 +410,7 @@ class MainIntegrationTest : IntegrationTestBase() {
     fun `restart operator during (failing) update without state file`() = setup { dataDir, inputDir, operator, eventController, dockerAssertions, recyclableChecker, config ->
         // idea of test: launch instance A, update config to get instance B, however, instance B fails to start up, in the meantime restart the operator and then update config again to A
         // the operator will start a new instance, with an increased revision
+        dataDir.resolve("state.yaml").writeText("redisPassword: 75ZEykd5RYsZS7v9H7PYCaFcrscJHWa4\n")
         // 1. create a SP instance
         val hashA = createInputFile(inputDir, "simple_config.yaml", "realm1.shinyproxy.yaml")
         val shinyProxyInstanceA = ShinyProxyInstance("realm1", "default", "default-realm1", hashA, true, 0)
@@ -439,6 +441,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         operator.stop()
 
         dataDir.resolve("state.yaml").deleteIfExists()
+        dataDir.resolve("state.yaml").writeText("redisPassword: 75ZEykd5RYsZS7v9H7PYCaFcrscJHWa4\n")
         delay(10_000)
 
         // 7. restart operator
@@ -627,6 +630,7 @@ class MainIntegrationTest : IntegrationTestBase() {
         assertEquals(listOf(
             "${dataDir}${craneContainerInfo.name()}/application.yml:/opt/crane/application.yml:ro",
             "${dataDir}${craneContainerInfo.name()}/generated.yml:/opt/crane/generated.yml:ro",
+            "${dataDir}/logs${craneContainerInfo.name()}:/opt/crane/logs",
             "/tmp/crane-mount:/mnt",
         ), craneContainerInfo.hostConfig().binds())
         dockerAssertions.assertCaddyContainer("simple_config_crane_caddy.yaml", mapOf(

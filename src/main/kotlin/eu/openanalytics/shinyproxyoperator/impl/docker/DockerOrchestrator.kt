@@ -98,7 +98,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
         caddyConfig = CaddyConfig(dockerClient, dataDir, config)
         dockerActions = DockerActions(dockerClient)
         shinyProxyReadyChecker = ShinyProxyReadyChecker(channel, dockerActions, dockerClient, dataDir)
-        redisConfig = RedisConfig(dockerClient, dockerActions, dataDir, config)
+        redisConfig = RedisConfig(dockerClient, dockerActions, persistentState, dataDir, config)
         craneConfig = CraneConfig(dockerClient, dockerActions, dataDir, inputDir, redisConfig, caddyConfig, persistentState)
         monitoringConfig = MonitoringConfig(dockerClient, dockerActions, dataDir, caddyConfig, config)
         logFilesCleaner = LogFilesCleaner(dataDir.resolve("logs"), fileManager, dockerActions)
@@ -390,6 +390,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
 
     override suspend fun init(source: IShinyProxySource) {
         logger.info { "Initializing DockerOrchestrator" }
+        redisConfig.init()
         val containers = dockerClient.listContainers(
             DockerClient.ListContainersParam.withStatusRunning(),
             DockerClient.ListContainersParam.withLabel(LabelFactory.APP_LABEL, LabelFactory.APP_LABEL_VALUE)

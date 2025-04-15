@@ -34,6 +34,7 @@
         <fabric8.client.version>7.1.0</fabric8.client.version>
         <docker.client.version>7.0.8-OA-3</docker.client.version>
         <jersey.version>3.1.10</jersey.version>
+        <apache.commons.lang3>3.17.0</apache.commons.lang3>
         <!-- Plugin versions -->
         <maven.assembly.plugin.version>3.7.1</maven.assembly.plugin.version>
         <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
@@ -149,6 +150,11 @@
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-kotlin</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>${apache.commons.lang3}</version>
         </dependency>
 
         <!-- Dependencies for tests -->

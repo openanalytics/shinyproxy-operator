@@ -40,46 +40,56 @@ class PersistentState(dataDir: Path) {
     fun readState(): State {
         try {
             if (!file.exists()) {
-                return State(mapOf())
+                return State(mapOf(), null)
             }
             return objectMapper.readValue(file)
         } catch (e: Exception) {
             logger.warn(e) { "Could not read store state" }
-            return State(mapOf())
+            return State(mapOf(), null)
         }
     }
 
     fun storeLatest(realmId: String, instance: String) {
-        try {
-            val newMap = readState().realms.toMutableMap()
+        updateState { state ->
+            val newMap = state.realms.toMutableMap()
             if (newMap.containsKey(realmId)) {
                 newMap[realmId] = newMap.getValue(realmId).copy(latestInstance = instance)
             } else {
                 newMap[realmId] = RealmState(instance)
             }
-            val newState = State(newMap)
-            objectMapper.writeValue(file, newState)
-        } catch (e: Exception) {
-            logger.warn(e) { "Could not store state" }
+            state.copy(realms = newMap)
         }
     }
 
     fun storeLatestCrane(realmId: String, instance: String) {
-        try {
-            val newMap = readState().realms.toMutableMap()
+        updateState { state ->
+            val newMap = state.realms.toMutableMap()
             if (newMap.containsKey(realmId)) {
                 newMap[realmId] = newMap.getValue(realmId).copy(craneLatestInstance = instance)
             } else {
                 newMap[realmId] = RealmState(null, instance)
             }
-            val newState = State(newMap)
+            state.copy(realms = newMap)
+        }
+    }
+
+    fun storeRedisPassword(password: String) {
+        updateState { state ->
+            state.copy(redisPassword = password)
+        }
+    }
+
+    private fun updateState(block: (State) -> State) {
+        try {
+            val state = readState()
+            val newState = block(state)
             objectMapper.writeValue(file, newState)
         } catch (e: Exception) {
             logger.warn(e) { "Could not store state" }
         }
     }
 
-    data class State(val realms: Map<String, RealmState>)
+    data class State(val realms: Map<String, RealmState> = mapOf(), val redisPassword: String? = null)
 
     data class RealmState(val latestInstance: String?, val craneLatestInstance: String? = null)
 
