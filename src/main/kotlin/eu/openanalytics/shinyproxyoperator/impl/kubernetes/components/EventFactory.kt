@@ -25,6 +25,7 @@ import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import io.fabric8.kubernetes.api.model.EventBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
+import io.fabric8.kubernetes.client.KubernetesClientException
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -80,7 +81,11 @@ class EventFactory(private val kubeClient: KubernetesClient) {
             eventBuilder.withMessage(message)
         }
 
-        kubeClient.v1().events().resource(eventBuilder.build()).create()
+        try {
+            kubeClient.v1().events().resource(eventBuilder.build()).create()
+        } catch (e: KubernetesClientException) {
+            logger.warn(e) { "${logPrefix(shinyProxyInstance)} Error while creating event, type: $type, action: $action, message: $message" }
+        }
     }
 
     private fun truncateMessage(message: String?): String? {
