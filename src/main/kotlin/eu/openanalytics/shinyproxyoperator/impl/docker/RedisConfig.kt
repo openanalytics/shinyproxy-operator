@@ -24,6 +24,7 @@ import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.FileManager
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import org.apache.commons.lang3.RandomStringUtils
 import org.mandas.docker.client.DockerClient
@@ -42,7 +43,7 @@ class RedisConfig(private val dockerClient: DockerClient,
     private val dataDir: Path = mainDataDir.resolve(containerName)
     private lateinit var redisPassword: String
     private val logger = KotlinLogging.logger {}
-    private val redisImage: String = config.readConfigValue("redis:7.2.4", "SPO_REDIS_IMAGE") { it }
+    private val redisImage: String = config.readConfigValue("docker.io/library/redis:7.2.4", "SPO_REDIS_IMAGE") { it }
     private val fileManager = FileManager()
 
     fun init() {

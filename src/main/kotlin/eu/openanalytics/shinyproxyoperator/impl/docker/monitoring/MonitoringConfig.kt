@@ -24,17 +24,28 @@ import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.impl.docker.CaddyConfig
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerActions
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
+import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import java.nio.file.Path
 
-class MonitoringConfig(dockerClient: DockerClient, dockerActions: DockerActions, mainDataDir: Path, caddyConfig: CaddyConfig, config: Config) {
+class MonitoringConfig(dockerClient: DockerClient, dockerActions: DockerActions, mainDataDir: Path, caddyConfig: CaddyConfig, config: Config, dockerSocket: String) {
 
-    private val enableMonitoring = config.readConfigValue(false, "SPO_ENABLE_MONITORING") { it.toBoolean() }
-
+    private val logger = KotlinLogging.logger { }
+    private val enableMonitoring: Boolean
     internal val grafanaLokiConfig = GrafanaLokiConfig(dockerClient, dockerActions, mainDataDir, config)
-    private val prometheusConfig = PrometheusConfig(dockerClient, dockerActions, mainDataDir, config)
-    private val cAdvisorConfig = CAdvisorConfig(dockerClient, dockerActions, config)
+    private val prometheusConfig = PrometheusConfig(dockerClient, dockerActions, mainDataDir, config, dockerSocket)
+    private val cAdvisorConfig = CAdvisorConfig(dockerClient, dockerActions, config, dockerSocket)
     internal val grafanaConfig = GrafanaConfig(dockerClient, dockerActions, mainDataDir, caddyConfig, config)
+
+    init {
+        val enableMonitoringConfig = config.readConfigValue(false, "SPO_ENABLE_MONITORING") { it.toBoolean() }
+        if (enableMonitoringConfig && isPodman()) {
+            logger.warn { "Monitoring is not supported on podman. Continuing without monitoring." }
+            enableMonitoring = false
+        } else {
+            enableMonitoring = enableMonitoringConfig
+        }
+    }
 
     suspend fun reconcile(shinyProxy: ShinyProxy) {
         if (enableMonitoring) {
@@ -47,6 +58,10 @@ class MonitoringConfig(dockerClient: DockerClient, dockerActions: DockerActions,
 
     fun isEnabled(): Boolean {
         return enableMonitoring
+    }
+
+    private fun isPodman(): Boolean {
+        return System.getenv("container") == "podman"
     }
 
 }

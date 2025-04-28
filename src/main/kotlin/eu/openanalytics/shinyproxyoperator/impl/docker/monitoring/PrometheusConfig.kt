@@ -30,11 +30,11 @@ import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
 import java.nio.file.Path
 
-class PrometheusConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path, config: Config) {
+class PrometheusConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path, config: Config, private val dockerSocket: String) {
 
     private val logger = KotlinLogging.logger {}
     private val dockerGID = config.readConfigValue(null, "SPO_DOCKER_GID") { it.toInt() }
-    private val prometheusImage: String = config.readConfigValue("prom/prometheus:v3.0.1", "SPO_PROMETHEUS_IMAGE") { it }
+    private val prometheusImage: String = config.readConfigValue("docker.io/prom/prometheus:v3.0.1", "SPO_PROMETHEUS_IMAGE") { it }
     private val fileManager = FileManager()
     private val containerName = "sp-prometheus"
     private val dataDir: Path = mainDataDir.resolve(containerName)
@@ -59,7 +59,7 @@ class PrometheusConfig(private val dockerClient: DockerClient, private val docke
             .networkMode(DockerOrchestrator.SHARED_NETWORK_NAME)
             .binds(
                 HostConfig.Bind.builder()
-                    .from("/var/run/docker.sock")
+                    .from(dockerSocket)
                     .to("/var/run/docker.sock")
                     .readOnly(true)
                     .build(),

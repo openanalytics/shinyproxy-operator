@@ -31,6 +31,7 @@ import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -56,7 +57,7 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
     private val objectMapper = ObjectMapper()
     private val yamlMapper = ObjectMapper(YAMLFactory())
     private val fileManager = FileManager()
-    private val caddyImage: String = config.readConfigValue("caddy:2.8", "SPO_CADDY_IMAGE") { it }
+    private val caddyImage: String = config.readConfigValue("docker.io/library/caddy:2.8", "SPO_CADDY_IMAGE") { it }
     private val enableTls = config.readConfigValue(false, "SPO_CADDY_ENABLE_TLS") { it.toBoolean() }
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(3, TimeUnit.SECONDS)

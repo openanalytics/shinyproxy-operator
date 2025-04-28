@@ -70,6 +70,7 @@ abstract class IntegrationTestBase {
     protected val scope = CoroutineScope(Dispatchers.Default)
     val dockerClient: DockerClient = JerseyDockerClientBuilder()
         .fromEnv()
+        .uri("unix://" + Config().readConfigValue("/var/run/docker.sock", "SPO_DOCKER_SOCKET") { it })
         .readTimeoutMillis(0) // no timeout, needed for startContainer and logs, #32606
         .build()
     protected val dockerActions = DockerActions(dockerClient)

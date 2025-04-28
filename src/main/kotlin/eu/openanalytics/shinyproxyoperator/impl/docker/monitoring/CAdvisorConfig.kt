@@ -29,7 +29,7 @@ import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.Device
 import org.mandas.docker.client.messages.HostConfig
 
-class CAdvisorConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, config: Config) {
+class CAdvisorConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, config: Config, private val dockerSocket: String) {
 
     private val logger = KotlinLogging.logger {}
     private val cAdvisorImage: String = config.readConfigValue("gcr.io/cadvisor/cadvisor:v0.49.1", "SPO_CADVISOR_IMAGE") { it }
@@ -49,7 +49,7 @@ class CAdvisorConfig(private val dockerClient: DockerClient, private val dockerA
             .networkMode(DockerOrchestrator.SHARED_NETWORK_NAME)
             .binds(
                 HostConfig.Bind.builder()
-                    .from("/var/run/docker.sock")
+                    .from(dockerSocket)
                     .to("/var/run/docker.sock")
                     .readOnly(true)
                     .build(),

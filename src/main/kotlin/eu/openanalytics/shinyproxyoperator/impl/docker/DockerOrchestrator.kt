@@ -42,6 +42,7 @@ import eu.openanalytics.shinyproxyoperator.model.ShinyProxyStatus
 import eu.openanalytics.shinyproxyoperator.prettyMessage
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
 import org.apache.commons.lang3.RandomStringUtils
@@ -66,6 +67,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                          private val inputDir: Path) : IOrchestrator {
 
     private val dockerGID: Int = config.readConfigValue(null, "SPO_DOCKER_GID") { it.toInt() }
+    private val dockerSocket: String = config.readConfigValue("/var/run/docker.sock", "SPO_DOCKER_SOCKET") { it }
     private val disableICC: Boolean = config.readConfigValue(false, "SPO_DISABLE_ICC") { it.toBoolean() }
     private val state = mutableMapOf<String, ShinyProxyStatus>()
 
@@ -93,6 +95,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
         objectMapper.propertyNamingStrategy = PropertyNamingStrategies.KEBAB_CASE
         dockerClient = JerseyDockerClientBuilder()
             .fromEnv()
+            .uri("unix://" + dockerSocket)
             .readTimeoutMillis(0) // no timeout, needed for startContainer and logs, #32606
             .build()
         caddyConfig = CaddyConfig(dockerClient, dataDir, config)
@@ -100,7 +103,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
         shinyProxyReadyChecker = ShinyProxyReadyChecker(channel, dockerActions, dockerClient, dataDir)
         redisConfig = RedisConfig(dockerClient, dockerActions, persistentState, dataDir, config)
         craneConfig = CraneConfig(dockerClient, dockerActions, dataDir, inputDir, redisConfig, caddyConfig, persistentState)
-        monitoringConfig = MonitoringConfig(dockerClient, dockerActions, dataDir, caddyConfig, config)
+        monitoringConfig = MonitoringConfig(dockerClient, dockerActions, dataDir, caddyConfig, config, dockerSocket)
         logFilesCleaner = LogFilesCleaner(dataDir.resolve("logs"), fileManager, dockerActions)
         fileManager.createDirectories(dataDir)
         eventWriter = FileWriter(dataDir.resolve("events.json").toFile())
@@ -223,7 +226,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                     .networkMode(SHARED_NETWORK_NAME)
                     .binds(
                         HostConfig.Bind.builder()
-                            .from("/var/run/docker.sock")
+                            .from(dockerSocket)
                             .to("/var/run/docker.sock")
                             .readOnly(true)
                             .build(),

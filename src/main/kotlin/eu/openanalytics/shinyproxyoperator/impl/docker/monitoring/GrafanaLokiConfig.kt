@@ -34,7 +34,7 @@ import java.nio.file.Path
 class GrafanaLokiConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path, config: Config) {
 
     private val logger = KotlinLogging.logger {}
-    private val lokiImage: String = config.readConfigValue("grafana/loki:3.2.2", "SPO_GRAFANA_GRAFANA_IMAGE") { it }
+    private val lokiImage: String = config.readConfigValue("docker.io/grafana/loki:3.2.2", "SPO_GRAFANA_GRAFANA_IMAGE") { it }
     private val fileManager = FileManager()
     private val containerName = "sp-grafana-loki"
     private val dataDir: Path = mainDataDir.resolve(containerName)
