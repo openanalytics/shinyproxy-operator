@@ -16,9 +16,9 @@
     </organization>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.release>17</maven.compiler.release>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.target>21</maven.compiler.target>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <!-- Dependency versions -->
         <jackson.version>2.18.3</jackson.version>
