@@ -30,7 +30,12 @@ import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
 import java.nio.file.Path
 
-class PrometheusConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path, config: Config, private val dockerSocket: String) {
+class PrometheusConfig(private val dockerClient: DockerClient,
+                       private val dockerActions: DockerActions,
+                       mainDataDir: Path,
+                       private val dataDirUid: Int,
+                       config: Config,
+                       private val dockerSocket: String) {
 
     private val logger = KotlinLogging.logger {}
     private val dockerGID = config.readConfigValue(null, "SPO_DOCKER_GID") { it.toInt() }
@@ -80,7 +85,7 @@ class PrometheusConfig(private val dockerClient: DockerClient, private val docke
             .image(prometheusImage)
             .hostConfig(hostConfig)
             .labels(mapOf("app" to "prometheus"))
-            .user("1000")
+            .user(dataDirUid.toString())
             .build()
 
         logger.info { "[Prometheus] Creating new container" }

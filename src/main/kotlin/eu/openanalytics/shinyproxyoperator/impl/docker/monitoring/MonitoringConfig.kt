@@ -28,12 +28,12 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import java.nio.file.Path
 
-class MonitoringConfig(dockerClient: DockerClient, dockerActions: DockerActions, mainDataDir: Path, caddyConfig: CaddyConfig, config: Config, dockerSocket: String) {
+class MonitoringConfig(dockerClient: DockerClient, dockerActions: DockerActions, mainDataDir: Path, dataDirUid: Int, caddyConfig: CaddyConfig, config: Config, dockerSocket: String) {
 
     private val logger = KotlinLogging.logger { }
     private val enableMonitoring: Boolean
-    internal val grafanaLokiConfig = GrafanaLokiConfig(dockerClient, dockerActions, mainDataDir, config)
-    private val prometheusConfig = PrometheusConfig(dockerClient, dockerActions, mainDataDir, config, dockerSocket)
+    internal val grafanaLokiConfig = GrafanaLokiConfig(dockerClient, dockerActions, mainDataDir, dataDirUid, config)
+    private val prometheusConfig = PrometheusConfig(dockerClient, dockerActions, mainDataDir, dataDirUid, config, dockerSocket)
     private val cAdvisorConfig = CAdvisorConfig(dockerClient, dockerActions, config, dockerSocket)
     internal val grafanaConfig = GrafanaConfig(dockerClient, dockerActions, mainDataDir, caddyConfig, config)
 

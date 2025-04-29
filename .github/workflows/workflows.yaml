@@ -46,5 +46,6 @@ jobs:
       - name: Run Tests
         run: |
           docker network create sp-shared-network
+          docker plugin install "grafana/loki-docker-driver:3.2.1" --alias loki --grant-all-permissions
           export SPO_DOCKER_GID=$(getent group docker | cut -d: -f3)
           mvn -B test

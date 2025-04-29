@@ -53,7 +53,6 @@ class DockerAssertions(private val base: IntegrationTestBase,
         assertEquals("always", redisContainer.hostConfig().restartPolicy().name())
         assertEquals(listOf("redis-server", "/etc/redis.conf"), redisContainer.config().cmd())
         assertEquals("redis", redisContainer.config().labels()["app"])
-        assertEquals("1000", redisContainer.config().user())
 
         // remove generated password from file
         val redisConfig = dataDir.resolve("sp-redis").resolve("redis.conf").readText().dropLast(33)

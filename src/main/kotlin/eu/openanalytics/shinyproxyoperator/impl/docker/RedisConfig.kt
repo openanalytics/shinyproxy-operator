@@ -37,6 +37,7 @@ class RedisConfig(private val dockerClient: DockerClient,
                   private val dockerActions: DockerActions,
                   private val persistentState: PersistentState,
                   mainDataDir: Path,
+                  private val dataDirUid: Int,
                   config: Config) {
 
     private val containerName = "sp-redis"
@@ -104,7 +105,7 @@ class RedisConfig(private val dockerClient: DockerClient,
                 .hostConfig(hostConfig)
                 .labels(mapOf("app" to "redis"))
                 .cmd(listOf("redis-server", "/etc/redis.conf"))
-                .user("1000")
+                .user(dataDirUid.toString())
                 .build()
 
             logger.info { "[Redis] Creating new container" }

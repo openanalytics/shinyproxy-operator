@@ -53,6 +53,7 @@ import org.mandas.docker.client.messages.HostConfig
 import org.mandas.docker.client.messages.LogConfig
 import java.io.FileWriter
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -69,6 +70,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
     private val dockerGID: Int = config.readConfigValue(null, "SPO_DOCKER_GID") { it.toInt() }
     private val dockerSocket: String = config.readConfigValue("/var/run/docker.sock", "SPO_DOCKER_SOCKET") { it }
     private val disableICC: Boolean = config.readConfigValue(false, "SPO_DISABLE_ICC") { it.toBoolean() }
+    private var dataDirUid: Int
     private val state = mutableMapOf<String, ShinyProxyStatus>()
 
     private val logger = KotlinLogging.logger { }
@@ -98,12 +100,13 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             .uri("unix://" + dockerSocket)
             .readTimeoutMillis(0) // no timeout, needed for startContainer and logs, #32606
             .build()
+        dataDirUid = getDatadirUId()
         caddyConfig = CaddyConfig(dockerClient, dataDir, config)
         dockerActions = DockerActions(dockerClient)
         shinyProxyReadyChecker = ShinyProxyReadyChecker(channel, dockerActions, dockerClient, dataDir)
-        redisConfig = RedisConfig(dockerClient, dockerActions, persistentState, dataDir, config)
-        craneConfig = CraneConfig(dockerClient, dockerActions, dataDir, inputDir, redisConfig, caddyConfig, persistentState)
-        monitoringConfig = MonitoringConfig(dockerClient, dockerActions, dataDir, caddyConfig, config, dockerSocket)
+        redisConfig = RedisConfig(dockerClient, dockerActions, persistentState, dataDir, dataDirUid, config)
+        craneConfig = CraneConfig(dockerClient, dockerActions, dataDir, inputDir, redisConfig, caddyConfig, persistentState, dataDirUid)
+        monitoringConfig = MonitoringConfig(dockerClient, dockerActions, dataDir, dataDirUid, caddyConfig, config, dockerSocket)
         logFilesCleaner = LogFilesCleaner(dataDir.resolve("logs"), fileManager, dockerActions)
         fileManager.createDirectories(dataDir)
         eventWriter = FileWriter(dataDir.resolve("events.json").toFile())
@@ -278,6 +281,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                     .hostConfig(hostConfigBuilder.build())
                     .labels(shinyProxy.labels + LabelFactory.labelsForShinyProxyInstance(shinyProxyInstance, version))
                     .env("PROXY_VERSION=${version}", "PROXY_REALM_ID=${shinyProxy.realmId}", "SPRING_CONFIG_IMPORT=/opt/shinyproxy/generated.yml")
+                    .user(dataDirUid.toString())
                     .build()
 
                 logger.info { "${logPrefix(shinyProxyInstance)} [Docker] Creating new container" }
@@ -513,6 +517,17 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             cpu.toDouble()
         }
         return (cpuPeriod.toDouble() * converted).toLong()
+    }
+
+    private fun getDatadirUId(): Int {
+        try {
+            val owner = Integer.parseInt(Files.getAttribute(dataDir, "unix:uid", LinkOption.NOFOLLOW_LINKS).toString())
+            logger.info { "Owner of data dir is '$owner'" }
+            return owner
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to determine owner of data dir - failling back to user 1000" }
+            return 1000
+        }
     }
 
 }

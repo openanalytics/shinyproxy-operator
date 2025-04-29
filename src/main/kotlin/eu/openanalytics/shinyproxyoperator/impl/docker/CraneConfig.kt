@@ -36,6 +36,7 @@ import eu.openanalytics.shinyproxyoperator.sha1
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -56,7 +57,8 @@ class CraneConfig(private val dockerClient: DockerClient,
                   private val inputDir: Path,
                   private val redisConfig: RedisConfig,
                   private val caddyConfig: CaddyConfig,
-                  private val persistentState: PersistentState) {
+                  private val persistentState: PersistentState,
+                  private val dataDirUid: Int) {
 
     private val yamlMapper = ObjectMapper(YAMLFactory())
     private val fileManager = FileManager()
@@ -145,6 +147,7 @@ class CraneConfig(private val dockerClient: DockerClient,
                 .hostConfig(hostConfig)
                 .labels(dockerActions.labelsForCrane(shinyProxy.realmId, hash))
                 .env("SPRING_CONFIG_IMPORT=/opt/crane/generated.yml")
+                .user(dataDirUid.toString())
                 .build()
 
             logger.info { "${logPrefix(shinyProxyInstance)} [Crane] Creating new container" }

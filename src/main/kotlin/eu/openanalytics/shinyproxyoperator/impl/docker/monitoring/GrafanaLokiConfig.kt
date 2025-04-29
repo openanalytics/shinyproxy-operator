@@ -31,7 +31,11 @@ import org.mandas.docker.client.messages.HostConfig
 import org.mandas.docker.client.messages.PortBinding
 import java.nio.file.Path
 
-class GrafanaLokiConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, mainDataDir: Path, config: Config) {
+class GrafanaLokiConfig(private val dockerClient: DockerClient,
+                        private val dockerActions: DockerActions,
+                        mainDataDir: Path,
+                        private val dataDirUid: Int,
+                        config: Config) {
 
     private val logger = KotlinLogging.logger {}
     private val lokiImage: String = config.readConfigValue("docker.io/grafana/loki:3.2.2", "SPO_GRAFANA_GRAFANA_IMAGE") { it }
@@ -75,7 +79,7 @@ class GrafanaLokiConfig(private val dockerClient: DockerClient, private val dock
             .image(lokiImage)
             .hostConfig(hostConfig)
             .exposedPorts("3100")
-            .user("1000")
+            .user(dataDirUid.toString())
             .labels(mapOf("app" to "grafana-loki"))
             .build()
 
