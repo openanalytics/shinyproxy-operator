@@ -33,4 +33,4 @@ server:
         name: CSESSION
 
 fqdn: itest.local
-image: openanalytics/crane:1.0.0
+image: openanalytics/crane-snapshot:0.2.0-SNAPSHOT-20250128.130620

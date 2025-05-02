@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: sp-example-shinyproxy-cm-bb176e6da3f28ecec923e4fb214ded1623fcb4
+  name: sp-example-shinyproxy-cm-7e83b7de02a22113928962bfebde0d1c090300
   namespace: itest
 data:
   application.yml: |
