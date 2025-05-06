@@ -12,19 +12,49 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '3'))
     }
 
+    environment {
+        SPO_DOCKER_SOCKET = "/var/run/docker/docker.sock"
+        SPO_DOCKER_GID = "2375"
+        KUBERNETES_TRUST_CERTIFICATES = "true"
+    }
+
     stages {
 
-        stage('build and deploy to nexus'){
+        stage('prepare') {
+            steps {
+
+                container('docker') {
+                    sh 'echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories'
+                    sh 'apk add minikube@testing'
+                    sh 'docker network create sp-shared-network'
+                    sh 'docker plugin install "grafana/loki-docker-driver:3.2.1" --alias loki --grant-all-permissions'
+                    sh 'adduser -D -u 1000 user && adduser user docker'
+                    sh "su user /bin/sh -c 'minikube start --driver=docker --force'"
+                    sh "su user /bin/sh -c 'minikube kubectl -- config view --flatten > /tmp/kubeconfig'"
+                    script {
+                        env.KUBERNETES_MASTER = "https://" + sh(returnStdout: true, script: "su user  /bin/sh -c 'minikube ip'").trim() + ":8443"
+                    }
+                }
+
+            }
+
+        }
+
+        stage('build and deploy to nexus') {
+
+            environment {
+                KUBECONFIG = "/tmp/kubeconfig"
+            }
 
             steps {
 
                 container('shinyproxy-operator-build') {
 
-                     configFileProvider([configFile(fileId: 'maven-settings-rsb', variable: 'MAVEN_SETTINGS_RSB')]) {
+                    configFileProvider([configFile(fileId: 'maven-settings-rsb', variable: 'MAVEN_SETTINGS_RSB')]) {
 
-                         sh 'mvn -B -s $MAVEN_SETTINGS_RSB -U clean deploy -DskipTests'
+                        sh 'mvn -Dmaven.repo.local=/tmp/m2 -B -s $MAVEN_SETTINGS_RSB -U clean deploy'
 
-                     }
+                    }
                 }
             }
         }

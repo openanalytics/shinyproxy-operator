@@ -50,7 +50,7 @@ class CAdvisorConfig(private val dockerClient: DockerClient, private val dockerA
             .binds(
                 HostConfig.Bind.builder()
                     .from(dockerSocket)
-                    .to("/var/run/docker.sock")
+                    .to("/docker.sock")
                     .readOnly(true)
                     .build(),
                 HostConfig.Bind.builder()
@@ -88,7 +88,7 @@ class CAdvisorConfig(private val dockerClient: DockerClient, private val dockerA
             .image(cAdvisorImage)
             .hostConfig(hostConfig)
             .labels(mapOf("app" to "cadvisor"))
-            .cmd(listOf("--docker_only=true", "--enable_metrics=cpu,memory,network"))
+            .cmd(listOf("--docker_only=true", "--docker=unix:///docker.sock", "--enable_metrics=cpu,memory,network"))
             .build()
 
         logger.info { "[cAdvisor] Creating new container" }

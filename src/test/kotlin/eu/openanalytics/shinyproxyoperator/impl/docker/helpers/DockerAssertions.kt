@@ -40,6 +40,7 @@ class DockerAssertions(private val base: IntegrationTestBase,
 
     private val objectMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val dockerGID = Config().readConfigValue(null, "SPO_DOCKER_GID") { it }
+    private val dockerSocket = Config().readConfigValue("/var/run/docker.sock", "SPO_DOCKER_SOCKET") { it }
 
     fun assertRedisContainer() {
         val redisContainer = base.inspectContainer(this.base.getContainerByName("sp-redis"))
@@ -120,7 +121,7 @@ class DockerAssertions(private val base: IntegrationTestBase,
         assertEquals("sp-shared-network", containerInfo.hostConfig().networkMode())
         assertEquals(listOf("sp-network-${shinyProxyInstance.realmId}", "sp-shared-network"), containerInfo.networkSettings().networks().keys.toList())
         assertEquals(listOf(
-            "/var/run/docker.sock:/var/run/docker.sock:ro",
+            "$dockerSocket:/var/run/docker.sock:ro",
             "${dataDir}${containerInfo.name()}/application.yml:/opt/shinyproxy/application.yml:ro",
             "${dataDir}${containerInfo.name()}/generated.yml:/opt/shinyproxy/generated.yml:ro",
             "${dataDir}${containerInfo.name()}/templates:/opt/shinyproxy/templates:ro",
