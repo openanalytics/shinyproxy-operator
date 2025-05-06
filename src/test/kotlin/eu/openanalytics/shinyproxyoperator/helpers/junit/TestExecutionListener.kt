@@ -22,10 +22,14 @@ package eu.openanalytics.shinyproxyoperator.helpers.junit
 
 import org.junit.platform.engine.TestExecutionResult
 import org.junit.platform.launcher.TestIdentifier
+import org.junit.platform.launcher.TestPlan
 import org.junit.platform.launcher.listeners.SummaryGeneratingListener
 import java.io.PrintWriter
 
 class TestExecutionListener : SummaryGeneratingListener() {
+
+    private var numTests: Long = 0
+    private var currentTest: Long = 0
 
     init {
         Runtime.getRuntime().addShutdownHook(Thread {
@@ -35,21 +39,33 @@ class TestExecutionListener : SummaryGeneratingListener() {
         })
     }
 
+    override fun testPlanExecutionStarted(testPlan: TestPlan) {
+        super.testPlanExecutionStarted(testPlan)
+
+        numTests = testPlan.countTestIdentifiers { it.isTest || (it.isContainer && it.uniqueIdObject.lastSegment.type == "test-template")  }
+    }
+
     override fun executionSkipped(testIdentifier: TestIdentifier?, reason: String?) {
         super.executionSkipped(testIdentifier, reason)
         if (testIdentifier == null || reason == null || !testIdentifier.isTest) return
 
+        updateCount(testIdentifier)
+
         println()
-        println("\t\t--> Skipping test \"${testIdentifier.displayName}\"")
+        println("\t\t--> Skipping test [$currentTest/$numTests] \"${testIdentifier.displayName}\"")
         println()
     }
 
     override fun executionStarted(testIdentifier: TestIdentifier?) {
         super.executionStarted(testIdentifier)
-        if (testIdentifier == null || !testIdentifier.isTest) return
+        if (testIdentifier == null || !testIdentifier.isTest) {
+            return
+        }
+
+        updateCount(testIdentifier)
 
         println()
-        println("\t\t--> Started test \"${testIdentifier.displayName}\"")
+        println("\t\t--> Started test [$currentTest/$numTests] \"${testIdentifier.displayName}\"")
         println()
     }
 
@@ -58,13 +74,25 @@ class TestExecutionListener : SummaryGeneratingListener() {
         if (testIdentifier == null || testExecutionResult == null || !testIdentifier.isTest) return
 
         println()
-        println("\t\t--> Finished test \"${testIdentifier.displayName}\": $testExecutionResult")
+        println("\t\t--> Finished test [$currentTest/$numTests] \"${testIdentifier.displayName}\": $testExecutionResult")
         if (testExecutionResult.throwable.isPresent) {
             println()
             print("\t\t--> ")
             println(testExecutionResult.throwable.get().stackTraceToString())
         }
         println()
+    }
+
+    private fun updateCount(testIdentifier: TestIdentifier) {
+        if (testIdentifier.uniqueIdObject?.lastSegment?.type == "test-template-invocation") {
+            val c = testIdentifier.uniqueIdObject?.lastSegment?.value?.replace("#", "")?.toIntOrNull() ?: return
+            if (c > 1) {
+                // update total count if it's a template (instances of templates are not included in the initial total)
+                numTests++
+            }
+        }
+
+        currentTest++
     }
 
 }
