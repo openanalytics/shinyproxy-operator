@@ -507,7 +507,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "{sp_realm_id=~\".+\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\", sp_proxy_id=\"$id\", sp_proxy_id!=\"\"} | line_format `[App]: {{ __line__ }}` |~ `(?i)$filter`",
+          "expr": "{sp_realm_id=~\".+\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\", sp_proxy_id=~\"$id\", sp_proxy_id!=\"\"} | line_format `[App]: {{ __line__ }}` |~ `(?i)$filter`",
           "legendFormat": "",
           "refId": "A"
         },
@@ -516,7 +516,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "{app=\"shinyproxy\", sp_realm_id=~\"$realm\"} | json | proxyId!=\"\" | proxyId=\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}` |~ `(?i)$filter`",
+          "expr": "{app=\"shinyproxy\", sp_realm_id=~\"$realm\"} | json | proxyId!=\"\" | proxyId=~\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}` |~ `(?i)$filter`",
           "hide": false,
           "legendFormat": "",
           "refId": "B"
@@ -669,8 +669,8 @@
         },
         "definition": "label_values(appInfo{job=~\".+\",proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", user_id=~\"$user\", spec_id=~\"$app\", proxy_instance=~\"$instance\"}, proxy_id)",
         "hide": 0,
-        "includeAll": false,
-        "multi": false,
+        "includeAll": true,
+        "multi": true,
         "name": "id",
         "options": [],
         "query": {

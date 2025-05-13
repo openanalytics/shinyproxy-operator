@@ -442,10 +442,10 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "irate(container_cpu_usage_seconds_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[5m])",
+          "expr": "sum(irate(container_cpu_usage_seconds_total{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[5m])) by (container_label_openanalytics_eu_sp_proxy_id)",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "CPU Usage",
+          "legendFormat": "CPU Usage {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "A",
           "step": 10
@@ -456,7 +456,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "container_spec_cpu_quota{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} / 100000",
+          "expr": "sum(container_spec_cpu_quota{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} / 100000)",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "limits",
@@ -562,10 +562,10 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(container_cpu_cfs_throttled_periods_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[$__rate_interval])) /sum(increase(container_cpu_cfs_periods_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[$__rate_interval]))",
+          "expr": "sum(increase(container_cpu_cfs_throttled_periods_total{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[$__rate_interval])) by (container_label_openanalytics_eu_sp_proxy_id) / sum(increase(container_cpu_cfs_periods_total{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[$__rate_interval])) by (container_label_openanalytics_eu_sp_proxy_id)",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "CPU Throttling",
+          "legendFormat": "CPU Throttling {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "A",
           "step": 10
@@ -748,10 +748,10 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(container_memory_working_set_bytes{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}) by (container)",
+          "expr": "sum(container_memory_working_set_bytes{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}) by (container_label_openanalytics_eu_sp_proxy_id)",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "Memory Usage",
+          "legendFormat": "Memory Usage {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "A",
           "step": 10
@@ -763,7 +763,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "container_spec_memory_reservation_limit_bytes{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} > 0",
+          "expr": "sum(container_spec_memory_reservation_limit_bytes{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} > 0)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -778,7 +778,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "container_spec_memory_reservation_limit_bytes{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} > 0",
+          "expr": "sum(container_spec_memory_reservation_limit_bytes{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} > 0)",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "limits",
@@ -912,8 +912,8 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "container_network_receive_bytes_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}",
-          "legendFormat": "Receive",
+          "expr": "sum(container_network_receive_bytes_total{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}) by (container_label_openanalytics_eu_sp_proxy_id)",
+          "legendFormat": "Receive {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "A"
         },
@@ -924,10 +924,10 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "container_network_transmit_bytes_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}",
+          "expr": "sum(container_network_transmit_bytes_total{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}) by (container_label_openanalytics_eu_sp_proxy_id)",
           "hide": false,
           "interval": "",
-          "legendFormat": "Transmit",
+          "legendFormat": "Transmit {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "B"
         }
@@ -1015,7 +1015,8 @@
           "uid": "${datasource}"
         },
         "definition": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\",spec_id=~\"$app\"}, proxy_id)",
-        "includeAll": false,
+        "includeAll": true,
+        "multi": true,
         "name": "id",
         "options": [],
         "query": {
@@ -1038,27 +1039,6 @@
         "refresh": 1,
         "regex": "",
         "type": "datasource",
-        "allowCustomValue": false
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${datasource}"
-        },
-        "definition": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\",spec_id=~\"$app\",proxy_id=\"$id\"}, resource_id)",
-        "hide": 2,
-        "includeAll": false,
-        "name": "pod",
-        "options": [],
-        "query": {
-          "query": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\",spec_id=~\"$app\",proxy_id=\"$id\"}, resource_id)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 2,
-        "regex": "",
-        "sort": 5,
-        "type": "query",
         "allowCustomValue": false
       }
     ]

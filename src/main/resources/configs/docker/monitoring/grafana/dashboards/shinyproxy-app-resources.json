@@ -629,10 +629,10 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "irate(container_cpu_usage_seconds_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[5m])",
+          "expr": "irate(container_cpu_usage_seconds_total{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[5m])",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "CPU Usage",
+          "legendFormat": "CPU Usage {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "A",
           "step": 10
@@ -643,7 +643,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "container_spec_cpu_quota{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} / 100000",
+          "expr": "container_spec_cpu_quota{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} / 100000",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "limits",
@@ -749,10 +749,10 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(increase(container_cpu_cfs_throttled_periods_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[$__rate_interval])) /sum(increase(container_cpu_cfs_periods_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[$__rate_interval]))",
+          "expr": "sum(increase(container_cpu_cfs_throttled_periods_total{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[$__rate_interval])) /sum(increase(container_cpu_cfs_periods_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}[$__rate_interval]))",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "CPU Throttling",
+          "legendFormat": "CPU Throttling {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "A",
           "step": 10
@@ -935,10 +935,10 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum(container_memory_working_set_bytes{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}) by (container)",
+          "expr": "sum(container_memory_working_set_bytes{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}) by (container_label_openanalytics_eu_sp_proxy_id)",
           "format": "time_series",
           "intervalFactor": 2,
-          "legendFormat": "Memory Usage",
+          "legendFormat": "Memory Usage {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "A",
           "step": 10
@@ -950,7 +950,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "container_spec_memory_reservation_limit_bytes{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} > 0",
+          "expr": "sum(container_spec_memory_reservation_limit_bytes{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} > 0)",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 2,
@@ -964,8 +964,7 @@
             "type": "prometheus",
             "uid": "${prometheus}"
           },
-          "editorMode": "code",
-          "expr": "container_spec_memory_limit_bytes{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} > 0",
+          "expr": "sum(container_spec_memory_limit_bytes{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"} > 0)",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "limits",
@@ -1099,8 +1098,8 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "container_network_receive_bytes_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}",
-          "legendFormat": "Receive",
+          "expr": "sum(container_network_receive_bytes_total{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}) by (container_label_openanalytics_eu_sp_proxy_id)",
+          "legendFormat": "Receive {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "A"
         },
@@ -1111,10 +1110,10 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "container_network_transmit_bytes_total{container_label_openanalytics_eu_sp_proxy_id=\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}",
+          "expr": "sum(container_network_transmit_bytes_total{container_label_openanalytics_eu_sp_proxy_id=~\"$id\",container_label_openanalytics_eu_sp_proxy_id!=\"\"}) by (container_label_openanalytics_eu_sp_proxy_id)",
           "hide": false,
           "interval": "",
-          "legendFormat": "Transmit",
+          "legendFormat": "Transmit {{container_label_openanalytics_eu_sp_proxy_id}}",
           "range": true,
           "refId": "B"
         }
@@ -1247,7 +1246,8 @@
           "uid": "${prometheus}"
         },
         "definition": "label_values(appInfo{job=~\".+\",proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", user_id=~\"$user\", spec_id=~\"$app\", proxy_instance=~\"$instance\"}, proxy_id)",
-        "includeAll": false,
+        "includeAll": true,
+        "multi": true,
         "name": "id",
         "options": [],
         "query": {

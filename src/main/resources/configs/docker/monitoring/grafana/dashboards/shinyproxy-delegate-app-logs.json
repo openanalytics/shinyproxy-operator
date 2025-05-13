@@ -323,7 +323,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "{sp_realm_id=~\".+\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\", sp_proxy_id=\"$id\", sp_proxy_id!=\"\"} | line_format `[App]: {{ __line__ }}` |~ `(?i)$filter`",
+          "expr": "{sp_realm_id=~\".+\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\", sp_proxy_id=~\"$id\", sp_proxy_id!=\"\"} | line_format `[App]: {{ __line__ }}` |~ `(?i)$filter`",
           "legendFormat": "",
           "refId": "A"
         },
@@ -332,7 +332,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "{app=\"shinyproxy\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\"} | json | delegateProxyId!=\"\" | delegateProxyId=\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}` |~ `(?i)$filter`",
+          "expr": "{app=\"shinyproxy\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\"} | json | delegateProxyId!=\"\" | delegateProxyId=~\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}` |~ `(?i)$filter`",
           "hide": false,
           "legendFormat": "",
           "refId": "B"
@@ -343,7 +343,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "{app=\"shinyproxy\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\"} | json | proxyId!=\"\" | proxyId=\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}` |~ `(?i)$filter`",
+          "expr": "{app=\"shinyproxy\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\"} | json | proxyId!=\"\" | proxyId=~\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}` |~ `(?i)$filter`",
           "hide": false,
           "legendFormat": "",
           "queryType": "range",
@@ -434,7 +434,8 @@
           "uid": "${prometheus}"
         },
         "definition": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\",spec_id=~\"$app\"}, proxy_id)",
-        "includeAll": false,
+        "includeAll": true,
+        "multi": true,
         "name": "id",
         "options": [],
         "query": {
