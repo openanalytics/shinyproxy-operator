@@ -13,6 +13,8 @@ datasources:
     jsonData:
       timeInterval: "30s"
       seriesEndpoint: true
+      timeout: 300s
+      queryTimeout: 300s
   - name: Loki
     type: loki
     access: proxy
@@ -20,3 +22,5 @@ datasources:
     uid: loki
     url: http://sp-grafana-loki:3100
     version: 1
+    jsonData:
+      timeout: "300"

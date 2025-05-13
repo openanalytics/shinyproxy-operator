@@ -37,7 +37,7 @@ import java.nio.file.Path
 class GrafanaConfig(private val dockerClient: DockerClient, private val dockerActions: DockerActions, private val mainDataDir: Path, private val caddyConfig: CaddyConfig, config: Config) {
 
     private val logger = KotlinLogging.logger {}
-    private val grafanaImage: String = config.readConfigValue("docker.io/grafana/grafana-oss:11.5.1", "SPO_GRAFANA_IMAGE") { it }
+    private val grafanaImage: String = config.readConfigValue("docker.io/grafana/grafana-oss:11.6.1", "SPO_GRAFANA_IMAGE") { it }
     private val grafanaRole: String = config.readConfigValue("Viewer", "SPO_GRAFANA_ROLE") { it }
     private val fileManager = FileManager()
 
