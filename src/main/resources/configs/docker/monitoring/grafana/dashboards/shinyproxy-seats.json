@@ -287,14 +287,14 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(delegate_app_info,proxy_namespace)",
+        "definition": "label_values(delegate_app_status,proxy_namespace)",
         "includeAll": true,
         "multi": true,
         "name": "namespace",
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(delegate_app_info,proxy_namespace)",
+          "query": "label_values(delegate_app_status,proxy_namespace)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -310,14 +310,14 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(delegate_app_info{proxy_namespace=~\"$namespace\"},shinyproxy_realm)",
+        "definition": "label_values(delegate_app_status{proxy_namespace=~\"$namespace\"},shinyproxy_realm)",
         "includeAll": true,
         "multi": true,
         "name": "realm",
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(delegate_app_info{proxy_namespace=~\"$namespace\"},shinyproxy_realm)",
+          "query": "label_values(delegate_app_status{proxy_namespace=~\"$namespace\"},shinyproxy_realm)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -333,14 +333,14 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(delegate_app_info{proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\"},shinyproxy_instance)",
+        "definition": "label_values(delegate_app_status{proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\"},shinyproxy_instance)",
         "includeAll": true,
         "multi": true,
         "name": "instance",
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(delegate_app_info{proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\"},shinyproxy_instance)",
+          "query": "label_values(delegate_app_status{proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\"},shinyproxy_instance)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,
@@ -356,7 +356,7 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(delegate_app_info{proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", shinyproxy_instance=~\"$instance\"},spec_id)",
+        "definition": "label_values(delegate_app_status{proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", shinyproxy_instance=~\"$instance\"},spec_id)",
         "includeAll": true,
         "label": "app",
         "multi": true,
@@ -364,7 +364,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(delegate_app_info{proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", shinyproxy_instance=~\"$instance\"},spec_id)",
+          "query": "label_values(delegate_app_status{proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", shinyproxy_instance=~\"$instance\"},spec_id)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 2,

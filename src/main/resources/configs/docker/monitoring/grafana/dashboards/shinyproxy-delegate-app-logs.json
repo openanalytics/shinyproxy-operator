@@ -91,7 +91,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", spec_id=~\"$app\", proxy_id=\"$id\"}) by (proxy_created_timestamp)",
+          "expr": "max(delegate_app_status{job=~\".+\",proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", spec_id=~\"$app\", proxy_id=\"$id\"}) by (proxy_created_timestamp)",
           "format": "table",
           "instant": false,
           "range": true,
@@ -178,7 +178,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "max(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", spec_id=~\"$app\", proxy_id=\"$id\"}) by (spec_id)",
+          "expr": "max(delegate_app_status{job=~\".+\",proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", spec_id=~\"$app\", proxy_id=\"$id\"}) by (spec_id)",
           "format": "table",
           "instant": false,
           "range": true,
@@ -279,7 +279,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", spec_id=~\"$app\", proxy_id=\"$id\"}",
+          "expr": "delegate_app_status{job=~\".+\",proxy_namespace=~\"$namespace\", shinyproxy_realm=~\"$realm\", spec_id=~\"$app\", proxy_id=\"$id\"}",
           "format": "table",
           "instant": false,
           "range": true,
@@ -368,13 +368,13 @@
           "type": "prometheus",
           "uid": "${prometheus}"
         },
-        "definition": "label_values(delegate_app_info, proxy_namespace)",
+        "definition": "label_values(delegate_app_status, proxy_namespace)",
         "includeAll": true,
         "multi": true,
         "name": "namespace",
         "options": [],
         "query": {
-          "query": "label_values(delegate_app_info, proxy_namespace)",
+          "query": "label_values(delegate_app_status, proxy_namespace)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -390,13 +390,13 @@
           "type": "prometheus",
           "uid": "${prometheus}"
         },
-        "definition": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\"}, shinyproxy_realm)",
+        "definition": "label_values(delegate_app_status{job=~\".+\",proxy_namespace=~\"$namespace\"}, shinyproxy_realm)",
         "includeAll": true,
         "multi": true,
         "name": "realm",
         "options": [],
         "query": {
-          "query": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\"}, shinyproxy_realm)",
+          "query": "label_values(delegate_app_status{job=~\".+\",proxy_namespace=~\"$namespace\"}, shinyproxy_realm)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -412,13 +412,13 @@
           "type": "prometheus",
           "uid": "${prometheus}"
         },
-        "definition": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\"}, spec_id)",
+        "definition": "label_values(delegate_app_status{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\"}, spec_id)",
         "includeAll": true,
         "multi": true,
         "name": "app",
         "options": [],
         "query": {
-          "query": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\"}, spec_id)",
+          "query": "label_values(delegate_app_status{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\"}, spec_id)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
@@ -433,13 +433,13 @@
           "type": "prometheus",
           "uid": "${prometheus}"
         },
-        "definition": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\",spec_id=~\"$app\"}, proxy_id)",
+        "definition": "label_values(delegate_app_status{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\",spec_id=~\"$app\"}, proxy_id)",
         "includeAll": true,
         "multi": true,
         "name": "id",
         "options": [],
         "query": {
-          "query": "label_values(delegate_app_info{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\",spec_id=~\"$app\"}, proxy_id)",
+          "query": "label_values(delegate_app_status{job=~\".+\",proxy_namespace=~\"$namespace\",shinyproxy_realm=~\"$realm\",spec_id=~\"$app\"}, proxy_id)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
