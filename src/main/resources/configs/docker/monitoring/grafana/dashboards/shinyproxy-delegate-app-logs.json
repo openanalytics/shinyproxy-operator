@@ -323,7 +323,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "{sp_realm_id=~\".+\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\", sp_proxy_id=\"$id\", sp_proxy_id!=\"\"} | line_format `[App]: {{ __line__ }}` ",
+          "expr": "{sp_realm_id=~\".+\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\", sp_proxy_id=\"$id\", sp_proxy_id!=\"\"} | line_format `[App]: {{ __line__ }}` |~ `(?i)$filter`",
           "legendFormat": "",
           "refId": "A"
         },
@@ -332,7 +332,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "{app=\"shinyproxy\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\"} | json | delegateProxyId!=\"\" | delegateProxyId=\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}`",
+          "expr": "{app=\"shinyproxy\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\"} | json | delegateProxyId!=\"\" | delegateProxyId=\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}` |~ `(?i)$filter`",
           "hide": false,
           "legendFormat": "",
           "refId": "B"
@@ -343,7 +343,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "{app=\"shinyproxy\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\"} | json | proxyId!=\"\" | proxyId=\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}`",
+          "expr": "{app=\"shinyproxy\", namespace=~\"$namespace\", sp_realm_id=~\"$realm\"} | json | proxyId!=\"\" | proxyId=\"$id\" | line_format `[ShinyProxy] {{.level}}: {{.message}} {{.stack_trace}}` |~ `(?i)$filter`",
           "hide": false,
           "legendFormat": "",
           "queryType": "range",
@@ -470,6 +470,23 @@
         "regex": "",
         "type": "datasource",
         "sort": 5
+      },
+      {
+        "current": {},
+        "description": "",
+        "hide": 0,
+        "label": "Filter",
+        "name": "filter",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
       }
     ]
   },

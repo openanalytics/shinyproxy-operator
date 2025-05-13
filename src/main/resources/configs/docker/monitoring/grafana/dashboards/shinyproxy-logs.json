@@ -80,7 +80,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "sum(count_over_time(({app=\"shinyproxy\", namespace=\"$namespace\", sp_realm_id=\"$realm\", sp_instance=~\"$instance\"} | json | level=\"WARN\")[$__interval]))",
+          "expr": "sum(count_over_time(({app=\"shinyproxy\", namespace=\"$namespace\", sp_realm_id=\"$realm\", sp_instance=~\"$instance\"} | json | level=\"WARN\" |~ `(?i)$filter`)[$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -142,7 +142,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "sum(count_over_time(({app=\"shinyproxy\", namespace=\"$namespace\", sp_realm_id=\"$realm\", sp_instance=~\"$instance\"} | json | level=\"ERROR\")[$__interval]))",
+          "expr": "sum(count_over_time(({app=\"shinyproxy\", namespace=\"$namespace\", sp_realm_id=\"$realm\", sp_instance=~\"$instance\"} | json | level=\"ERROR\" |~ `(?i)$filter`)[$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -178,7 +178,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "expr": "{app=\"shinyproxy\", namespace=\"$namespace\", sp_realm_id=\"$realm\", sp_instance=~\"$instance\"} | json | level=~\"$level\" | line_format `{{.level}} [{{ printf \"%15.15s\" .thread_name}}] {{ printf \"%-40.40s\" .logger_name}}: {{.message}} {{.stack_trace}}`",
+          "expr": "{app=\"shinyproxy\", namespace=\"$namespace\", sp_realm_id=\"$realm\", sp_instance=~\"$instance\"} | json | level=~\"$level\" | line_format `{{.level}} [{{ printf \"%15.15s\" .thread_name}}] {{ printf \"%-40.40s\" .logger_name}}: {{.message}} {{.stack_trace}}` |~ `(?i)$filter`",
           "refId": "A"
         }
       ],
@@ -340,6 +340,23 @@
         "sort": 5,
         "type": "datasource",
         "allowCustomValue": false
+      },
+      {
+        "current": {},
+        "description": "",
+        "hide": 0,
+        "label": "Filter",
+        "name": "filter",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
       }
     ]
   },

@@ -84,7 +84,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time(({app=\"shinyproxy-operator\", namespace=\"default\"} | pattern \"<time> [<thread>] <level> <_>\"| level=\"WARN\")[$__interval]))",
+          "expr": "sum(count_over_time(({app=\"shinyproxy-operator\", namespace=\"default\"} | pattern \"<time> [<thread>] <level> <_>\"| level=\"WARN\" |~ `(?i)$filter`)[$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -150,7 +150,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time(({app=\"shinyproxy-operator\", namespace=\"default\"} | pattern \"<time> [<thread>] <level> <_>\"| level=\"ERROR\")[$__interval]))",
+          "expr": "sum(count_over_time(({app=\"shinyproxy-operator\", namespace=\"default\"} | pattern \"<time> [<thread>] <level> <_>\"| level=\"ERROR\" |~ `(?i)$filter`)[$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -193,7 +193,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "{app=\"shinyproxy-operator\", namespace=\"default\"} | pattern \"<time> [<thread>] <level> <_>\"| level=~\"$level\"",
+          "expr": "{app=\"shinyproxy-operator\", namespace=\"default\"} | pattern \"<time> [<thread>] <level> <_>\"| level=~\"$level\" |~ `(?i)$filter`",
           "queryType": "range",
           "refId": "A"
         }
@@ -278,6 +278,23 @@
         "type": "datasource",
         "sort": 5,
         "allowCustomValue": false
+      },
+      {
+        "current": {},
+        "description": "",
+        "hide": 0,
+        "label": "Filter",
+        "name": "filter",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
       }
     ]
   },
