@@ -170,6 +170,7 @@
         "wideLayout": true
       },
       "pluginVersion": "8.5.6",
+      "maxDataPoints": 10000,
       "targets": [
         {
           "datasource": {
@@ -271,6 +272,7 @@
         "wideLayout": true
       },
       "pluginVersion": "8.5.6",
+      "maxDataPoints": 10000,
       "targets": [
         {
           "datasource": {
