@@ -27,10 +27,62 @@
   "links": [],
   "panels": [
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 8,
+      "panels": [],
+      "title": "Description",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 9,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "This dashboard shows the performance of apps using pre-initialization or container-sharing.\n\n**Tips:**\n\n- use the filters on the top of page\n- change the time range in the top-right corner of the page\n- disable the automatic refresh (in the top-right corner) if the dashboard takes a long time to load",
+        "mode": "markdown"
+      },
+      "pluginVersion": "11.6.1",
+      "title": "",
+      "type": "text"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "id": 7,
+      "panels": [],
+      "title": "",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "The time a user has to wait for a seat.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -94,7 +146,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 7
       },
       "id": 4,
       "options": {
@@ -136,6 +188,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Overview of usage of seats. ",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -196,7 +249,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 15
       },
       "id": 6,
       "options": {

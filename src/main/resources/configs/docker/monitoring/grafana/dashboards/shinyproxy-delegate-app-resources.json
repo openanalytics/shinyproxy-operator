@@ -28,11 +28,62 @@
   "links": [],
   "panels": [
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 11,
+      "panels": [],
+      "title": "Description",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 12,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "This dashboard shows the resources (CPU and memory) consumed by delegate apps.  This are the containers used by apps using pre-initialization or container-sharing.\n\n\n**Tips:**\n\n- use the filters on the top of page\n- the app metadata is only shown when a single id is selected\n- change the time range in the top-right corner of the page\n- disable the automatic refresh (in the top-right corner) if the dashboard takes a long time to load\n- when the time range exceeds 7 days, the dashboard might fail to load the data\n- use the calendar button (in the time range selector) to load data on specific dates or times\n- select a single id to view the exact values \n- some panels might be empty when an app fails to startup or crashes shortly (1-2 minutes) after startup",
+        "mode": "markdown"
+      },
+      "pluginVersion": "11.6.1",
+      "title": "",
+      "type": "text"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 10,
+      "panels": [],
+      "title": "",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "The time at which the delegate app was (automatically) launched. Only shown if a single id is selected. ",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -60,7 +111,7 @@
         "h": 2,
         "w": 4,
         "x": 0,
-        "y": 0
+        "y": 9
       },
       "id": 4,
       "options": {
@@ -119,7 +170,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "The id of the application spec. Only shown if a single id is selected.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -148,7 +199,7 @@
         "h": 2,
         "w": 4,
         "x": 4,
-        "y": 0
+        "y": 9
       },
       "id": 13,
       "options": {
@@ -207,7 +258,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "The status of the app. It can take up to two minutes for the status to change. Only shown if a single id is selected. \n",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -250,7 +301,7 @@
         "h": 2,
         "w": 4,
         "x": 8,
-        "y": 0
+        "y": 9
       },
       "id": 5,
       "options": {
@@ -296,6 +347,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "The CPU usage of an app. The requests and limits are summed for all instances. Select a single id to view the exact requests and limits for an app.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -418,7 +470,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 2
+        "y": 11
       },
       "id": 6,
       "interval": "1m",
@@ -476,6 +528,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "The CPU throttling of an app. An app is throttled when it tries to user more CPU resources than allowed by the `container-cpu-limit` setting. If no `container-cpu-limit` is configured, the panel will show the text `No data`.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -538,7 +591,7 @@
         "h": 5,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 17
       },
       "id": 8,
       "interval": "1m",
@@ -582,6 +635,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "The memory usage of an app. The requests and limits are summed for all instances. Select a single id to view the exact requests and limits for an app.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -724,7 +778,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 22
       },
       "id": 12,
       "interval": "1m",
@@ -798,6 +852,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -889,7 +944,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 28
       },
       "id": 10,
       "options": {
