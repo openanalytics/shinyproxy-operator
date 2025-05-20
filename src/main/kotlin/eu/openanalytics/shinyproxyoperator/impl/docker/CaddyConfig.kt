@@ -52,7 +52,7 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
     private val dataDir: Path = mainDataDir.resolve(containerName)
     private val shinyProxies = mutableMapOf<String, Pair<ShinyProxy, ShinyProxyInstance>>()
     private val craneServers = hashMapOf<String, CraneServer>()
-    private val dockerActions = DockerActions(dockerClient)
+    private val dockerActions = DockerActions(dockerClient, config)
     private val logger = KotlinLogging.logger {}
     private val objectMapper = ObjectMapper()
     private val yamlMapper = ObjectMapper(YAMLFactory())
@@ -275,7 +275,7 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
         var containerId = dockerActions.getContainerByName(containerName)?.id()
         if (containerId == null) {
             logger.info { "[Caddy] Pulling image" }
-            dockerClient.pull(caddyImage)
+            dockerActions.pullImage(caddyImage)
 
             val ports = if (enableTls) listOf("80", "443") else listOf("80")
             val hostConfig = HostConfig.builder()

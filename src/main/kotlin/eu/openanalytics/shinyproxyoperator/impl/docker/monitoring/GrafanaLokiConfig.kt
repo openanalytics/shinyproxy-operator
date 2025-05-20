@@ -57,7 +57,7 @@ class GrafanaLokiConfig(private val dockerClient: DockerClient,
         logger.info { "[Grafana Loki] Reconciling" }
         dockerActions.stopAndRemoveContainer(containerName)
         logger.info { "[Grafana Loki] Pulling image" }
-        dockerClient.pull(lokiImage)
+        dockerActions.pullImage(lokiImage)
 
         val hostConfig = HostConfig.builder()
             .networkMode(DockerOrchestrator.SHARED_NETWORK_NAME)

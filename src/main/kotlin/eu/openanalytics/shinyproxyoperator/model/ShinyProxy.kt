@@ -40,6 +40,14 @@ class ShinyProxy(private val spec: JsonNode, val name: String, val namespace: St
     }
 
     @get:JsonIgnore
+    val imagePullPolicy: String by lazy {
+        if (getSpec().get("imagePullPolicy")?.isTextual == true) {
+            return@lazy getSpec().get("imagePullPolicy").textValue()
+        }
+        return@lazy "Always"
+    }
+
+    @get:JsonIgnore
     val fqdn: String by lazy {
         if (spec.get("fqdn")?.isTextual == true) {
             return@lazy spec.get("fqdn").textValue()

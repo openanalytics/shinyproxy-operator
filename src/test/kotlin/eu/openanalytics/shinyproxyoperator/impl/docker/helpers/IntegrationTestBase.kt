@@ -73,7 +73,7 @@ abstract class IntegrationTestBase {
         .uri("unix://" + Config().readConfigValue("/var/run/docker.sock", "SPO_DOCKER_SOCKET") { it })
         .readTimeoutMillis(0) // no timeout, needed for startContainer and logs, #32606
         .build()
-    protected val dockerActions = DockerActions(dockerClient)
+    protected val dockerActions = DockerActions(dockerClient, Config())
 
     @AfterEach
     fun cleanup() {

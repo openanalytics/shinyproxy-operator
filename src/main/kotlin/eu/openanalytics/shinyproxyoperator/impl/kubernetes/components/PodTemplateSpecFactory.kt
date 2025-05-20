@@ -24,7 +24,6 @@ import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.LabelFactory
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getAntiAffinityRequired
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getAntiAffinityTopologyKey
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getImagePullPolicy
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getParsedKubernetesPodTemplateSpecPatches
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
@@ -68,7 +67,7 @@ class PodTemplateSpecFactory(config: Config) {
                     .addNewContainer()
                         .withName("shinyproxy")
                         .withImage(shinyProxy.image)
-                        .withImagePullPolicy(shinyProxy.getImagePullPolicy())
+                        .withImagePullPolicy(shinyProxy.imagePullPolicy)
                         .addNewPort()
                             .withContainerPort(8080)
                             .withName("http")

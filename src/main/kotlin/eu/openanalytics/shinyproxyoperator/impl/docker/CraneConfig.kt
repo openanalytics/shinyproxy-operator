@@ -91,7 +91,7 @@ class CraneConfig(private val dockerClient: DockerClient,
         if (containerId == null) {
             logger.info { "${logPrefix(shinyProxyInstance)} [Crane] Pulling image" }
             val image = getImage(spec)
-            dockerClient.pull(image)
+            dockerActions.pullImage(image)
 
             val suffix = RandomStringUtils.randomAlphanumeric(10)
             val containerName = "sp-crane-${shinyProxyInstance.realmId}-${hash}-${suffix}"

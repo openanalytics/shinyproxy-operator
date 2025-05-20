@@ -76,7 +76,7 @@ class RedisConfig(private val dockerClient: DockerClient,
                 fileManager.createDirectories(dataDir.resolve("data"))
             }
             logger.info { "[Redis] Pulling image" }
-            dockerClient.pull(redisImage)
+            dockerActions.pullImage(redisImage)
 
             withContext(Dispatchers.IO) {
                 fileManager.writeFile(dataDir.resolve("redis.conf"),

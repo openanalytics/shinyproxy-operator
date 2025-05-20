@@ -20,6 +20,7 @@
  */
 package eu.openanalytics.shinyproxyoperator.impl.docker
 
+import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.LabelFactory
 import eu.openanalytics.shinyproxyoperator.LabelFactory.APP_LABEL
 import eu.openanalytics.shinyproxyoperator.LabelFactory.REALM_ID_LABEL
@@ -31,12 +32,14 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.exceptions.ContainerNotFoundException
 import org.mandas.docker.client.exceptions.NetworkNotFoundException
+import org.mandas.docker.client.exceptions.NotFoundException
 import org.mandas.docker.client.messages.Container
 import org.mandas.docker.client.messages.NetworkConfig
 
-class DockerActions(private val dockerClient: DockerClient) {
+class DockerActions(private val dockerClient: DockerClient, config: Config) {
 
     private val logger = KotlinLogging.logger {}
+    private val imagePullPolicy = config.readConfigValue("Always", "SPO_IMAGE_PULL_POLICY") { it }
 
     fun networkExists(name: String): Boolean {
         try {
@@ -179,6 +182,28 @@ class DockerActions(private val dockerClient: DockerClient) {
             labels[CRANE_INSTANCE_LABEL] = hash
         }
         return labels
+    }
+
+    /**
+     * Pulls a docker image, respecting the given pull policy.
+     */
+    fun pullImage(image: String, imagePullPolicy: String) {
+        if (imagePullPolicy.equals("Always", true) || (imagePullPolicy.equals("IfNotPresent", true) && !isImagePresent(image))) {
+            dockerClient.pull(image)
+        }
+    }
+
+    fun pullImage(image: String) {
+        pullImage(image, imagePullPolicy)
+    }
+
+    fun isImagePresent(image: String): Boolean {
+        try {
+            dockerClient.inspectImage(image)
+            return true
+        } catch (_: NotFoundException) {
+            return false
+        }
     }
 
 }

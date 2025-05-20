@@ -59,13 +59,6 @@ fun ShinyProxy.getAntiAffinityTopologyKey(): String {
     return "kubernetes.io/hostname"
 }
 
-fun ShinyProxy.getImagePullPolicy(): String {
-    if (getSpec().get("imagePullPolicy")?.isTextual == true) {
-        return getSpec().get("imagePullPolicy").textValue()
-    }
-    return "Always"
-}
-
 fun ShinyProxy.getParsedServicePatches(): JsonPatch? {
     if (getSpec().get("kubernetesServicePatches")?.isTextual == true) {
         try {

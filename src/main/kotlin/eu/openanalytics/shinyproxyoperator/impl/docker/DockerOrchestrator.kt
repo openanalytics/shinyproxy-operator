@@ -102,7 +102,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             .build()
         dataDirUid = getDatadirUId()
         caddyConfig = CaddyConfig(dockerClient, dataDir, config)
-        dockerActions = DockerActions(dockerClient)
+        dockerActions = DockerActions(dockerClient, config)
         shinyProxyReadyChecker = ShinyProxyReadyChecker(channel, dockerActions, dockerClient, dataDir)
         redisConfig = RedisConfig(dockerClient, dockerActions, persistentState, dataDir, dataDirUid, config)
         craneConfig = CraneConfig(dockerClient, dockerActions, dataDir, inputDir, redisConfig, caddyConfig, persistentState, dataDirUid)
@@ -177,7 +177,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             }
 
             logger.info { "${logPrefix(shinyProxyInstance)} [Docker] Pulling image" }
-            dockerClient.pull(shinyProxy.image)
+            dockerActions.pullImage(shinyProxy.image, shinyProxy.imagePullPolicy)
 
             val version = if (shinyProxyInstance.hashOfSpec == shinyProxy.hashOfCurrentSpec) {
                 System.currentTimeMillis()

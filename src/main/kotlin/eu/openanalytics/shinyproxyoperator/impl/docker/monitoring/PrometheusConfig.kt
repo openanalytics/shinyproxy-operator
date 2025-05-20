@@ -58,7 +58,7 @@ class PrometheusConfig(private val dockerClient: DockerClient,
         logger.info { "[Prometheus] Reconciling" }
         dockerActions.stopAndRemoveContainer(containerName)
         logger.info { "[Prometheus] Pulling image" }
-        dockerClient.pull(prometheusImage)
+        dockerActions.pullImage(prometheusImage)
 
         val hostConfig = HostConfig.builder()
             .networkMode(DockerOrchestrator.SHARED_NETWORK_NAME)

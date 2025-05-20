@@ -81,7 +81,7 @@ class GrafanaConfig(private val dockerClient: DockerClient, private val dockerAc
         logger.info { "[Grafana] Reconciling" }
         dockerActions.stopAndRemoveContainer(containerName)
         logger.info { "${logPrefix(shinyProxy)} [Grafana] Pulling image" }
-        dockerClient.pull(grafanaImage)
+        dockerActions.pullImage(grafanaImage)
 
         val hostConfig = HostConfig.builder()
             .networkMode(DockerOrchestrator.SHARED_NETWORK_NAME)

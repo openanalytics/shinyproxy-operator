@@ -27,7 +27,6 @@ import eu.openanalytics.shinyproxyoperator.LabelFactory.INSTANCE_LABEL
 import eu.openanalytics.shinyproxyoperator.LabelFactory.REALM_ID_LABEL
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.ShinyProxyClient
 import eu.openanalytics.shinyproxyoperator.impl.kubernetes.crd.ShinyProxyCustomResource
-import eu.openanalytics.shinyproxyoperator.impl.kubernetes.getImagePullPolicy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyStatus
@@ -173,7 +172,7 @@ class ShinyProxyTestInstance(private val namespace: String,
         assertEquals(1, templateSpec.containers.size)
         assertEquals("shinyproxy", templateSpec.containers[0].name)
         assertEquals(sp.image, templateSpec.containers[0].image)
-        assertEquals(sp.getImagePullPolicy(), templateSpec.containers[0].imagePullPolicy)
+        assertEquals(sp.imagePullPolicy, templateSpec.containers[0].imagePullPolicy)
 
         assertEquals(4, templateSpec.containers[0].env.size)
         assertNotNull(templateSpec.containers[0].env.firstOrNull { it.name == "SP_KUBE_POD_UID" })

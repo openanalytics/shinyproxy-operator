@@ -43,7 +43,7 @@ class CAdvisorConfig(private val dockerClient: DockerClient, private val dockerA
         logger.info { "[cAdvisor] Reconciling" }
         dockerActions.stopAndRemoveContainer(containerName)
         logger.info { "[cAdvisor] Pulling image" }
-        dockerClient.pull(cAdvisorImage)
+        dockerActions.pullImage(cAdvisorImage)
 
         val hostConfig = HostConfig.builder()
             .networkMode(DockerOrchestrator.SHARED_NETWORK_NAME)
