@@ -134,8 +134,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "editorMode": "code",
-          "expr": "sum(count_over_time(({app=\"shinyproxy-operator\", namespace=\"default\"} | pattern \"<time> [<thread>] <level> <_>\"| level=\"WARN\" |~ `(?i)$filter`)[$__interval]))",
+          "expr": "sum(count_over_time(({app=\"shinyproxy-operator\", namespace=\"$namespace\"} | pattern \"<time> [<thread>] <level> <_>\"| level=\"WARN\" |~ `(?i)$filter`)[$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -200,8 +199,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "editorMode": "code",
-          "expr": "sum(count_over_time(({app=\"shinyproxy-operator\", namespace=\"default\"} | pattern \"<time> [<thread>] <level> <_>\"| level=\"ERROR\" |~ `(?i)$filter`)[$__interval]))",
+          "expr": "sum(count_over_time(({app=\"shinyproxy-operator\", namespace=\"$namespace\"} | pattern \"<time> [<thread>] <level> <_>\"| level=\"ERROR\" |~ `(?i)$filter`)[$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -243,9 +241,7 @@
             "type": "loki",
             "uid": "${datasource}"
           },
-          "editorMode": "code",
-          "expr": "{app=\"shinyproxy-operator\", namespace=\"default\"} | pattern \"<time> [<thread>] <level> <_>\"| level=~\"$level\" |~ `(?i)$filter`",
-          "queryType": "range",
+          "expr": "{app=\"shinyproxy-operator\", namespace=\"$namespace\"} | pattern \"<time> [<thread>] <level> <_>\"| level=~\"$level\" |~ `(?i)$filter`",
           "refId": "A"
         }
       ],
@@ -272,7 +268,29 @@
         "allowCustomValue": false
       },
       {
-        "allValue": ".*",
+        "current": {},
+        "datasource": {
+          "type": "loki",
+          "uid": "${datasource}"
+        },
+        "definition": "",
+        "includeAll": false,
+        "name": "namespace",
+        "options": [],
+        "query": {
+          "label": "namespace",
+          "refId": "LokiVariableQueryEditor-VariableQuery",
+          "stream": "{app=\"shinyproxy-operator\"}",
+          "type": 1
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 5,
+        "type": "query",
+        "allowCustomValue": false
+      },
+      {
+        "allValue": ".+",
         "current": {
           "selected": true,
           "text": [
@@ -315,19 +333,6 @@
         ],
         "query": "DEBUG,INFO,WARN,ERROR",
         "type": "custom",
-        "allowCustomValue": false
-      },
-      {
-        "current": {},
-        "hide": 2,
-        "includeAll": false,
-        "name": "prometheus",
-        "options": [],
-        "query": "prometheus",
-        "refresh": 2,
-        "regex": "",
-        "type": "datasource",
-        "sort": 5,
         "allowCustomValue": false
       },
       {
