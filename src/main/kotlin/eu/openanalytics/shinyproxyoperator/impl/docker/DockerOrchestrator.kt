@@ -496,18 +496,18 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
 
     private fun memoryToBytes(memory: String?): Long? {
         if (memory.isNullOrEmpty()) return null
-        val matcher = Pattern.compile("(\\d+)([bkmg]?)i?").matcher(memory.lowercase(Locale.getDefault()))
+        val matcher = Pattern.compile("(\\d+\\.?\\d*)([bkmg]?)i?").matcher(memory.lowercase(Locale.getDefault()))
         if (!matcher.matches()) {
             throw IllegalArgumentException("Invalid memory argument: $memory")
         }
-        val mem = matcher.group(1).toLong()
+        val mem = matcher.group(1).toDouble()
         val unit = matcher.group(2)
         return when (unit) {
             "k" -> mem * 1024
             "m" -> mem * (1024 * 1024).toLong()
             "g" -> mem * (1024 * 1024 * 1024).toLong()
             else -> throw IllegalArgumentException("Invalid memory argument: $memory")
-        }
+        }.toLong()
     }
 
     private fun getCpuQuota(cpuPeriod: Long, cpu: String): Long {
