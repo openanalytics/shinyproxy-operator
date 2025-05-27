@@ -39,6 +39,7 @@ import io.fabric8.kubernetes.api.model.ResourceRequirements
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder
 import io.fabric8.kubernetes.api.model.VolumeBuilder
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder
+import java.util.*
 
 class PodTemplateSpecFactory(config: Config) {
 
@@ -225,7 +226,13 @@ class PodTemplateSpecFactory(config: Config) {
     }
 
     private fun parseCpuQuantity(value: String): Quantity {
-        val quantity = Quantity(value)
+        // convert upper case suffix automatically to a value accepted by k8s
+        val converted = if (value.endsWith("M")) {
+            value.dropLast(1) + "m";
+        } else {
+            value
+        }
+        val quantity = Quantity(converted)
         quantity.numericalAmount // validates the quantity
         if (quantity.format != "m" && quantity.format != "") {
             throw RuntimeException("Invalid format for CPU resources")
@@ -234,10 +241,21 @@ class PodTemplateSpecFactory(config: Config) {
     }
 
     private fun parseMemorQuantity(value: String): Quantity {
-        val quantity = Quantity(value)
+        var converted = value
+        // convert lower case suffixes automatically to a value accepted by k8s
+        for (suffix in listOf("p", "t", "g", "m", "k")) {
+            if (value.endsWith(suffix)) {
+                converted = value.dropLast(1) + suffix.uppercase(Locale.getDefault())
+                break
+            } else if (value.endsWith(suffix + "i")) {
+                converted = value.dropLast(2) + suffix.uppercase(Locale.getDefault()) + "i"
+                break
+            }
+        }
+        val quantity = Quantity(converted)
         quantity.numericalAmount // validates the quantity
-        if (quantity.format == "m" || quantity.format == "") {
-            throw RuntimeException("Invalid format for memory resources")
+        if (quantity.format == "m" || quantity.format == "mi" || quantity.format == "") {
+            throw RuntimeException("Invalid format for memory resources");
         }
         return quantity
     }
