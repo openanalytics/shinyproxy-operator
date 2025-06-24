@@ -21,6 +21,7 @@
 package eu.openanalytics.shinyproxyoperator
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import java.nio.file.Files
 import java.nio.file.Path
@@ -28,6 +29,7 @@ import java.nio.file.attribute.PosixFilePermission
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.deleteRecursively
 import kotlin.io.path.exists
+import java.nio.file.AccessDeniedException
 
 class FileManager {
 
@@ -69,8 +71,12 @@ class FileManager {
     }
 
     fun createDirectories(path: Path) {
-        if (!Files.exists(path)) {
-            Files.createDirectories(path)
+        try {
+            if (!Files.exists(path)) {
+                Files.createDirectories(path)
+            }
+        } catch (_: AccessDeniedException) {
+            throw InternalException("Missing read/write permission for directory '$path'!");
         }
     }
 

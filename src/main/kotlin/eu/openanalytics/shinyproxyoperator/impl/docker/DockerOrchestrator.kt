@@ -31,6 +31,7 @@ import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.FileManager
 import eu.openanalytics.shinyproxyoperator.IOrchestrator
 import eu.openanalytics.shinyproxyoperator.IShinyProxySource
+import eu.openanalytics.shinyproxyoperator.InternalException
 import eu.openanalytics.shinyproxyoperator.LabelFactory
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.impl.docker.monitoring.MonitoringConfig
@@ -48,6 +49,7 @@ import kotlinx.coroutines.withContext
 import org.apache.commons.lang3.RandomStringUtils
 import org.mandas.docker.client.DockerClient
 import org.mandas.docker.client.builder.jersey.JerseyDockerClientBuilder
+import org.mandas.docker.client.exceptions.DockerException
 import org.mandas.docker.client.messages.ContainerConfig
 import org.mandas.docker.client.messages.HostConfig
 import org.mandas.docker.client.messages.LogConfig
@@ -93,6 +95,15 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
     private val logFilesCleaner: LogFilesCleaner
 
     init {
+        if (!Files.exists(dataDir)) {
+            throw InternalException("The data directory doesn't exist: '$dataDir'!")
+        }
+        if (!Files.isReadable(dataDir)) {
+            throw InternalException("Missing read permission for the data directory: '$dataDir'!");
+        }
+        if (!Files.isWritable(dataDir)) {
+            throw InternalException("Missing write permission for the data directory: '$dataDir'!");
+        }
         objectMapper.registerKotlinModule()
         objectMapper.propertyNamingStrategy = PropertyNamingStrategies.KEBAB_CASE
         dockerClient = JerseyDockerClientBuilder()
@@ -100,6 +111,16 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             .uri("unix://" + dockerSocket)
             .readTimeoutMillis(0) // no timeout, needed for startContainer and logs, #32606
             .build()
+        // test Docker permissions
+        try {
+            dockerClient.listImages()
+        } catch (e: DockerException) {
+            if (e.message?.contains("permission denied", ignoreCase = true) == true) {
+                throw InternalException("No permission to access Docker daemon, check the mount of the socket and the 'SPO_DOCKER_GID' environment variable.");
+            }
+            throw e
+        }
+
         dataDirUid = getDatadirUId()
         caddyConfig = CaddyConfig(dockerClient, dataDir, config)
         dockerActions = DockerActions(dockerClient, config)
@@ -525,7 +546,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             logger.info { "Owner of data dir is '$owner'" }
             return owner
         } catch (e: Exception) {
-            logger.warn(e) { "Failed to determine owner of data dir - failling back to user 1000" }
+            logger.warn(e) { "Failed to determine owner of data dir - falling back to user 1000" }
             return 1000
         }
     }

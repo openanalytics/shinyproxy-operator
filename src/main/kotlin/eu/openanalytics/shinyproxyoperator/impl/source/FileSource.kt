@@ -28,6 +28,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import eu.openanalytics.shinyproxyoperator.Config
 import eu.openanalytics.shinyproxyoperator.IEventController
 import eu.openanalytics.shinyproxyoperator.IShinyProxySource
+import eu.openanalytics.shinyproxyoperator.InternalException
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEventType
 import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOrchestrator
@@ -39,6 +40,7 @@ import kotlinx.coroutines.runBlocking
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.filefilter.DirectoryFileFilter
 import org.apache.commons.io.filefilter.RegexFileFilter
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import kotlin.concurrent.timer
@@ -63,6 +65,9 @@ class FileSource(
 
     override suspend fun init() {
         objectMapper.enable(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY)
+        if (!Files.isReadable(inputDir)) {
+            throw InternalException("Missing read permission for the input '$inputDir' directory!");
+        }
         runOnce()
         logger.info { "FileSource ready" }
     }

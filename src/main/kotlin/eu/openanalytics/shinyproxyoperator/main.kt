@@ -54,8 +54,11 @@ suspend fun main() {
             logger.info { "Starting ShinyProxy Operator" }
             operator.run()
         }
+    } catch (exception: InternalException) {
+        logger.warn { "Exception: ${exception.message}" }
+        exitProcess(1)
     } catch (exception: Exception) {
-        logger.warn { "Exception : ${exception.message}" }
+        logger.warn { "Exception: ${exception.message}" }
         exception.printStackTrace()
         exitProcess(1)
     }
