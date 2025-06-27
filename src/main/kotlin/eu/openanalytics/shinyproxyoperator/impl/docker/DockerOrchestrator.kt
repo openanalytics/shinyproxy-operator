@@ -485,16 +485,16 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
     }
 
     private fun generateConfig(shinyProxy: ShinyProxy, networkName: String): String {
-        val config = hashMapOf(
-            "spring" to hashMapOf<String, Any>(
+        val config = buildMap {
+            put("spring", hashMapOf<String, Any>(
                 "data" to mapOf(
                     "redis" to mapOf(
                         "password" to redisConfig.getRedisPassword(),
                         "host" to "sp-redis"
                     )
                 )
-            ),
-            "proxy" to buildMap {
+            ))
+            put("proxy", buildMap {
                 put("docker", buildMap {
                     put("default-container-network", networkName)
                     if (monitoringConfig.isEnabled()) {
@@ -504,14 +504,27 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                 put("template-path", "/opt/shinyproxy/templates")
                 if (monitoringConfig.isEnabled()) {
                     put("monitoring", mapOf("grafana-url" to monitoringConfig.grafanaConfig.getGrafanaUrl(shinyProxy)))
+                    put("log-as-json", "true")
+                    put("usage-stats-url", "micrometer")
                 }
-            },
-            "logging" to buildMap {
+            })
+            put("logging", buildMap {
                 put("file", buildMap {
                     put("name", "/opt/shinyproxy/logs/shinyproxy.log")
                 })
+            })
+            if (monitoringConfig.isEnabled()) {
+                put("management", buildMap {
+                    put("prometheus", buildMap {
+                        put("metrics", buildMap {
+                            put("export", buildMap {
+                                put("enabled", true)
+                            })
+                        })
+                    })
+                })
             }
-        )
+        }
         return objectMapper.writeValueAsString(config)
     }
 
