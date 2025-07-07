@@ -110,7 +110,7 @@ class ShinyProxyTestInstance(private val namespace: String,
     }
 
     fun assertServiceIsCorrect(sp: ShinyProxy, status: ShinyProxyStatus, revision: Int = 0) {
-        val services = client.inNamespace(namespace).services().list().items
+        val services = client.inNamespace(namespace).services().list().items.filter { it.metadata.name != "sp-headless-service" }
         assertEquals(1, services.size)
         val service = services.firstOrNull { it.metadata.name == "sp-${sp.name}-svc".take(63) }
         assertNotNull(service)
