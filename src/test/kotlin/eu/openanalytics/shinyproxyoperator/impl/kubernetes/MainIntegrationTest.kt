@@ -166,6 +166,9 @@ class MainIntegrationTest : IntegrationTestBase() {
             // 4. assert correctness
             spTestInstance.assertInstanceIsCorrect()
 
+            // wait for additionale reconcile to complete
+            eventController.waitForNextReconcile(spTestInstance.hash)
+
             // 5. Delete Replicaset -> reconcile -> assert it is still ok
             val replicaSetName = "sp-${sp.name}-rs-0-${spTestInstance.hash}".take(63)
             getAndDelete(stableClient.apps().replicaSets().withName(replicaSetName))
