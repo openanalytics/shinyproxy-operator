@@ -1,7 +1,7 @@
-/**
+/*
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2024 Open Analytics
+ * Copyright (C) 2021-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,25 +20,45 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import io.fabric8.kubernetes.api.model.KubernetesResourceList
-import io.fabric8.kubernetes.client.KubernetesClientException
-import io.fabric8.kubernetes.client.dsl.MixedOperation
-import io.fabric8.kubernetes.client.dsl.Resource
-import mu.KotlinLogging
+import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOperator
+import eu.openanalytics.shinyproxyoperator.impl.kubernetes.KubernetesOperator
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlin.system.exitProcess
-
-typealias ShinyProxyClient = MixedOperation<ShinyProxy, KubernetesResourceList<ShinyProxy>, Resource<ShinyProxy>>
 
 suspend fun main() {
     val logger = KotlinLogging.logger {}
+    Versions.print()
     try {
-        val operator = Operator()
-        Operator.setOperatorInstance(operator)
-        val (resourceRetriever, shinyProxyLister) = operator.prepare()
-        operator.run(resourceRetriever, shinyProxyLister)
-    } catch (exception: KubernetesClientException) {
-        logger.warn { "Kubernetes Client Exception : ${exception.message}" }
+        val config = Config()
+        val orchestratorName = config.readConfigValue("kubernetes", "SPO_ORCHESTRATOR") { it.lowercase() }
+        val operator: IOperator = if (orchestratorName == "kubernetes") {
+            KubernetesOperator(config)
+        } else if (orchestratorName == "docker") {
+            DockerOperator(config)
+        } else {
+            println()
+            println()
+            println("ERROR: Invalid env variable SPO_ORCHESTRATOR: 'kubernetes' and 'docker' are supported.")
+            println()
+            exitProcess(1)
+        }
+
+        logger.info { "Starting background processes of ShinyProxy Operator" }
+        operator.init()
+
+        CoroutineScope(Dispatchers.Default).launch(CoroutineName("run")) {
+            logger.info { "Starting ShinyProxy Operator" }
+            operator.run()
+        }
+    } catch (exception: InternalException) {
+        logger.warn { "Exception: ${exception.message}" }
+        exitProcess(1)
+    } catch (exception: Exception) {
+        logger.warn { "Exception: ${exception.message}" }
         exception.printStackTrace()
         exitProcess(1)
     }

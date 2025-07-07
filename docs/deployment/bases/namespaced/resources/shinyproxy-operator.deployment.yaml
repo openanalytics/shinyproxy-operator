@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: shinyproxy-operator
-          image: openanalytics/shinyproxy-operator:2.1.0
+          image: openanalytics/shinyproxy-operator:2.2.0
           imagePullPolicy: Always
           env:
             - name: SPO_MODE
@@ -33,8 +33,6 @@ spec:
           #     value: "5" # 5 is default
           #   - name: "SPO_LOG_LEVEL"
           #     VALUE: "DEBUG" # by default DEBUG
-          #   - name: SPO_PROCESS_MAX_LIFETIME
-          #    value: "30"
           resources:
             limits:
               cpu: 500m

@@ -1,0 +1,12 @@
+apps:
+  http:
+    servers:
+      shinyproxy:
+        listen:
+          - ":80"
+        routes: [ ]
+        tls_connection_policies: [ ]
+  tls:
+    certificates:
+      load_files: [ ]
+      automate: [ ]

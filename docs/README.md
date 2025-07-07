@@ -1,4 +1,3 @@
 # Docs
 
-- [Deployment (with examples)](deployment/)
-- [Prometheus monitoring](prometheus.md)
+The documentation has been moved to the [website](https://shinyproxy.io/documentation/shinyproxy-operator/kubernetes/).

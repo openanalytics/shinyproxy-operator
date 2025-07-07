@@ -26,13 +26,33 @@
             <AppenderRef ref="Console" level="WARN"/>
             <AppenderRef ref="File" level="TRACE"/>
         </Logger>
-        <Logger name="eu.openanalytics.shinyproxyoperator.controller.PodRetriever" additivity="false">
+        <Logger name="io.fabric8.kubernetes.client.utils.HttpClientUtils" additivity="false">
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="File" level="INFO"/>
+        </Logger>
+        <Logger name="eu.openanalytics.shinyproxyoperator.impl.kubernetes.controller.PodRetriever" additivity="false">
             <AppenderRef ref="Console" level="WARN"/>
             <AppenderRef ref="File" level="DEBUG"/>
         </Logger>
-        <Logger name="eu.openanalytics.shinyproxyoperator.controller.ResourceRetriever" additivity="false">
+        <Logger name="org.mandas.docker.client.LoggingPullHandler" additivity="false">
             <AppenderRef ref="Console" level="WARN"/>
-            <AppenderRef ref="File" level="DEBUG"/>
+            <AppenderRef ref="File" level="WARN"/>
+        </Logger>
+        <Logger name="org.mandas.docker.client.auth" additivity="false">
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="File" level="INFO"/>
+        </Logger>
+        <Logger name="org.mandas.docker.client" additivity="false">
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="File" level="INFO"/>
+        </Logger>
+        <Logger name="org.mandas.docker.client.DefaultDockerClient" additivity="false">
+            <AppenderRef ref="Console" level="WARN"/>
+            <AppenderRef ref="File" level="WARN"/>
+        </Logger>
+        <Logger name="org.apache.http" additivity="false">
+            <AppenderRef ref="Console" level="INFO"/>
+            <AppenderRef ref="File" level="INFO"/>
         </Logger>
 
         <!-- Root Logger -->

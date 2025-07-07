@@ -1,0 +1,142 @@
+---
+apps:
+  http:
+    servers:
+      shinyproxy:
+        listen:
+          - ":443"
+        routes:
+          - handle:
+              - handler: "subroute"
+                routes:
+                  - handle:
+                      - handler: "rewrite"
+                        strip_path_prefix: "/other/nested/path"
+                      - handler: "static_response"
+                        headers:
+                          Location:
+                            - "/other-absolute-url"
+                        status_code: 302
+                    match:
+                      - path:
+                          - "/other/nested/path/other-sub-path1"
+                  - handle:
+                      - handler: "rewrite"
+                        strip_path_prefix: "/other/nested/path"
+                      - handler: "static_response"
+                        headers:
+                          Location:
+                            - "https://example.com/sub-path"
+                        status_code: 302
+                    match:
+                      - path:
+                          - "/other/nested/path/other-sub-path2"
+                  - handle:
+                      - handler: "reverse_proxy"
+                        stream_close_delay: 172800000000000
+                        upstreams:
+                          - dial: "#CONTAINER_IP_2#:8080"
+            match:
+              - host:
+                  - "itest2.local"
+                  - "my-fqdn3.local"
+                  - "my-fqdn4.local"
+                path:
+                  - "/other/nested/path/*"
+            terminal: true
+          - handle:
+              - handler: "subroute"
+                routes:
+                  - handle:
+                      - handler: "rewrite"
+                        strip_path_prefix: "/some-path"
+                      - handler: "static_response"
+                        headers:
+                          Location:
+                            - "https://example.com/long"
+                        status_code: 302
+                    match:
+                      - path:
+                          - "/some-path/absolute-url/with/long/path*"
+                  - handle:
+                      - handler: "rewrite"
+                        strip_path_prefix: "/some-path"
+                      - handler: "static_response"
+                        headers:
+                          Location:
+                            - "https://example.com/short"
+                        status_code: 302
+                    match:
+                      - path:
+                          - "/some-path/absolute-url/with/short*"
+                  - handle:
+                      - handler: "rewrite"
+                        strip_path_prefix: "/some-path"
+                      - handler: "static_response"
+                        headers:
+                          Location:
+                            - "/some-absolute-url"
+                        status_code: 302
+                    match:
+                      - path:
+                          - "/some-path/my-sub-path1"
+                  - handle:
+                      - handler: "rewrite"
+                        strip_path_prefix: "/some-path"
+                      - handler: "static_response"
+                        headers:
+                          Location:
+                            - "https://example.com"
+                        status_code: 302
+                    match:
+                      - path:
+                          - "/some-path/my-sub-path2"
+                  - handle:
+                      - handler: "rewrite"
+                        strip_path_prefix: "/some-path"
+                      - handler: "static_response"
+                        headers:
+                          Location:
+                            - "/some-path/some-relative-url"
+                        status_code: 302
+                    match:
+                      - path:
+                          - "/some-path/my-sub-path3"
+                  - handle:
+                      - handler: "reverse_proxy"
+                        stream_close_delay: 172800000000000
+                        upstreams:
+                          - dial: "#CONTAINER_IP#:8080"
+            match:
+              - host:
+                  - "itest.local"
+                  - "my-fqdn1.local"
+                  - "my-fqdn2.local"
+                path:
+                  - "/some-path/*"
+            terminal: true
+        tls_connection_policies:
+          - match:
+              sni:
+                - "itest.local"
+                - "my-fqdn1.local"
+                - "my-fqdn2.local"
+            certificate_selection:
+              any_tag:
+                - "itest.local"
+          - match:
+              sni:
+                - "itest2.local"
+                - "my-fqdn3.local"
+                - "my-fqdn4.local"
+  tls:
+    certificates:
+      load_files:
+        - certificate: "/certs/itest.local.crt.pem"
+          key: "/certs/itest.local.key.pem"
+          tags:
+            - "itest.local"
+      automate:
+        - "my-fqdn3.local"
+        - "my-fqdn4.local"
+        - "itest2.local"

@@ -1,10 +1,11 @@
-
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 helmCharts:
   - name: redis
-    includeCRDs: false
+    namespace: replace_this_namespace
+    releaseName: redis
+    repo: https://charts.bitnami.com/bitnami
     valuesInline:
       global:
         redis:
@@ -12,18 +13,15 @@ helmCharts:
       sentinel:
         enabled: true
         masterSet: shinyproxy
-    releaseName: redis
     version: 17.3.14
-    repo: https://charts.bitnami.com/bitnami
-    namespace: replace_this_namespace
 
-patchesJSON6902:
-  - target:
-      name: ".*"
-    patch: |-
+patches:
+  - patch: |-
       - op: remove
         path: /metadata/labels/app.kubernetes.io~1managed-by
       - op: remove
         path: /metadata/labels/helm.sh~1chart
       - op: remove
         path: /metadata/namespace
+    target:
+      name: .*

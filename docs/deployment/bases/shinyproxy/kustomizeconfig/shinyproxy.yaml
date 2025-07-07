@@ -1,3 +1,11 @@
 images:
-  - path: spec/image
-    kind: ShinyProxy
+  - kind: ShinyProxy
+    path: spec/image
+  - kind: ShinyProxy
+    path: spec/proxy/specs/container-image
+  - kind: ShinyProxy
+    path: spec/proxy/specs/containerImage
+replicas:
+  - kind: ShinyProxy
+    path: spec/replicas
+    create: true

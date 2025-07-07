@@ -1,0 +1,55 @@
+spring:
+  session:
+    store-type: redis
+fqdn: itest.local
+additionalFqdns:
+  - my-fqdn1.local
+  - my-fqdn2.local
+image: openanalytics/shinyproxy:3.2.0
+caddyTlsCertFile: "#INPUT_DIR#/cert.pem"
+caddyTlsKeyFile: "#INPUT_DIR#/key.pem"
+caddyRedirects:
+  - from: /my-sub-path1
+    to: /some-absolute-url
+  - from: my-sub-path2
+    to: https://example.com
+  - from: /my-sub-path3
+    to: some-relative-url
+  - from: /absolute-url/with/short*
+    to: https://example.com/short
+  - from: /absolute-url/with/long/path*
+    to: https://example.com/long
+proxy:
+  store-mode: Redis
+  realm-id: realm1
+  title: Open Analytics Shiny Proxy
+  logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png
+  landingPage: /
+  heartbeatRate: 10000
+  heartbeatTimeout: -1
+  port: 8080
+  authentication: simple
+  containerBackend: docker
+  stop-proxies-on-shutdown: false
+  default-stop-proxy-on-logout: false
+  docker:
+    internal-networking: true
+  users:
+    - name: demo
+      password: demo
+      groups: scientists
+    - name: demo2
+      password: demo2
+      groups: mathematicians
+  specs:
+    - id: 01_hello
+      displayName: Hello Application
+      description: Application which demonstrates the basics of a Shiny app
+      containerCmd: [ "R", "-e", "shinyproxy::run_01_hello()" ]
+      containerImage: openanalytics/shinyproxy-integration-test-app
+    - id: 06_tabsets
+      container-cmd: [ "R", "-e", "shinyproxy::run_06_tabsets()" ]
+      container-image: openanalytics/shinyproxy-integration-test-app
+server:
+  servlet:
+    context-path: /some-path/

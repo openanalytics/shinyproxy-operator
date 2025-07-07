@@ -1,6 +1,8 @@
 name: Tests
 
-on: [push]
+on:
+  push:
+  workflow_dispatch:
 
 jobs:
   tests:
@@ -8,21 +10,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ 17 ]
+        java: [ 21 ]
         kubernetes:
-          - 'v1.24.17'
-          - 'v1.25.15'
-          - 'v1.26.14'
-          - 'v1.27.11'
-          - 'v1.28.7'
-          - 'v1.29.2'
+          - 'v1.30.11'
+          - 'v1.31.7'
+          - 'v1.32.3'
 
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
           java-version: ${{ matrix.java }}
+          distribution: temurin
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -30,11 +30,12 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.10.0
+        uses: manusa/actions-setup-minikube@v2.13.1
         with:
-          minikube version: 'v1.32.0'
+          minikube version: 'v1.33.0'
           kubernetes version:  ${{ matrix.kubernetes }}
           github token: ${{ secrets.GITHUB_TOKEN }}
+          container runtime: containerd
           driver: docker
       - name: Pull images
         run: |
@@ -43,18 +44,8 @@ jobs:
       - name: Build with Maven
         run: mvn -B -U clean install -DskipTests
       - name: Run Tests
-        run: mvn -B test
-
-#  dependency:
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      - uses: actions/checkout@v2
-#      - name: Run Dependency Check
-#        run: mvn -Powasp-dependency-check verify -DskipTests
-#      - name: Archive code coverage results
-#        uses: actions/upload-artifact@v2
-#        with:
-#          name: dependency-check-report
-#          path: target/dependency-check-report.html
-#
+        run: |
+          docker network create sp-shared-network
+          docker plugin install "grafana/loki-docker-driver:3.2.1" --alias loki --grant-all-permissions
+          export SPO_DOCKER_GID=$(getent group docker | cut -d: -f3)
+          mvn -B test

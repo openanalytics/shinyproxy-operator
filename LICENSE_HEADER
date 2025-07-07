@@ -1,6 +1,6 @@
-ShinyProxy-Operator
+${project.name}
 
-Copyright (C) 2021-2024 Open Analytics
+Copyright (C) ${project.inceptionYear}-${year} Open Analytics
 
 ===========================================================================
 

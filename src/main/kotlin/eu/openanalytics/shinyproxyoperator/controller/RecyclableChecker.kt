@@ -1,7 +1,7 @@
-/**
+/*
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2024 Open Analytics
+ * Copyright (C) 2021-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -23,19 +23,19 @@ package eu.openanalytics.shinyproxyoperator.controller
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxy
-import eu.openanalytics.shinyproxyoperator.crd.ShinyProxyInstance
+import eu.openanalytics.shinyproxyoperator.IOrchestrator
+import eu.openanalytics.shinyproxyoperator.IRecyclableChecker
+import eu.openanalytics.shinyproxyoperator.logPrefix
+import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.delay
-import mu.KotlinLogging
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 
-class RecyclableChecker(
-    private val podRetriever: PodRetriever,
-) : IRecyclableChecker {
+class RecyclableChecker(private val orchestrator: IOrchestrator) : IRecyclableChecker {
 
     private val logger = KotlinLogging.logger {}
     private val client: OkHttpClient = OkHttpClient.Builder()
@@ -47,34 +47,30 @@ class RecyclableChecker(
 
     data class Response(@JsonProperty("isRecyclable") val isRecyclable: Boolean, @JsonProperty("activeConnections") val activeConnections: Int)
 
-    override suspend fun isInstanceRecyclable(shinyProxy: ShinyProxy, shinyProxyInstance: ShinyProxyInstance): Boolean {
-        val pods = podRetriever.getShinyProxyPods(shinyProxy, shinyProxyInstance)
-
-        for (pod in pods) {
-            for (i in 1..5) {
-                try {
-                    val podIP: String? = pod.status.podIP
-                    if (podIP == null) {
-                        // no response received, try to check again
-                        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} no ip found during recyclable check" }
-                        delay(500)
-                        continue
-                    }
-                    val resp = checkServer(pod.status.podIP)
+    override suspend fun isInstanceRecyclable(shinyProxyInstance: ShinyProxyInstance): Boolean {
+        for (i in 1..5) {
+            try {
+                val ips = orchestrator.getContainerIPs(shinyProxyInstance)
+                if (ips.isEmpty()) {
+                    delay(500)
+                    continue
+                }
+                for (ip in ips) {
+                    val resp = checkServer(ip)
                     if (resp == null) {
                         // no response received, try to check again
-                        logger.warn { "${shinyProxy.logPrefix(shinyProxyInstance)} unreachable for recyclable check (using ${pod.status.podIP})" }
+                        logger.warn { "${logPrefix(shinyProxyInstance)} unreachable for recyclable check (using $ip)" }
                         delay(500)
                         continue
                     }
                     if (!resp.isRecyclable) {
-                        logger.info { "${shinyProxy.logPrefix(shinyProxyInstance)} Replica is not recyclable." }
+                        logger.info { "${logPrefix(shinyProxyInstance)} Replica is not recyclable." }
                         return false
                     }
-                } catch (e: Throwable) {
-                    logger.warn(e) { "${shinyProxy.logPrefix(shinyProxyInstance)} exception during recyclable check" }
-                    delay(500)
                 }
+            } catch (e: Throwable) {
+                logger.warn(e) { "${logPrefix(shinyProxyInstance)} exception during recyclable check" }
+                delay(500)
             }
         }
 

@@ -1,0 +1,105 @@
+{
+  "apps": {
+    "http": {
+      "servers": {
+        "shinyproxy": {
+          "listen": [
+            ":80"
+          ],
+          "routes": [
+            {
+              "handle": [
+                {
+                  "handler": "subroute",
+                  "routes": [
+                    {
+                      "handle": [
+                        {
+                          "handler": "reverse_proxy",
+                          "stream_close_delay": 172800000000000,
+                          "upstreams": [
+                            {
+                              "dial": "#CONTAINER_IP_PUBLIC#:8080"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "match": [
+                {
+                  "host": [
+                    "itest.local"
+                  ],
+                  "path": [
+                    "/public/*"
+                  ]
+                }
+              ],
+              "terminal": true
+            },
+            {
+              "handle": [
+                {
+                  "handler": "subroute",
+                  "routes": [
+                    {
+                      "handle": [
+                        {
+                          "handler": "reverse_proxy",
+                          "stream_close_delay": 172800000000000,
+                          "upstreams": [
+                            {
+                              "dial": "#CONTAINER_IP#:8080"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "match": [
+                {
+                  "host": [
+                    "itest.local"
+                  ],
+                  "path": [
+                    "/*"
+                  ]
+                }
+              ],
+              "terminal": true
+            }
+          ],
+          "tls_connection_policies": [
+            {
+              "match": {
+                "sni": [
+                  "itest.local"
+                ]
+              }
+            },
+            {
+              "match": {
+                "sni": [
+                  "itest.local"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tls": {
+      "certificates": {
+        "load_files": [],
+        "automate": [
+          "itest.local"
+        ]
+      }
+    }
+  }
+}

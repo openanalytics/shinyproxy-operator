@@ -4,16 +4,51 @@ metadata:
   labels:
     ci: shinyproxy-operator-build
 spec:
+  volumes:
+    - name: docker-socket
+      emptyDir: { }
+    - name: tmp
+      emptyDir: { }
   containers:
-    - name: containerproxy-build
-      image: 196229073436.dkr.ecr.eu-west-1.amazonaws.com/openanalytics/containerproxy-build
+    - name: shinyproxy-operator-build
+      image: public.ecr.aws/docker/library/maven:3-eclipse-temurin-21-jammy
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 2375
       command:
         - cat
       tty: true
+      env:
+        - name: DOCKER_HOST
+          value: unix:///var/run/docker/docker.sock
+      volumeMounts:
+        - mountPath: /var/run/docker
+          name: docker-socket
+        - mountPath: /tmp/
+          name: tmp
       resources:
        requests:
-         memory: "2Gi"
-         cpu: "1.0"
+         memory: "4Gi"
+         cpu: "2"
        limits:
          memory: "4Gi"
-         cpu: "1.5"
+         cpu: "2"
+    - name: docker
+      image: public.ecr.aws/docker/library/docker:dind
+      securityContext:
+        privileged: true
+      env:
+        - name: DOCKER_HOST
+          value: unix:///var/run/docker/docker.sock
+      volumeMounts:
+        - mountPath: /var/run/docker
+          name: docker-socket
+        - mountPath: /tmp/
+          name: tmp
+      resources:
+        requests:
+          memory: "4Gi"
+          cpu: "2"
+        limits:
+          memory: "4Gi"
+          cpu: "2"

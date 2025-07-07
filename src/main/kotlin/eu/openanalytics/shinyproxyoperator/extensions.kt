@@ -1,7 +1,7 @@
-/**
+/*
  * ShinyProxy-Operator
  *
- * Copyright (C) 2021-2024 Open Analytics
+ * Copyright (C) 2021-2025 Open Analytics
  *
  * ===========================================================================
  *
@@ -20,12 +20,56 @@
  */
 package eu.openanalytics.shinyproxyoperator
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
+
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.convertValue
 import java.math.BigInteger
 import java.security.MessageDigest
+
+private val objectMapper = ObjectMapper(YAMLFactory())
 
 fun String.sha1(): String {
     val digest = MessageDigest.getInstance("SHA-1")
     digest.reset()
     digest.update(this.toByteArray(Charsets.UTF_8))
     return String.format("%040x", BigInteger(1, digest.digest()))
+}
+
+fun JsonNode.convertToYamlString(): String {
+    objectMapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+    val specAsObject = objectMapper.convertValue<Any>(this)
+    return objectMapper.writeValueAsString(specAsObject)
+}
+
+fun JsonNode.getSubPath(): String {
+    if (get("server")?.get("servlet")?.get("context-path")?.isTextual == true) {
+        val path = get("server").get("servlet").get("context-path").textValue()
+        if (path.last() != '/') {
+            return "$path/"
+        }
+        return path
+    }
+    return "/"
+}
+
+fun JsonNode.getTextValueOrNull(key: String): String? {
+    if (get(key)?.isTextual == true) {
+        return get(key).textValue()
+    }
+    if (get(key)?.isNumber == true) {
+        return get(key).numberValue().toString()
+    }
+    return null
+}
+
+fun Exception.prettyMessage(): String? {
+    val name = javaClass.simpleName
+    if (listOf("Exception", "RuntimeException", "IllegalArgumentException", "IllegalStateException", "IOExecption").contains(name)) {
+        // don't include name of exception if it's too generic
+        return message
+    }
+    return "$name: $message"
 }
