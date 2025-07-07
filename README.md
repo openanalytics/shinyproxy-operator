@@ -34,4 +34,4 @@ The build will result in a single `.jar` file:
 
 ## Java Version
 
-This project requires JDK 17.
+This project requires JDK 21.
