@@ -148,6 +148,8 @@ spec:
                         properties:
                           id:
                             type: string
+                          revision:
+                            type: integer
                           displayName:
                             type: string
                           containerCmd:
@@ -394,7 +396,5 @@ spec:
                         type: string
                       isLatestInstance:
                         type: boolean
-                      revision:
-                        type: integer
       subresources:
         status: {}
