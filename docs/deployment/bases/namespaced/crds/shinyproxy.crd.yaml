@@ -53,6 +53,26 @@ spec:
                       type: string
                     templatePath:
                       type: string
+                    default-webSocket-reconnection-mode:
+                      type: string
+                    same-site-cookie:
+                      type: string
+                    kubernetes:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      properties:
+                        namespace:
+                          type: string
+                        internal-networking:
+                          type: boolean
+                        image-pull-policy:
+                          type: string
+                        image-pull-secret:
+                          type: string
+                        image-pull-secrets:
+                          type: array
+                          items:
+                            type: string
                     adminGroups:
                       type: array
                       items:
@@ -67,6 +87,232 @@ spec:
                         - saml
                         - social
                         - webservice
+                        - simple
+                        - none
+                    saml:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      properties:
+                        idp-metadata-url:
+                          type: string
+                        app-entity-id:
+                          type: string
+                        app-base-url:
+                          type: string
+                        logout-method:
+                          type: string
+                        logout-url:
+                          type: string
+                        log-attributes:
+                          type: boolean
+                        name-attribute:
+                          type: string
+                        roles-attribute:
+                          type: string
+                        max-authentication-age:
+                          type: integer
+                        force-authn:
+                          type: boolean
+                        keystore:
+                          type: string
+                        keystore-password:
+                          type: string
+                        encryption-cert-name:
+                          type: string
+                        encryption-cert-password:
+                          type: string
+                    my-apps-mode:
+                      type: string
+                      enum:
+                        - Inline
+                        - Modal
+                    stop-proxies-on-shutdown:
+                      type: boolean
+                    store-mode:
+                      type: string
+                    containerBackend:
+                      type: string
+                      enum:
+                        - docker
+                        - kubernetes
+                        - docker-swarm
+                    containerWaitTime:
+                      type: integer
+                    hideNavbar:
+                      type: boolean
+                    specs:
+                      type: array
+                      items:
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                        properties:
+                          id:
+                            type: string
+                          displayName:
+                            type: string
+                          containerCmd:
+                            type: array
+                            items:
+                              type: string
+                          containerImage:
+                            type: string
+                          containerPrivileged:
+                            type: boolean
+                          containerMemoryRequest:
+                            type: string
+                          containerMemoryLimit:
+                            type: string
+                          containerCpuRequest:
+                            type: string
+                          containerCpuLimit:
+                            type: string
+                          accessGroups:
+                            type: array
+                            items:
+                              type: string
+                          containerDns:
+                            type: string
+                          containerEnv:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+                          containerMemory:
+                            type: string
+                          containerNetwork:
+                            type: string
+                          containerVolumes:
+                            type: array
+                            items:
+                              type: string
+                          kubernetesPodPatches:
+                            type: string
+                        required:
+                          - id
+                kubernetesPodTemplateSpecPatches:
+                  type: string
+                kubernetesIngressPatches:
+                  type: string
+                image:
+                  type: string
+                imagePullPolicy:
+                  type: string
+                server:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                  properties:
+                    secureCookies:
+                      type: boolean
+                    frameOptions:
+                      type: string
+                    forward-headers-strategy:
+                      type: string
+                spring:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                  properties:
+                    session:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      properties:
+                        store-type:
+                          type: string
+                        redis:
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                          properties:
+                            configure-action:
+                              type: string
+                    redis:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                      properties:
+                        host:
+                          type: string
+                        password:
+                          type: string
+                        database:
+                          type: string
+                        ssl:
+                          type: boolean
+                fqdn:
+                  type: string
+                appNamespaces:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - proxy
+                - fqdn
+            status:
+              description: ShinyProxyStatus defines the observed state of ShinyProxy
+              type: object
+              properties:
+                instances:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      hashOfSpec:
+                        type: string
+                      isLatestInstance:
+                        type: boolean
+      subresources:
+        status: {}
+    - name: v1alpha1
+      served: true
+      storage: false
+      schema:
+        openAPIV3Schema:
+          description: ShinyProxy
+          type: object
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+                of an object. Servers should convert recognized schemas to the latest
+                internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+                object represents. Servers may infer this from the endpoint the client
+                submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+              type: string
+            spec:
+              description: Specification of the ShinyProxy (i.e. application.yml)
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+              properties:
+                proxy:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                  properties:
+                    title:
+                      type: string
+                    logoUrl:
+                      type: string
+                    landingPage:
+                      type: string
+                    heartbeatRate:
+                      type: integer
+                    heartbeatTimeout:
+                      type: integer
+                    port:
+                      type: integer
+                    bindAddress:
+                      type: string
+                    templatePath:
+                      type: string
+                    adminGroups:
+                      type: array
+                      items:
+                        type: string
+                    authentication:
+                      type: string
+                      enum:
+                        - ldap
+                        - kerberos
+                        - keycloak
+                        - openid
+                        - saml
+                        - social
                         - simple
                         - none
                     containerWaitTime:
@@ -150,145 +396,5 @@ spec:
                         type: boolean
                       revision:
                         type: integer
-      subresources:
-        status: {}
-    - name: v1alpha1
-      served: true
-      storage: false
-      schema:
-        openAPIV3Schema:
-          description: ShinyProxy
-          type: object
-          properties:
-            apiVersion:
-              description: 'APIVersion defines the versioned schema of this representation
-                of an object. Servers should convert recognized schemas to the latest
-                internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
-              type: string
-            kind:
-              description: 'Kind is a string value representing the REST resource this
-                object represents. Servers may infer this from the endpoint the client
-                submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
-              type: string
-            spec:
-              description: Specification of the ShinyProxy (i.e. application.yml)
-              type: object
-              x-kubernetes-preserve-unknown-fields: true
-              properties:
-                proxy:
-                  type: object
-                  x-kubernetes-preserve-unknown-fields: true
-                  properties:
-                    title:
-                      type: string
-                    logoUrl:
-                      type: string
-                    landingPage:
-                      type: string
-                    heartbeatRate:
-                      type: integer
-                    heartbeatTimeout:
-                      type: integer
-                    port:
-                      type: integer
-                    bindAddress:
-                      type: string
-                    templatePath:
-                      type: string
-                    adminGroups:
-                      type: array
-                      items:
-                        type: string
-                    authentication:
-                      type: string
-                      enum:
-                        - ldap
-                        - kerberos
-                        - keycloak
-                        - openid
-                        - saml
-                        - social
-                        - webservice
-                        - simple
-                        - none
-                    containerWaitTime:
-                      type: integer
-                    hideNavbar:
-                      type: boolean
-                    specs:
-                      type: array
-                      items:
-                        type: object
-                        x-kubernetes-preserve-unknown-fields: true
-                        properties:
-                          id:
-                            type: string
-                          displayName:
-                            type: string
-                          containerCmd:
-                            type: array
-                            items:
-                              type: string
-                          containerImage:
-                            type: string
-                          containerPrivileged:
-                            type: boolean
-                          containerMemoryRequest:
-                            type: string
-                          containerMemoryLimit:
-                            type: string
-                          containerCpuRequest:
-                            type: string
-                          containerCpuLimit:
-                            type: string
-                          accessGroups:
-                            type: array
-                            items:
-                              type: string
-                          containerDns:
-                            type: string
-                          containerEnv:
-                            type: object
-                            x-kubernetes-preserve-unknown-fields: true
-                          containerMemory:
-                            type: string
-                          containerNetwork:
-                            type: string
-                          containerVolumes:
-                            type: array
-                            items:
-                              type: string
-                          kubernetesPodPatches:
-                            type: string
-                        required:
-                          - id
-                kubernetesPodTemplateSpecPatches:
-                  type: string
-                image:
-                  type: string
-                imagePullPolicy:
-                  type: string
-                fqdn:
-                  type: string
-                appNamespaces:
-                  type: array
-                  items:
-                    type: string
-              required:
-                - proxy
-                - fqdn
-            status:
-              description: ShinyProxyStatus defines the observed state of ShinyProxy
-              type: object
-              properties:
-                instances:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      hashOfSpec:
-                        type: string
-                      isLatestInstance:
-                        type: boolean
       subresources:
         status: {}
