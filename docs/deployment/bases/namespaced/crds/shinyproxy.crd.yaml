@@ -86,6 +86,7 @@ spec:
                         - openid
                         - saml
                         - social
+                        - webservice
                         - simple
                         - none
                     saml:
