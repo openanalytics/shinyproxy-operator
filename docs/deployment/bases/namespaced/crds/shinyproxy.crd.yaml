@@ -86,7 +86,6 @@ spec:
                         - openid
                         - saml
                         - social
-                        - webservice
                         - simple
                         - none
                     saml:
@@ -257,6 +256,8 @@ spec:
                         type: string
                       isLatestInstance:
                         type: boolean
+                      revision:
+                        type: integer
       subresources:
         status: {}
     - name: v1alpha1
@@ -315,6 +316,7 @@ spec:
                         - openid
                         - saml
                         - social
+                        - webservice
                         - simple
                         - none
                     containerWaitTime:
