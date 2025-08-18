@@ -148,8 +148,6 @@ spec:
                         properties:
                           id:
                             type: string
-                          revision:
-                            type: integer
                           displayName:
                             type: string
                           containerCmd:
