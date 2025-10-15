@@ -6,6 +6,4 @@ spec:
   minAvailable: 2
   selector:
     matchLabels:
-      app.kubernetes.io/component: node
-      app.kubernetes.io/instance: redis
-      app.kubernetes.io/name: redis
+      app: redis-ha

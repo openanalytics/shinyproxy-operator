@@ -2,26 +2,79 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 helmCharts:
-  - name: redis
+  - name: redis-ha
     namespace: replace_this_namespace
-    releaseName: redis
-    repo: https://charts.bitnami.com/bitnami
+    releaseName: ""
+    repo: https://dandydeveloper.github.io/charts
     valuesInline:
-      global:
-        redis:
-          password: abc
+      auth: true
+      redisPassword: abc
+      hardAntiAffinity: false
       sentinel:
-        enabled: true
-        masterSet: shinyproxy
-    version: 17.3.14
+        password: abc
+      fullnameOverride: redis
+      redis:
+        masterGroupName: shinyproxy
 
 patches:
+  # Patches to make this more compatible with the bitnami chart
   - patch: |-
       - op: remove
-        path: /metadata/labels/app.kubernetes.io~1managed-by
-      - op: remove
-        path: /metadata/labels/helm.sh~1chart
-      - op: remove
         path: /metadata/namespace
+      - op: remove
+        path: /metadata/labels/chart
+      - op: remove
+        path: /metadata/labels/heritage
+      - op: remove
+        path: /metadata/labels/release
     target:
       name: .*
+  - patch: |-
+      - op: remove
+        path: /spec/template/metadata/labels/release
+      - op: remove
+        path: /spec/selector/matchLabels/release
+      - op: remove
+        path: /spec/template/spec/affinity/podAntiAffinity/preferredDuringSchedulingIgnoredDuringExecution/0/podAffinityTerm/labelSelector/matchLabels/redis
+      - op: remove
+        path: /spec/template/spec/affinity/podAntiAffinity/preferredDuringSchedulingIgnoredDuringExecution/0/podAffinityTerm/labelSelector/matchLabels/release
+    target:
+      kind: StatefulSet
+  - patch: |-
+      - op: remove
+        path: /spec/selector/release
+    target:
+      kind: Service
+  - target:
+      kind: Pod
+    patch: |-
+      $patch: delete
+      kind: Pod
+      metadata:
+        name: kustomization
+  - patch: |-
+      - op: remove
+        path: /data/auth
+        value: redis
+      - op: add
+        path: /stringData
+        value:
+          redis-password: abc
+    target:
+      kind: Secret
+      name: redis
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/valueFrom/secretKeyRef/key
+        value: redis-password
+      - op: replace
+        path: /spec/template/spec/containers/1/env/0/valueFrom/secretKeyRef/key
+        value: redis-password
+      - op: replace
+        path: /spec/template/spec/containers/2/env/3/valueFrom/secretKeyRef/key
+        value: redis-password
+      - op: replace
+        path: /spec/template/spec/initContainers/0/env/3/valueFrom/secretKeyRef/key
+        value: redis-password
+    target:
+      kind: StatefulSet

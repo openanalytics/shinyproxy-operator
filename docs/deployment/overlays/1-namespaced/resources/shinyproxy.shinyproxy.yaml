@@ -17,7 +17,7 @@ spec:
         sentinel:
           master: shinyproxy
           password: ${REDIS_PASSWORD}
-          nodes: redis-node-0.redis-headless:26379, redis-node-1.redis-headless:26379, redis-node-2.redis-headless:26379
+          nodes: redis-server-0.redis:26379, redis-server-1.redis:26379, redis-server-2.redis:26379
   proxy:
     store-mode: Redis
     stop-proxies-on-shutdown: false
