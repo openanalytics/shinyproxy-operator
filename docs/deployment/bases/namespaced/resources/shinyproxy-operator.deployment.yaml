@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: shinyproxy-operator
-          image: openanalytics/shinyproxy-operator:2.3.0
+          image: openanalytics/shinyproxy-operator:2.3.1
           imagePullPolicy: Always
           env:
             - name: SPO_MODE

@@ -3,9 +3,9 @@ kind: Kustomization
 namespace: shinyproxy
 
 resources:
-  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/redis-sentinel?ref=v2.3.0
-  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/namespaced?ref=v2.3.0
-  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/shinyproxy?ref=v2.3.0
+  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/redis-sentinel?ref=v2.3.1
+  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/namespaced?ref=v2.3.1
+  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/shinyproxy?ref=v2.3.1
   - resources/shinyproxy.namespace.yaml
   - resources/shinyproxy.shinyproxy.yaml
 

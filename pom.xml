@@ -6,7 +6,7 @@
 
     <groupId>eu.openanalytics</groupId>
     <artifactId>shinyproxy-operator</artifactId>
-    <version>2.3.1-SNAPSHOT</version>
+    <version>2.3.1</version>
     <inceptionYear>2021</inceptionYear>
     <name>ShinyProxy-Operator</name>
 

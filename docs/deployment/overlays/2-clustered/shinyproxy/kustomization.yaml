@@ -3,7 +3,7 @@ kind: Kustomization
 namespace: shinyproxy
 
 resources:
-  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/shinyproxy?ref=v2.3.0
+  - github.com/openanalytics/shinyproxy-operator/docs/deployment/bases/shinyproxy?ref=v2.3.1
   - resources/redis.secret.yaml
   - resources/shinyproxy.shinyproxy.yaml
   - resources/shinyproxy.namespace.yaml

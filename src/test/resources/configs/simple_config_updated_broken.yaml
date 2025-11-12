@@ -7,7 +7,7 @@ spec:
     server:
       port: 9091
   fqdn: itest.local
-  image: openanalytics/shinyproxy:3.2.0
+  image: openanalytics/shinyproxy:3.2.1
   proxy:
     title: Open Analytics Shiny Proxy 2
     logoUrl: http://www.openanalytics.eu/sites/www.openanalytics.eu/themes/oa/logo.png

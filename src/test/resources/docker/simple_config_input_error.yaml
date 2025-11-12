@@ -2,7 +2,7 @@ spring
   session:
     store-type: redis
 fqdn: itest.local
-image: openanalytics/shinyproxy:3.2.0
+image: openanalytics/shinyproxy:3.2.1
 proxy:
   store-mode: Redis
   realm-id: realm1

@@ -5,7 +5,7 @@ fqdn: itest2.local
 additionalFqdns:
   - my-fqdn3.local
   - my-fqdn4.local
-image: openanalytics/shinyproxy:3.2.0
+image: openanalytics/shinyproxy:3.2.1
 caddyRedirects:
   - from: /other-sub-path1
     to: /other-absolute-url
