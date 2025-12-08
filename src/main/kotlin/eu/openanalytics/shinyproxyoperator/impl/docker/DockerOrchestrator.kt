@@ -246,15 +246,16 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                 }
 
                 copyTemplates(shinyProxy, dir)
+                val mountCaBundle = copyCaBundle(shinyProxy, inputDir, dir)
                 fileManager.createDirectories(dir.resolve("logs"))
                 val additioanlConfigFiles = copyAdditionalConfigFiles(shinyProxy, dir)
-
                 val envVars = arrayListOf("PROXY_VERSION=${version}", "PROXY_REALM_ID=${shinyProxy.realmId}", "SPRING_CONFIG_IMPORT_0=/opt/shinyproxy/generated.yml", "USE_SYSTEM_CA_CERTS=true")
+
                 val binds = mutableListOf(HostConfig.Bind.builder()
-                    .from(dockerSocket)
-                    .to("/var/run/docker.sock")
-                    .readOnly(true)
-                    .build(),
+                        .from(dockerSocket)
+                        .to("/var/run/docker.sock")
+                        .readOnly(true)
+                        .build(),
                     HostConfig.Bind.builder()
                         .from(dir.resolve("application.yml").toString())
                         .to("/opt/shinyproxy/application.yml")
@@ -279,6 +280,14 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                         .to("/dev/termination-log")
                         .build())
 
+                if (mountCaBundle) {
+                    binds.add(HostConfig.Bind.builder()
+                        .from(dir.resolve("ca-bundle.crt").toString())
+                        .to("/certificates/ca-bundle.crt")
+                        .readOnly(true)
+                        .build())
+                }
+
                 for ((idx, file) in additioanlConfigFiles.withIndex()) {
                     val destination = "/opt/shinyproxy/${file}"
                     binds.add(HostConfig.Bind.builder()
@@ -291,36 +300,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
 
                 val hostConfigBuilder = HostConfig.builder()
                     .networkMode(SHARED_NETWORK_NAME)
-                    .binds(
-                        HostConfig.Bind.builder()
-                            .from(dockerSocket)
-                            .to("/var/run/docker.sock")
-                            .readOnly(true)
-                            .build(),
-                        HostConfig.Bind.builder()
-                            .from(dir.resolve("application.yml").toString())
-                            .to("/opt/shinyproxy/application.yml")
-                            .readOnly(true)
-                            .build(),
-                        HostConfig.Bind.builder()
-                            .from(dir.resolve("generated.yml").toString())
-                            .to("/opt/shinyproxy/generated.yml")
-                            .readOnly(true)
-                            .build(),
-                        HostConfig.Bind.builder()
-                            .from(dir.resolve("templates").toString())
-                            .to("/opt/shinyproxy/templates")
-                            .readOnly(true)
-                            .build(),
-                        HostConfig.Bind.builder()
-                            .from(logsDir.toString())
-                            .to("/opt/shinyproxy/logs")
-                            .build(),
-                        HostConfig.Bind.builder()
-                            .from(dir.resolve("termination-log").toString())
-                            .to("/dev/termination-log")
-                            .build(),
-                    )
+                    .binds(*binds.toTypedArray())
                     .groupAdd(dockerGID.toString())
                     .restartPolicy(HostConfig.RestartPolicy.always())
                     .memoryReservation(memoryToBytes(shinyProxy.memoryRequest))
@@ -410,6 +390,21 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             return source2
         }
         return null
+    }
+
+    private fun copyCaBundle(shinyProxy: ShinyProxy, inputDir: Path, dir: Path): Boolean {
+        var source = shinyProxy.getCaBundleFile(inputDir)
+        if (!source.isAbsolute) {
+            logger.warn { "${logPrefix(shinyProxy)} CA bundle path must be absolute, ignoring." }
+            return false
+        }
+        if (!source.exists() && !source.isRegularFile()) {
+            logger.debug { "${logPrefix(shinyProxy)} CA bundle '${source.absolutePathString()}' not found" }
+            return false
+        }
+        source.toFile().copyTo(dir.resolve("ca-bundle.crt").toFile(), true)
+        logger.info { "${logPrefix(shinyProxy)} CA bundle '${source.absolutePathString()}' copied" }
+        return true
     }
 
     override suspend fun deleteInstance(shinyProxyInstance: ShinyProxyInstance) {

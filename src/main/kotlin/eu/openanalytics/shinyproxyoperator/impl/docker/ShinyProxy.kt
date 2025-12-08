@@ -24,6 +24,7 @@ import com.fasterxml.jackson.module.kotlin.convertValue
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import java.nio.file.Path
+import kotlin.io.path.absolute
 import kotlin.io.path.exists
 import kotlin.io.path.getLastModifiedTime
 import kotlin.io.path.isRegularFile
@@ -59,8 +60,18 @@ fun ShinyProxy.getAdditionalConfigFiles(): List<Path> {
     return listOf()
 }
 
-fun ShinyProxy.isReferencedFileMoreRecent(lastModified: Long): Pair<Boolean, Path?> {
-    val files = listOf(getCaddyTlsCertFile(), getCaddyTlsKeyFile()) + getAdditionalConfigFiles()
+fun ShinyProxy.getCaBundleFile(inputDir: Path): Path {
+    if (getSpec().get("caBundleFile")?.isTextual == true) {
+        return Path.of(getSpec().get("caBundleFile").textValue())
+    }
+    if (getSpec().get("ca-bundle-file")?.isTextual == true) {
+        return Path.of(getSpec().get("ca-bundle-file").textValue())
+    }
+    return inputDir.resolve("ca-bundle.crt").absolute()
+}
+
+fun ShinyProxy.isReferencedFileMoreRecent(inputDir: Path, lastModified: Long): Pair<Boolean, Path?> {
+    val files = listOf(getCaddyTlsCertFile(), getCaddyTlsKeyFile(), getCaBundleFile(inputDir)) + getAdditionalConfigFiles()
     for (file in files) {
         if (file == null || !file.exists() || !file.isRegularFile()) {
             continue

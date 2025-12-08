@@ -125,7 +125,7 @@ class FileSource(
                     channel.send(ShinyProxyEvent(ShinyProxyEventType.ADD, shinyProxy.realmId, name, NAMESPACE, null))
                 } else {
                     if (existingShinyProxy.hashOfCurrentSpec == shinyProxy.hashOfCurrentSpec) {
-                        val modified = shinyProxy.isReferencedFileMoreRecent(lastRun)
+                        val modified = shinyProxy.isReferencedFileMoreRecent(inputDir, lastRun)
                         if (modified.first) {
                             logger.info { "${logPrefix(shinyProxy.realmId)} [Update] Referenced file ${modified.second?.absolutePathString()} modified" }
                             channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE_SPEC, shinyProxy.realmId, name, NAMESPACE, shinyProxy.hashOfCurrentSpec))
