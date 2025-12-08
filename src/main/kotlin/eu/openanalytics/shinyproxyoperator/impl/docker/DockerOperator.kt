@@ -28,7 +28,7 @@ import eu.openanalytics.shinyproxyoperator.controller.EventController
 import eu.openanalytics.shinyproxyoperator.controller.RecyclableChecker
 import eu.openanalytics.shinyproxyoperator.controller.ShinyProxyController
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEvent
-import eu.openanalytics.shinyproxyoperator.impl.source.FileSource
+import eu.openanalytics.shinyproxyoperator.impl.docker.FileSource
 import kotlinx.coroutines.channels.Channel
 import java.nio.file.Path
 

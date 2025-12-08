@@ -24,6 +24,9 @@ import com.fasterxml.jackson.module.kotlin.convertValue
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import java.nio.file.Path
+import kotlin.io.path.exists
+import kotlin.io.path.getLastModifiedTime
+import kotlin.io.path.isRegularFile
 
 fun ShinyProxy.getCaddyTlsCertFile(): Path? {
     if (getSpec().get("caddyTlsCertFile")?.isTextual == true) {
@@ -44,6 +47,29 @@ fun ShinyProxy.getCaddyRedirects(): List<CaddyRedirect> {
         return jacksonObjectMapper().convertValue(getSpec().get("caddyRedirects"))
     }
     return listOf()
+}
+
+fun ShinyProxy.getAdditionalConfigFiles(): List<Path> {
+    if (getSpec().get("additionalConfigFiles")?.isArray == true) {
+        return getSpec().get("additionalConfigFiles").elements().asSequence().map { Path.of(it.textValue()) }.toList()
+    }
+    if (getSpec().get("additional-config-files")?.isArray == true) {
+        return getSpec().get("additional-config-files").elements().asSequence().map { Path.of(it.textValue()) }.toList()
+    }
+    return listOf()
+}
+
+fun ShinyProxy.isReferencedFileMoreRecent(lastModified: Long): Pair<Boolean, Path?> {
+    val files = listOf(getCaddyTlsCertFile(), getCaddyTlsKeyFile()) + getAdditionalConfigFiles()
+    for (file in files) {
+        if (file == null || !file.exists() || !file.isRegularFile()) {
+            continue
+        }
+        if (file.getLastModifiedTime().toMillis() > lastModified) {
+            return Pair(true, file)
+        }
+    }
+    return Pair(false, null)
 }
 
 data class CaddyRedirect(val from: String, val to: String, val statusCode: Int = 302)

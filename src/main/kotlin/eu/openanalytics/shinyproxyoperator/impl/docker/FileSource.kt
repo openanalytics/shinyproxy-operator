@@ -18,7 +18,7 @@
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
-package eu.openanalytics.shinyproxyoperator.impl.source
+package eu.openanalytics.shinyproxyoperator.impl.docker
 
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
@@ -31,7 +31,6 @@ import eu.openanalytics.shinyproxyoperator.IShinyProxySource
 import eu.openanalytics.shinyproxyoperator.InternalException
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEventType
-import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOrchestrator
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -42,8 +41,11 @@ import org.apache.commons.io.filefilter.DirectoryFileFilter
 import org.apache.commons.io.filefilter.RegexFileFilter
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import java.util.*
 import kotlin.concurrent.timer
+import kotlin.io.path.absolutePathString
+
 
 class FileSource(
     private val channel: Channel<ShinyProxyEvent>,
@@ -58,6 +60,7 @@ class FileSource(
     private val logger = KotlinLogging.logger {}
     private var timer: Timer? = null
     private val pollInterval: Int = config.readConfigValue(60, "SPO_FILE_POLL_INTERVAL") { it.toInt() }
+    private var lastRun: Long = Long.MAX_VALUE
 
     companion object {
         const val NAMESPACE = "default"
@@ -90,7 +93,8 @@ class FileSource(
 
     private suspend fun runOnce() {
         // sort for deterministic ordering on each run
-        val files = FileUtils.listFiles(inputDir.toFile(), RegexFileFilter("^.*\\.shinyproxy\\.(yml|yaml)$"), DirectoryFileFilter.DIRECTORY).sortedBy { it.name }
+        val files = FileUtils.listFiles(inputDir.toFile(),
+            RegexFileFilter("^.*\\.shinyproxy\\.(yml|yaml)$"), DirectoryFileFilter.DIRECTORY).sortedBy { it.name }
 
         var hasInputError = false
         val nameToFile = hashMapOf<String, String>()
@@ -121,8 +125,14 @@ class FileSource(
                     channel.send(ShinyProxyEvent(ShinyProxyEventType.ADD, shinyProxy.realmId, name, NAMESPACE, null))
                 } else {
                     if (existingShinyProxy.hashOfCurrentSpec == shinyProxy.hashOfCurrentSpec) {
-                        logger.info { "${logPrefix(shinyProxy.realmId)} [Reconcile]" }
-                        channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy.realmId, name, NAMESPACE, shinyProxy.hashOfCurrentSpec))
+                        val modified = shinyProxy.isReferencedFileMoreRecent(lastRun)
+                        if (modified.first) {
+                            logger.info { "${logPrefix(shinyProxy.realmId)} [Update] Referenced file ${modified.second?.absolutePathString()} modified" }
+                            channel.send(ShinyProxyEvent(ShinyProxyEventType.UPDATE_SPEC, shinyProxy.realmId, name, NAMESPACE, shinyProxy.hashOfCurrentSpec))
+                        } else {
+                            logger.info { "${logPrefix(shinyProxy.realmId)} [Reconcile]" }
+                            channel.send(ShinyProxyEvent(ShinyProxyEventType.RECONCILE, shinyProxy.realmId, name, NAMESPACE, shinyProxy.hashOfCurrentSpec))
+                        }
                     } else {
                         logger.info { "${logPrefix(shinyProxy.realmId)} [Update]" }
                         shinyProxies[shinyProxy.realmId] = shinyProxy
@@ -142,6 +152,7 @@ class FileSource(
             // only delete realms if all files were successfully processed
             checkForDeleted(nameToFile.keys)
         }
+        lastRun = Instant.now().toEpochMilli()
     }
 
     private fun checkDuplicateUrl(urlToFile: HashMap<Pair<String, String>, String>, shinyProxy: ShinyProxy, fileName: String) {

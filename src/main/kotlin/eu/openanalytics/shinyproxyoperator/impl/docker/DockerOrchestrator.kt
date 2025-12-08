@@ -35,7 +35,6 @@ import eu.openanalytics.shinyproxyoperator.InternalException
 import eu.openanalytics.shinyproxyoperator.LabelFactory
 import eu.openanalytics.shinyproxyoperator.event.ShinyProxyEvent
 import eu.openanalytics.shinyproxyoperator.impl.docker.monitoring.MonitoringConfig
-import eu.openanalytics.shinyproxyoperator.impl.source.FileSource
 import eu.openanalytics.shinyproxyoperator.logPrefix
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
@@ -43,7 +42,6 @@ import eu.openanalytics.shinyproxyoperator.model.ShinyProxyStatus
 import eu.openanalytics.shinyproxyoperator.prettyMessage
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
 import org.apache.commons.lang3.RandomStringUtils
@@ -62,7 +60,11 @@ import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.*
 import java.util.regex.Pattern
+import kotlin.io.path.absolutePathString
 import kotlin.io.path.createDirectories
+import kotlin.io.path.exists
+import kotlin.io.path.extension
+import kotlin.io.path.isRegularFile
 
 class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                          config: Config,
@@ -245,6 +247,47 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
 
                 copyTemplates(shinyProxy, dir)
                 fileManager.createDirectories(dir.resolve("logs"))
+                val additioanlConfigFiles = copyAdditionalConfigFiles(shinyProxy, dir)
+
+                val envVars = arrayListOf("PROXY_VERSION=${version}", "PROXY_REALM_ID=${shinyProxy.realmId}", "SPRING_CONFIG_IMPORT_0=/opt/shinyproxy/generated.yml", "USE_SYSTEM_CA_CERTS=true")
+                val binds = mutableListOf(HostConfig.Bind.builder()
+                    .from(dockerSocket)
+                    .to("/var/run/docker.sock")
+                    .readOnly(true)
+                    .build(),
+                    HostConfig.Bind.builder()
+                        .from(dir.resolve("application.yml").toString())
+                        .to("/opt/shinyproxy/application.yml")
+                        .readOnly(true)
+                        .build(),
+                    HostConfig.Bind.builder()
+                        .from(dir.resolve("generated.yml").toString())
+                        .to("/opt/shinyproxy/generated.yml")
+                        .readOnly(true)
+                        .build(),
+                    HostConfig.Bind.builder()
+                        .from(dir.resolve("templates").toString())
+                        .to("/opt/shinyproxy/templates")
+                        .readOnly(true)
+                        .build(),
+                    HostConfig.Bind.builder()
+                        .from(logsDir.toString())
+                        .to("/opt/shinyproxy/logs")
+                        .build(),
+                    HostConfig.Bind.builder()
+                        .from(dir.resolve("termination-log").toString())
+                        .to("/dev/termination-log")
+                        .build())
+
+                for ((idx, file) in additioanlConfigFiles.withIndex()) {
+                    val destination = "/opt/shinyproxy/${file}"
+                    binds.add(HostConfig.Bind.builder()
+                        .from(dir.resolve(file).toString())
+                        .to(destination)
+                        .readOnly(true)
+                        .build())
+                    envVars.add("SPRING_CONFIG_IMPORT_${idx+1}=${destination}")
+                }
 
                 val hostConfigBuilder = HostConfig.builder()
                     .networkMode(SHARED_NETWORK_NAME)
@@ -301,7 +344,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                     .image(shinyProxy.image)
                     .hostConfig(hostConfigBuilder.build())
                     .labels(shinyProxy.labels + LabelFactory.labelsForShinyProxyInstance(shinyProxyInstance, version))
-                    .env("PROXY_VERSION=${version}", "PROXY_REALM_ID=${shinyProxy.realmId}", "SPRING_CONFIG_IMPORT=/opt/shinyproxy/generated.yml")
+                    .env(envVars)
                     .user(dataDirUid.toString())
                     .build()
 
@@ -324,6 +367,37 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
         fileManager.createDirectories(destination)
         source.toFile().copyRecursively(destination.toFile(), true)
         logger.info { "${logPrefix(shinyProxy)} [Docker] Templates copied" }
+    }
+
+    private fun copyAdditionalConfigFiles(shinyProxy: ShinyProxy, dir: Path): List<String> {
+        val fileNames = arrayListOf<String>()
+        for (file in shinyProxy.getAdditionalConfigFiles()) {
+            if (!file.isAbsolute) {
+                logger.warn { "${logPrefix(shinyProxy)} Invalid additional config file: '${file.absolutePathString()}': path must be absolute, ignoring." }
+                continue
+            }
+            if (!file.exists() || !file.isRegularFile()) {
+                logger.warn { "${logPrefix(shinyProxy)} Invalid additional config file: '${file.absolutePathString()}': file does not exist, ignoring." }
+                continue
+            }
+            val fileName = file.fileName.toString()
+            if (file.extension != "yml") {
+                logger.warn { "${logPrefix(shinyProxy)} Invalid additional config file: '${file.absolutePathString()}': file extension must be '.yml', ignoring." }
+                continue
+            }
+            if (fileName in listOf("application.yml", "generated.yml")) {
+                logger.warn { "${logPrefix(shinyProxy)} Invalid additional config file: '${file.absolutePathString()}': cannot be 'application.yml' or 'generated.yml' ignoring." }
+                continue
+            }
+            if (fileNames.contains(fileName)) {
+                logger.warn { "${logPrefix(shinyProxy)} Invalid additional config file: '${file.absolutePathString()}': filename is not unique, ignoring." }
+                continue
+            }
+            val destination = dir.resolve(fileName)
+            file.toFile().copyTo(destination.toFile(), true)
+            fileNames.add(fileName)
+        }
+        return fileNames
     }
 
     private fun getTemplateSource(shinyProxy: ShinyProxy): Path? {
