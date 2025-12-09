@@ -259,7 +259,7 @@ class CraneConfig(private val dockerClient: DockerClient,
                 "data" to mapOf(
                     "redis" to mapOf(
                         "password" to redisConfig.getRedisPassword(),
-                        "host" to "sp-redis"
+                        "host" to redisConfig.getContainerName()
                     )
                 )
             ),

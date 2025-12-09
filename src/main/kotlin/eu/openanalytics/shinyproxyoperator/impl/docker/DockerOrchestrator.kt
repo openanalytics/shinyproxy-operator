@@ -95,6 +95,8 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
     private val logFilesCleaner: LogFilesCleaner
 
     init {
+        initSharedNetworkName(config)
+
         if (!Files.exists(dataDir)) {
             throw InternalException("The data directory doesn't exist: '$dataDir'!")
         }
@@ -134,7 +136,20 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
     }
 
     companion object {
-        const val SHARED_NETWORK_NAME = "sp-shared-network"
+        lateinit var SHARED_NETWORK_NAME: String
+            private set
+
+        fun initSharedNetworkName(config: Config) {
+            SHARED_NETWORK_NAME = config.readConfigValue("sp-shared-network", "SPO_SHARED_NETWORK_NAME") { it }
+        }
+    }
+
+    fun getRedisConfig(): RedisConfig {
+        return redisConfig
+    }
+
+    fun getCaddyConfig(): CaddyConfig {
+        return caddyConfig
     }
 
     override fun getShinyProxyStatus(shinyProxy: ShinyProxy): ShinyProxyStatus {
@@ -191,7 +206,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
         }
         val containers = dockerActions.getContainers(shinyProxyInstance)
         if (containers.size < shinyProxy.replicas) {
-            val networkName = "sp-network-${shinyProxy.realmId}"
+            val networkName = "${SHARED_NETWORK_NAME}-internal-${shinyProxy.realmId}"
             if (!dockerActions.networkExists(networkName)) {
                 logger.info { "${logPrefix(shinyProxyInstance)} [Docker] Creating network" }
                 dockerActions.createNetwork(networkName, disableICC)
@@ -297,11 +312,40 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                         .build())
                 }
 
+                // Build environment variables list: default ones + operator environment variables
+                val envVars = mutableListOf(
+                    "PROXY_VERSION=${version}",
+                    "PROXY_REALM_ID=${shinyProxy.realmId}",
+                    "SPRING_CONFIG_IMPORT_0=/opt/shinyproxy/generated.yml"
+                )
+                
+                // Add environment variables from the operator's environment
+                // Any environment variable with prefix SHINYPROXY_ENV_ will be passed to the container
+                // with the prefix stripped (e.g., SHINYPROXY_ENV_DATABASE_URL -> DATABASE_URL)
+                System.getenv().forEach { (key, value) ->
+                    if (key.startsWith("SHINYPROXY_ENV_")) {
+                        val targetKey = key.removePrefix("SHINYPROXY_ENV_")
+                        // Validate that the target key is not empty and value doesn't contain newlines
+                        when {
+                            targetKey.isEmpty() -> {
+                                logger.warn { "${logPrefix(shinyProxyInstance)} [Docker] Ignoring invalid environment variable with empty key: $key" }
+                            }
+                            value.contains('\n') || value.contains('\r') -> {
+                                logger.warn { "${logPrefix(shinyProxyInstance)} [Docker] Skipping environment variable '$targetKey' due to invalid value containing newline characters" }
+                            }
+                            else -> {
+                                envVars.add("${targetKey}=${value}")
+                                logger.info { "${logPrefix(shinyProxyInstance)} [Docker] Passing environment variable '$targetKey' to ShinyProxy container" }
+                            }
+                        }
+                    }
+                }
+
                 val containerConfig = ContainerConfig.builder()
                     .image(shinyProxy.image)
                     .hostConfig(hostConfigBuilder.build())
                     .labels(shinyProxy.labels + LabelFactory.labelsForShinyProxyInstance(shinyProxyInstance, version))
-                    .env("PROXY_VERSION=${version}", "PROXY_REALM_ID=${shinyProxy.realmId}", "SPRING_CONFIG_IMPORT=/opt/shinyproxy/generated.yml")
+                    .env(envVars)
                     .user(dataDirUid.toString())
                     .build()
 
@@ -490,7 +534,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                 "data" to mapOf(
                     "redis" to mapOf(
                         "password" to redisConfig.getRedisPassword(),
-                        "host" to "sp-redis"
+                        "host" to redisConfig.getContainerName()
                     )
                 )
             ))
