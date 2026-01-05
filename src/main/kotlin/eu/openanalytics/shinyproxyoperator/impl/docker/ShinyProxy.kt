@@ -23,11 +23,14 @@ package eu.openanalytics.shinyproxyoperator.impl.docker
 import com.fasterxml.jackson.module.kotlin.convertValue
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxy
+import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.PathWalkOption
 import kotlin.io.path.absolute
 import kotlin.io.path.exists
 import kotlin.io.path.getLastModifiedTime
 import kotlin.io.path.isRegularFile
+import kotlin.io.path.walk
 
 fun ShinyProxy.getCaddyTlsCertFile(): Path? {
     if (getSpec().get("caddyTlsCertFile")?.isTextual == true) {
@@ -70,6 +73,18 @@ fun ShinyProxy.getCaBundleFile(inputDir: Path): Path {
     return inputDir.resolve("ca-bundle.crt").absolute()
 }
 
+private fun ShinyProxy.isTemplateModified(inputDir: Path, lastModified: Long): Pair<Boolean, Path?> {
+    val source = getTemplateSource(inputDir) ?: return Pair(false, null)
+
+    source.walk(PathWalkOption.INCLUDE_DIRECTORIES).forEach { path ->
+        if (path.getLastModifiedTime().toMillis() > lastModified) {
+            return Pair(true, path)
+        }
+    }
+
+    return Pair(false, null)
+}
+
 fun ShinyProxy.isReferencedFileMoreRecent(inputDir: Path, lastModified: Long): Pair<Boolean, Path?> {
     val files = listOf(getCaddyTlsCertFile(), getCaddyTlsKeyFile(), getCaBundleFile(inputDir)) + getAdditionalConfigFiles()
     for (file in files) {
@@ -80,7 +95,19 @@ fun ShinyProxy.isReferencedFileMoreRecent(inputDir: Path, lastModified: Long): P
             return Pair(true, file)
         }
     }
-    return Pair(false, null)
+    return isTemplateModified(inputDir, lastModified)
+}
+
+fun ShinyProxy.getTemplateSource(inputDir: Path): Path? {
+    val source = inputDir.resolve("templates").resolve(name)
+    if (Files.exists(source) && Files.isDirectory(source)) {
+        return source
+    }
+    val source2 = inputDir.resolve("templates").resolve(realmId)
+    if (Files.exists(source2) && Files.isDirectory(source2)) {
+        return source2
+    }
+    return null
 }
 
 data class CaddyRedirect(val from: String, val to: String, val statusCode: Int = 302)

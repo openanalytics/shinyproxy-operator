@@ -342,7 +342,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
     }
 
     private fun copyTemplates(shinyProxy: ShinyProxy, dir: Path) {
-        val source = getTemplateSource(shinyProxy) ?: return
+        val source = shinyProxy.getTemplateSource(inputDir) ?: return
         val destination = dir.resolve("templates")
         fileManager.createDirectories(destination)
         source.toFile().copyRecursively(destination.toFile(), true)
@@ -378,18 +378,6 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
             fileNames.add(fileName)
         }
         return fileNames
-    }
-
-    private fun getTemplateSource(shinyProxy: ShinyProxy): Path? {
-        val source = inputDir.resolve("templates").resolve(shinyProxy.name)
-        if (Files.exists(source) && Files.isDirectory(source)) {
-            return source
-        }
-        val source2 = inputDir.resolve("templates").resolve(shinyProxy.realmId)
-        if (Files.exists(source2) && Files.isDirectory(source2)) {
-            return source2
-        }
-        return null
     }
 
     private fun copyCaBundle(shinyProxy: ShinyProxy, inputDir: Path, dir: Path): Boolean {
