@@ -4,7 +4,7 @@ metadata:
   name: example-shinyproxy
 spec:
   fqdn: itest.local
-  image: openanalytics/shinyproxy:3.2.1
+  image: openanalytics/shinyproxy:3.2.2
   labels:
     some-example-label: label-value
   proxy:

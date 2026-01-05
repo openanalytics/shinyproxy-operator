@@ -140,7 +140,7 @@ class DockerAssertions(private val base: IntegrationTestBase,
         assertEnv(mapOf(
             "PROXY_VERSION" to null,
             "PROXY_REALM_ID" to shinyProxyInstance.realmId,
-            "SPRING_CONFIG_IMPORT" to "/opt/shinyproxy/generated.yml"
+            "SPRING_CONFIG_IMPORT_0" to "/opt/shinyproxy/generated.yml"
         ), containerInfo.config().env())
     }
 

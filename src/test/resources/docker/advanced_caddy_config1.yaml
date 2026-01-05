@@ -5,7 +5,7 @@ fqdn: itest.local
 additionalFqdns:
   - my-fqdn1.local
   - my-fqdn2.local
-image: openanalytics/shinyproxy:3.2.1
+image: openanalytics/shinyproxy:3.2.2
 caddyTlsCertFile: "#INPUT_DIR#/cert.pem"
 caddyTlsKeyFile: "#INPUT_DIR#/key.pem"
 caddyRedirects:
