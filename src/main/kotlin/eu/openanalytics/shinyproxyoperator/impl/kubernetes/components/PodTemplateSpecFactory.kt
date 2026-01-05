@@ -196,14 +196,14 @@ class PodTemplateSpecFactory(config: Config) {
         val resourceBuilder = ResourceRequirementsBuilder()
         if (shinyProxy.memoryRequest != null) {
             try {
-                resourceBuilder.addToRequests("memory", parseMemorQuantity(shinyProxy.memoryRequest!!))
+                resourceBuilder.addToRequests("memory", parseMemoryQuantity(shinyProxy.memoryRequest!!))
             } catch (e: Exception) {
                 throw RuntimeException("Invalid memoryRequest: " + e.prettyMessage(), e)
             }
         }
         if (shinyProxy.memoryLimit != null) {
             try {
-                resourceBuilder.addToLimits("memory", parseMemorQuantity(shinyProxy.memoryLimit!!))
+                resourceBuilder.addToLimits("memory", parseMemoryQuantity(shinyProxy.memoryLimit!!))
             } catch (e: Exception) {
                 throw RuntimeException("Invalid memoryLimit: " + e.prettyMessage(), e)
             }
@@ -240,7 +240,7 @@ class PodTemplateSpecFactory(config: Config) {
         return quantity
     }
 
-    private fun parseMemorQuantity(value: String): Quantity {
+    private fun parseMemoryQuantity(value: String): Quantity {
         var converted = value
         // convert lower case suffixes automatically to a value accepted by k8s
         for (suffix in listOf("p", "t", "g", "m", "k")) {

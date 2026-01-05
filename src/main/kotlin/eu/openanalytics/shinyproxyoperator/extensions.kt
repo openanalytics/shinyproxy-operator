@@ -67,7 +67,7 @@ fun JsonNode.getTextValueOrNull(key: String): String? {
 
 fun Exception.prettyMessage(): String? {
     val name = javaClass.simpleName
-    if (listOf("Exception", "RuntimeException", "IllegalArgumentException", "IllegalStateException", "IOExecption").contains(name)) {
+    if (listOf("Exception", "RuntimeException", "IllegalArgumentException", "IllegalStateException", "IOException").contains(name)) {
         // don't include name of exception if it's too generic
         return message
     }

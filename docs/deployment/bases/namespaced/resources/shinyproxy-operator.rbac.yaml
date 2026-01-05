@@ -5,7 +5,7 @@ kind: ServiceAccount
 metadata:
   name: shinyproxy-operator-sa
 ---
-# Role for the SerivceAcount of the operator
+# Role for the ServiceAccount of the operator
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:

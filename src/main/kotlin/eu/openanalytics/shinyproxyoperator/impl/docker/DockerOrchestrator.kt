@@ -160,7 +160,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
         if (instance.isLatestInstance) {
             throw IllegalStateException("Instance being removed is latest")
         }
-        val status = state[instance.realmId] ?: error("No status found") // TOOD
+        val status = state[instance.realmId] ?: error("No status found") // TODO
         val instances = ArrayList(status.instances)
         instances.remove(instance)
         state[instance.realmId] = status.copy(instances = instances)
@@ -248,7 +248,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                 copyTemplates(shinyProxy, dir)
                 val mountCaBundle = copyCaBundle(shinyProxy, inputDir, dir)
                 fileManager.createDirectories(dir.resolve("logs"))
-                val additioanlConfigFiles = copyAdditionalConfigFiles(shinyProxy, dir)
+                val additionalConfigFiles = copyAdditionalConfigFiles(shinyProxy, dir)
                 val envVars = arrayListOf("PROXY_VERSION=${version}", "PROXY_REALM_ID=${shinyProxy.realmId}", "SPRING_CONFIG_IMPORT_0=/opt/shinyproxy/generated.yml", "USE_SYSTEM_CA_CERTS=true")
 
                 val binds = mutableListOf(HostConfig.Bind.builder()
@@ -288,7 +288,7 @@ class DockerOrchestrator(channel: Channel<ShinyProxyEvent>,
                         .build())
                 }
 
-                for ((idx, file) in additioanlConfigFiles.withIndex()) {
+                for ((idx, file) in additionalConfigFiles.withIndex()) {
                     val destination = "/opt/shinyproxy/${file}"
                     binds.add(HostConfig.Bind.builder()
                         .from(dir.resolve(file).toString())
