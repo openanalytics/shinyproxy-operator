@@ -30,6 +30,9 @@ pipeline {
                     sh 'echo "@testing https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories'
                     sh 'apk add minikube@testing'
                     sh 'docker network create sp-shared-network'
+                    // run swarm init, it forces the docker network to be correctly configured
+                    // without it the minikube pods cannot communicate
+                    sh 'docker swarm init'
                     sh 'docker plugin install "grafana/loki-docker-driver:3.2.1" --alias loki --grant-all-permissions'
                     sh 'adduser -D -u 1000 user && adduser user docker'
                     sh "su user /bin/sh -c 'minikube start --driver=docker --force'"
