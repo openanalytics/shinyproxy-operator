@@ -106,7 +106,7 @@ abstract class IntegrationTestBase {
             val operator = DockerOperator(mockConfig, eventController, mockRecyclableChecker)
             eventController.setDelegate(EventController(operator.orchestrator))
 
-            val dockerAssertions = DockerAssertions(this@IntegrationTestBase, dataDir, inputDir)
+            val dockerAssertions = DockerAssertions(this@IntegrationTestBase, dataDir, inputDir, operator.orchestrator)
 
             try {
                 // 3. run test
@@ -116,15 +116,15 @@ abstract class IntegrationTestBase {
                 // 4. stop operator
                 operator.stop()
                 // 4.  cleanup docker containers
-                deleteContainers()
+                deleteContainers(operator.orchestrator.getRedisConfig().getContainerName(), operator.orchestrator.getCaddyConfig().getContainerName())
             }
         }
 
     }
 
-    private fun deleteContainers() {
-        stopAndRemoveContainer(getContainerByName("sp-redis"))
-        stopAndRemoveContainer(getContainerByName("sp-caddy"))
+    private fun deleteContainers(redisContainerName: String = "sp-redis", caddyContainerName: String = "sp-caddy") {
+        stopAndRemoveContainer(getContainerByName(redisContainerName))
+        stopAndRemoveContainer(getContainerByName(caddyContainerName))
 
         val containers = dockerClient
             .listContainers(DockerClient.ListContainersParam.allContainers())

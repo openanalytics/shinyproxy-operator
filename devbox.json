@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.13.7/.schema/devbox.schema.json",
+  "packages": [
+    "javaPackages.compiler.openjdk21@latest",
+    "binutils@latest",
+    "maven@latest"
+  ],
+  "shell": {
+    "init_hook": [
+      "echo 'Welcome to ShinyProxy Operator development environment!'",
+      "echo 'Java version:'",
+      "java -version",
+      "echo ''",
+      "echo 'Maven version:'",
+      "mvn -version",
+      "echo ''",
+      "echo 'To build the project, run: mvn clean package -DskipTests'",
+      "echo 'The JAR will be at: target/shinyproxy-operator-jar-with-dependencies.jar'"
+    ],
+    "scripts": {
+      "install-deps": [
+        "mvn dependency:go-offline -B"
+      ],
+      "build": [
+        "mvn clean package"
+      ],
+      "build-fast": [
+        "mvn clean package -DskipTests"
+      ],
+      "package": [
+        "mvn package"
+      ],
+      "package-fast": [
+        "mvn package -DskipTests"
+      ],
+      "clean-compile": [
+        "mvn clean compile"
+      ],
+      "clean-compile-fast": [
+        "mvn clean compile -DskipTests"
+      ],
+      "test": [
+        "mvn test"
+      ]
+    }
+  }
+}

@@ -13,6 +13,10 @@ page in the documentation to understand why this is so great.
 
 See the [website](https://shinyproxy.io/documentation/shinyproxy-operator/kubernetes/) for all documentation.
 
+### Docker Mode: Passing Environment Variables
+
+When using the operator in Docker mode, you can pass environment variables from the operator's environment to ShinyProxy containers. This is useful for injecting secrets without storing them in plain text. See [Environment Variables for Docker Mode](docs/environment-variables-docker.md) for details.
+
 ## Support
 
 See the [website](https://shinyproxy.io/support/) on how to get support.
@@ -35,3 +39,17 @@ The build will result in a single `.jar` file:
 ## Java Version
 
 This project requires JDK 21.
+
+## CI/CD
+
+This repository includes automated GitHub Actions workflows for building and deploying the ShinyProxy Operator.
+
+### Docker Image Build and Push
+
+A workflow automatically builds the operator JAR, creates a Docker image, and pushes it to a Container Registry. See [docs/CI-CD.md](docs/CI-CD.md) for detailed documentation on:
+
+- Workflow configuration
+- Required secrets setup
+- Docker image tags
+- Manual workflow dispatch
+- Local development replication

@@ -25,6 +25,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import eu.openanalytics.shinyproxyoperator.Config
+import eu.openanalytics.shinyproxyoperator.impl.docker.DockerOrchestrator
 import eu.openanalytics.shinyproxyoperator.model.ShinyProxyInstance
 import org.mandas.docker.client.messages.Container
 import org.mandas.docker.client.messages.PortBinding
@@ -36,14 +37,17 @@ import kotlin.test.assertTrue
 
 class DockerAssertions(private val base: IntegrationTestBase,
                        private val dataDir: Path,
-                       private val inputDir: Path) {
+                       private val inputDir: Path,
+                       private val orchestrator: DockerOrchestrator) {
 
     private val objectMapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
     private val dockerGID = Config().readConfigValue(null, "SPO_DOCKER_GID") { it }
     private val dockerSocket = Config().readConfigValue("/var/run/docker.sock", "SPO_DOCKER_SOCKET") { it }
+    private val redisContainerName = orchestrator.getRedisConfig().getContainerName()
+    private val caddyContainerName = orchestrator.getCaddyConfig().getContainerName()
 
     fun assertRedisContainer() {
-        val redisContainer = base.inspectContainer(this.base.getContainerByName("sp-redis"))
+        val redisContainer = base.inspectContainer(this.base.getContainerByName(redisContainerName))
         assertNotNull(redisContainer)
         assertEquals(true, redisContainer.state().running())
         assertEquals("sp-shared-network", redisContainer.hostConfig().networkMode())
@@ -62,7 +66,7 @@ class DockerAssertions(private val base: IntegrationTestBase,
     }
 
     fun assertCaddyContainer(expectedName: String, replacements: Map<String, String>, tls: Boolean = false) {
-        val caddyContainer = base.inspectContainer(this.base.getContainerByName("sp-caddy"))
+        val caddyContainer = base.inspectContainer(this.base.getContainerByName(caddyContainerName))
         assertNotNull(caddyContainer)
         assertEquals(true, caddyContainer.state().running())
         assertEquals("sp-shared-network", caddyContainer.hostConfig().networkMode())

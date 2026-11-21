@@ -39,8 +39,8 @@ class RedisConfig(private val dockerClient: DockerClient,
                   private val dataDirUid: Int,
                   config: Config) {
 
-    private val containerName = "sp-redis"
-    private val dataDir: Path = mainDataDir.resolve(containerName)
+    private val containerName: String = config.readConfigValue("sp-redis", "SPO_REDIS_CONTAINER_NAME") { it }
+    private val dataDir: Path = mainDataDir.resolve("sp-redis")
     private lateinit var redisPassword: String
     private val logger = KotlinLogging.logger {}
     private val redisImage: String = config.readConfigValue("docker.io/library/redis:8.2.2", "SPO_REDIS_IMAGE") { it }
@@ -66,6 +66,10 @@ class RedisConfig(private val dockerClient: DockerClient,
 
     fun getRedisPassword(): String {
         return redisPassword
+    }
+
+    fun getContainerName(): String {
+        return containerName
     }
 
     suspend fun reconcile() {

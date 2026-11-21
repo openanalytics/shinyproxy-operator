@@ -48,7 +48,7 @@ import java.util.concurrent.TimeUnit
 
 class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, config: Config) {
 
-    private val containerName = "sp-caddy"
+    private val containerName: String = config.readConfigValue("sp-caddy", "SPO_CADDY_CONTAINER_NAME") { it }
     private val dataDir: Path = mainDataDir.resolve(containerName)
     private val shinyProxies = mutableMapOf<String, Pair<ShinyProxy, ShinyProxyInstance>>()
     private val craneServers = hashMapOf<String, CraneServer>()
@@ -59,6 +59,8 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
     private val fileManager = FileManager()
     private val caddyImage: String = config.readConfigValue("docker.io/library/caddy:2.8", "SPO_CADDY_IMAGE") { it }
     private val enableTls = config.readConfigValue(false, "SPO_CADDY_ENABLE_TLS") { it.toBoolean() }
+    private val caddyPortHttp: Int = config.readConfigValue(80, "SPO_CADDY_PORT_HTTP") { it.toInt() }
+    private val caddyPortHttps: Int = config.readConfigValue(443, "SPO_CADDY_PORT_HTTPS") { it.toInt() }
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(3, TimeUnit.SECONDS)
         .readTimeout(3, TimeUnit.SECONDS)
@@ -75,6 +77,10 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
         yamlMapper.registerModule(JSR353Module()).registerKotlinModule()
         fileManager.createDirectories(dataDir)
         fileManager.createDirectories(dataDir.resolve("certs"))
+    }
+
+    fun getContainerName(): String {
+        return containerName
     }
 
     suspend fun removeRealm(realmId: String) {
@@ -277,7 +283,17 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
             logger.info { "[Caddy] Pulling image" }
             dockerActions.pullImage(caddyImage)
 
+            val portBindings = if (enableTls) {
+                mapOf(
+                    "80" to listOf(PortBinding.of("0.0.0.0", caddyPortHttp.toString())),
+                    "443" to listOf(PortBinding.of("0.0.0.0", caddyPortHttps.toString()))
+                )
+            } else {
+                mapOf("80" to listOf(PortBinding.of("0.0.0.0", caddyPortHttp.toString())))
+            }
+
             val ports = if (enableTls) listOf("80", "443") else listOf("80")
+
             val hostConfig = HostConfig.builder()
                 .networkMode(DockerOrchestrator.SHARED_NETWORK_NAME)
                 .binds(HostConfig.Bind.builder()
@@ -296,7 +312,7 @@ class CaddyConfig(private val dockerClient: DockerClient, mainDataDir: Path, con
                         .from(dataDir.resolve("certs").toString())
                         .to("/certs")
                         .build()
-                ).portBindings(ports.associateWith { listOf(PortBinding.of("0.0.0.0", it)) })
+                ).portBindings(portBindings)
                 .restartPolicy(HostConfig.RestartPolicy.always())
                 .build()
 

@@ -366,6 +366,7 @@
                                 <exclude>.gitignore</exclude>
                                 <exclude>.editorconfig</exclude>
                                 <exclude>JenkinsfileSCM</exclude>
+                                <exclude>.devbox/**</exclude>
                             </excludes>
                         </licenseSet>
                     </licenseSets>
